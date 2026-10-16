@@ -1,0 +1,104 @@
+{
+  "contract": "learn-progress/1",
+  "learner": {
+    "wporg_username": "adaexample"
+  },
+  "generated_at": "2026-10-14T09:12:33Z",
+  "courses": [
+    {
+      "course_id": 297853,
+      "status": "not-started",
+      "enrolled_at": "2026-10-12T15:40:00Z",
+      "completed_at": null,
+      "progress_percent": 0,
+      "lessons": [
+        {
+          "lesson_id": 297901,
+          "status": "not-started",
+          "completed_at": null,
+          "quiz": null
+        },
+        {
+          "lesson_id": 297902,
+          "status": "not-started",
+          "completed_at": null,
+          "quiz": {
+            "quiz_id": 297952,
+            "status": "not-taken",
+            "grade_percent": null,
+            "passmark_percent": 70,
+            "graded_at": null
+          }
+        },
+        {
+          "lesson_id": 297903,
+          "status": "not-started",
+          "completed_at": null,
+          "quiz": {
+            "quiz_id": 297953,
+            "status": "not-taken",
+            "grade_percent": null,
+            "passmark_percent": 70,
+            "graded_at": null
+          }
+        },
+        {
+          "lesson_id": 297904,
+          "status": "not-started",
+          "completed_at": null,
+          "quiz": null
+        },
+        {
+          "lesson_id": 297905,
+          "status": "not-started",
+          "completed_at": null,
+          "quiz": {
+            "quiz_id": 297955,
+            "status": "not-taken",
+            "grade_percent": null,
+            "passmark_percent": 70,
+            "graded_at": null
+          }
+        },
+        {
+          "lesson_id": 297906,
+          "status": "not-started",
+          "completed_at": null,
+          "quiz": {
+            "quiz_id": 297956,
+            "status": "not-taken",
+            "grade_percent": null,
+            "passmark_percent": 70,
+            "graded_at": null
+          }
+        },
+        {
+          "lesson_id": 297907,
+          "status": "not-started",
+          "completed_at": null,
+          "quiz": {
+            "quiz_id": 297957,
+            "status": "not-taken",
+            "grade_percent": null,
+            "passmark_percent": 70,
+            "graded_at": null
+          }
+        },
+        {
+          "lesson_id": 297908,
+          "status": "not-started",
+          "completed_at": null,
+          "quiz": null
+        }
+      ]
+    },
+    {
+      "course_id": 123456,
+      "status": "not-started",
+      "enrolled_at": null,
+      "completed_at": null,
+      "progress_percent": 0,
+      "lessons": []
+    }
+  ]
+}

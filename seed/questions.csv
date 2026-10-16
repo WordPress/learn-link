@@ -1,0 +1,6 @@
+Id,Question,Slug,Status,Type,Grade,Answer
+101,Which license does WordPress use?,ll-q-license,publish,multiple-choice,1,"Right:GPL, Wrong:MIT, Wrong:Proprietary"
+102,Who can contribute to WordPress?,ll-q-who,publish,multiple-choice,1,"Right:Anyone, Wrong:Only Automattic, Wrong:Only core committers"
+103,Meetings in Make WordPress Slack are open to everyone.,ll-q-meetings,publish,boolean,1,1
+104,Paste the link to your first contribution.,ll-q-first-link,publish,single-line,1,A link to a ticket or pull request.
+105,Contributing is only about writing code.,ll-q-code-only,publish,boolean,1,0

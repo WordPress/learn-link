@@ -1,0 +1,12 @@
+Id,Lesson,Slug,Status,Module,Pass Required,Passmark,Auto-grade,Questions,Allow Comments
+11,Welcome to the program,ll-welcome,publish,Onboarding,,,,,0
+12,Open source basics,ll-open-source-basics,publish,Onboarding,1,70,1,"id:101,id:102",0
+13,Meeting etiquette,ll-meeting-etiquette,publish,Onboarding,1,70,1,"id:103",0
+14,Pick a contribution team,ll-pick-a-team,publish,Project,,,,,0
+15,Your first contribution,ll-first-contribution,publish,Project,1,70,0,"id:104",0
+16,Report your hours,ll-report-hours,publish,Project,,,,,0
+17,Reflection,ll-reflection,publish,Wrap-up,1,70,1,"id:105",0
+18,Graduation,ll-graduation,publish,Wrap-up,,,,,0
+21,How decisions are made,ll-f-decisions,publish,,,,,,0
+22,Writing in the WordPress voice,ll-f-voice,publish,,,,,,0
+23,Conflict resolution basics,ll-f-conflict,publish,,,,,,0

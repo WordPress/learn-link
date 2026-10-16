@@ -1,0 +1,3 @@
+Id,Course,Slug,Description,Lessons,Modules,Disable Notifications
+1,Learn Link Test Course,learn-link-test-course,"An invented course for testing Learn Link. Mirrors the shape of the WordPress Credits course: three modules, eight lessons, four quizzes.","id:11,id:12,id:13,id:14,id:15,id:16,id:17,id:18","Onboarding, Project, Wrap-up",1
+2,Learn Link Test Foundations,learn-link-test-foundations,"A second invented course, to test a track course plus a foundational course.","id:21,id:22,id:23",,1
