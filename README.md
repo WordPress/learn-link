@@ -38,7 +38,7 @@ You build two sites on your own computer, both with invented data: a Learn test 
 The commands assume you clone this repository to `~/learn-link`:
 
 ```bash
-git clone git@github.com:maciejpilarski/learn-link.git ~/learn-link
+git clone git@github.com:WordPress/learn-link.git ~/learn-link
 ```
 
 On Windows, run the commands in PowerShell; where a command differs, copy the files with File Explorer instead.
