@@ -2,7 +2,7 @@
 
 Learn Link shows a WordPress Credits student's own course progress from Learn WordPress (learn.wordpress.org) on their Student Report Card on wordpresseducation.org, once the student has approved the connection.
 
-It has two halves, built together in this repository by a student team from Universidad Fidélitas with the WordPress Credits program, October to December 2026:
+It has two halves, built together in this repository by a team of interns from Colegio Universitario de Cartago with the WordPress Credits program, 13 October to 11 December 2026:
 
 - **The Learn half** (`learn/`): a Sensei LMS extension that runs on Learn WordPress. A consent screen where the student approves the connection, and one read-only REST endpoint, `GET /wp-json/learn-progress/v1/me`, that returns only the token holder's own progress for a fixed list of courses. It takes no user parameter, so there is no way to ask it about anyone else.
 - **The Dashboard half** (`dashboard/`): the `WPCPM_Learn_Progress` module for the WPCredits Program Manager plugin. A "Connect your Learn account" button, a client that reads the endpoint and caches the answer, a progress panel in the "My course" section of the Student Report Card, and one progress line per student on the Mentor Report Card.
