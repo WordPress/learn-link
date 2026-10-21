@@ -34,7 +34,7 @@ Branch from `trunk`. Name branches the way WordPress/Learn does: `{type}/{issue 
 
 - One of the WordPress Credits product owners, Maciej Pilarski or Isotta Peira, reviews every pull request. Rita Robles Loaiza, the team's supervisor, may review any of them.
 - Nobody merges their own pull request.
-- The contract changes only through a pull request with the `contract` label that both product owners approve. Once it is frozen in week 2, it changes only by a new version number (`learn-progress-v2.md`), never in place.
+- The contract changes only through a pull request with the `contract` label that both product owners approve. Once it is frozen (by Friday 30 October), it changes only by a new version number (`learn-progress-v2.md`), never in place.
 
 ## Standards
 

@@ -1,11 +1,11 @@
 # Learn Progress contract, version 1
 
-> **DRAFT. Not frozen.** The team reviews this page in weeks 1 and 2, writes a proposed answer to each of the five open review points in section 6, and freezes it by the end of week 2 (30 October 2026) with the approval of the product owners, Maciej Pilarski and Isotta Peira. Until then anything here may change, and neither half should treat it as final. Once frozen, it changes only by a new version (`learn-progress-v2.md`), never in place.
+> **DRAFT. Not frozen.** The team reviews this page in weeks 1 to 3, writes a proposed answer to each of the five open review points in section 6, and freezes it by Friday 30 October 2026, the end of Phase 1, with the approval of the product owners, Maciej Pilarski and Isotta Peira. Until then anything here may change, and neither half should treat it as final. Once frozen, it changes only by a new version (`learn-progress-v2.md`), never in place.
 
 | | |
 | --- | --- |
 | Version in the body | `learn-progress/1` |
-| Status | Draft, to be frozen by the team in week 2 |
+| Status | Draft, to be frozen by the team by Friday 30 October 2026 |
 | Sources | Section 2 of the [Learn Link design spec](https://github.com/WordPress/WPCredits/blob/trunk/Education/WordPress%20Education%20Dashboard/wpcredits-program-manager/docs/specs/2026-09-07-learn-link-design.md) (7 September 2026); the five review points in section 5 of the project handbook, found while testing Sensei LMS 4.26.4 on 16 October 2026 |
 | Example files | Beside this page, listed in section 5 |
 
