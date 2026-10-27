@@ -1,0 +1,1916 @@
+====================================================================
+LEARN LINK - INTEGRATION SUITE: 20 LEARNERS & IMMUTABILITY
+====================================================================
+
+[PASS] learnlink-learner-01 [main] not-started
+[PASS] learnlink-learner-01 [main] enrolled_at null
+[PASS] learnlink-learner-01 [main] lessons empty
+[PASS] learnlink-learner-01 [fnd] not-started
+[PASS] learnlink-learner-01 [fnd] enrolled_at null
+[PASS] learnlink-learner-02 [main] not-started
+[PASS] learnlink-learner-02 [main] enrolled_at null
+[PASS] learnlink-learner-02 [main] lessons empty
+[PASS] learnlink-learner-02 [fnd] not-started
+[PASS] learnlink-learner-02 [fnd] enrolled_at null
+[PASS] learnlink-learner-03 [main] not-started
+[PASS] learnlink-learner-03 [main] enrolled_at null
+[PASS] learnlink-learner-03 [main] lessons empty
+[PASS] learnlink-learner-03 [fnd] not-started
+[PASS] learnlink-learner-03 [fnd] enrolled_at null
+[PASS] learnlink-learner-04 [main] not-started
+[PASS] learnlink-learner-04 [main] enrolled_at set
+[PASS] learnlink-learner-04 [main] 0 percent
+[PASS] learnlink-learner-04 [main] 8 lessons
+[PASS] learnlink-learner-04 [fnd] not enrolled
+[PASS] learnlink-learner-04 [fnd] enrolled_at null
+[PASS] learnlink-learner-05 [main] not-started
+[PASS] learnlink-learner-05 [main] enrolled_at set
+[PASS] learnlink-learner-05 [main] 0 percent
+[PASS] learnlink-learner-05 [main] 8 lessons
+[PASS] learnlink-learner-05 [fnd] not enrolled
+[PASS] learnlink-learner-05 [fnd] enrolled_at null
+[PASS] learnlink-learner-06 [main] not-started
+[PASS] learnlink-learner-06 [main] enrolled_at set
+[PASS] learnlink-learner-06 [main] 0 percent
+[PASS] learnlink-learner-06 [main] 8 lessons
+[PASS] learnlink-learner-06 [fnd] not enrolled
+[PASS] learnlink-learner-06 [fnd] enrolled_at null
+[PASS] learnlink-learner-07 [main] in-progress
+[PASS] learnlink-learner-07 [main] 50 percent
+[PASS] learnlink-learner-07 [fnd] in-progress
+[PASS] learnlink-learner-07 [fnd] 33 percent
+[PASS] learnlink-learner-08 [main] in-progress
+[PASS] learnlink-learner-08 [main] 50 percent
+[PASS] learnlink-learner-08 [fnd] in-progress
+[PASS] learnlink-learner-08 [fnd] 33 percent
+[PASS] learnlink-learner-09 [main] in-progress
+[PASS] learnlink-learner-09 [main] 50 percent
+[PASS] learnlink-learner-09 [fnd] in-progress
+[PASS] learnlink-learner-09 [fnd] 33 percent
+[PASS] learnlink-learner-10 [main] in-progress
+[PASS] learnlink-learner-10 [main] 50 percent
+[PASS] learnlink-learner-10 [fnd] in-progress
+[PASS] learnlink-learner-10 [fnd] 33 percent
+[PASS] learnlink-learner-11 [main] in-progress
+[PASS] learnlink-learner-11 [main] 13 percent
+[PASS] learnlink-learner-11 [main] lesson 2 in-progress
+[PASS] learnlink-learner-11 [main] lesson 2 quiz failed
+[PASS] learnlink-learner-12 [main] in-progress
+[PASS] learnlink-learner-12 [main] 13 percent
+[PASS] learnlink-learner-12 [main] lesson 2 in-progress
+[PASS] learnlink-learner-12 [main] lesson 2 quiz failed
+[PASS] learnlink-learner-13 [main] in-progress
+[PASS] learnlink-learner-13 [main] 13 percent
+[PASS] learnlink-learner-13 [main] lesson 2 in-progress
+[PASS] learnlink-learner-13 [main] lesson 2 quiz failed
+[PASS] learnlink-learner-14 [main] in-progress
+[PASS] learnlink-learner-14 [main] 50 percent
+[PASS] learnlink-learner-14 [main] lesson 5 ungraded
+[PASS] learnlink-learner-15 [main] in-progress
+[PASS] learnlink-learner-15 [main] 50 percent
+[PASS] learnlink-learner-15 [main] lesson 5 ungraded
+[PASS] learnlink-learner-16 [main] in-progress
+[PASS] learnlink-learner-16 [main] 50 percent
+[PASS] learnlink-learner-16 [main] lesson 5 ungraded
+[PASS] learnlink-learner-17 [main] complete
+[PASS] learnlink-learner-17 [main] 100 percent
+[PASS] learnlink-learner-17 [main] completed_at set
+[PASS] learnlink-learner-17 [fnd] complete
+[PASS] learnlink-learner-17 [fnd] 100 percent
+[PASS] learnlink-learner-18 [main] complete
+[PASS] learnlink-learner-18 [main] 100 percent
+[PASS] learnlink-learner-18 [main] completed_at set
+[PASS] learnlink-learner-18 [fnd] complete
+[PASS] learnlink-learner-18 [fnd] 100 percent
+[PASS] learnlink-learner-19 [main] complete
+[PASS] learnlink-learner-19 [main] 100 percent
+[PASS] learnlink-learner-19 [main] completed_at set
+[PASS] learnlink-learner-19 [fnd] complete
+[PASS] learnlink-learner-19 [fnd] 100 percent
+[PASS] learnlink-learner-20 [main] complete
+[PASS] learnlink-learner-20 [main] 100 percent
+[PASS] learnlink-learner-20 [main] completed_at set
+[PASS] learnlink-learner-20 [fnd] complete
+[PASS] learnlink-learner-20 [fnd] 100 percent
+[PASS] Immutability: wp_comments rows unchanged
+[PASS] Immutability: wp_usermeta rows unchanged
+
+ALL PASS (92 checks)
+
+--- JSON OUTPUT OF 20 LEARNERS (FOR PULL REQUEST) ---
+{
+    "learnlink-learner-01": {
+        "learner": "learnlink-learner-01",
+        "courses": [
+            {
+                "course_id": 57,
+                "status": "not-started",
+                "enrolled_at": null,
+                "completed_at": null,
+                "progress_percent": 0,
+                "lessons": []
+            },
+            {
+                "course_id": 59,
+                "status": "not-started",
+                "enrolled_at": null,
+                "completed_at": null,
+                "progress_percent": 0,
+                "lessons": []
+            }
+        ]
+    },
+    "learnlink-learner-02": {
+        "learner": "learnlink-learner-02",
+        "courses": [
+            {
+                "course_id": 57,
+                "status": "not-started",
+                "enrolled_at": null,
+                "completed_at": null,
+                "progress_percent": 0,
+                "lessons": []
+            },
+            {
+                "course_id": 59,
+                "status": "not-started",
+                "enrolled_at": null,
+                "completed_at": null,
+                "progress_percent": 0,
+                "lessons": []
+            }
+        ]
+    },
+    "learnlink-learner-03": {
+        "learner": "learnlink-learner-03",
+        "courses": [
+            {
+                "course_id": 57,
+                "status": "not-started",
+                "enrolled_at": null,
+                "completed_at": null,
+                "progress_percent": 0,
+                "lessons": []
+            },
+            {
+                "course_id": 59,
+                "status": "not-started",
+                "enrolled_at": null,
+                "completed_at": null,
+                "progress_percent": 0,
+                "lessons": []
+            }
+        ]
+    },
+    "learnlink-learner-04": {
+        "learner": "learnlink-learner-04",
+        "courses": [
+            {
+                "course_id": 57,
+                "status": "not-started",
+                "enrolled_at": "2026-10-17T00:09:57Z",
+                "completed_at": null,
+                "progress_percent": 0,
+                "lessons": [
+                    {
+                        "lesson_id": 35,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 37,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": {
+                            "quiz_id": 38,
+                            "status": "not-taken",
+                            "grade_percent": null,
+                            "passmark_percent": null,
+                            "graded_at": null
+                        }
+                    },
+                    {
+                        "lesson_id": 39,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": {
+                            "quiz_id": 40,
+                            "status": "not-taken",
+                            "grade_percent": null,
+                            "passmark_percent": null,
+                            "graded_at": null
+                        }
+                    },
+                    {
+                        "lesson_id": 41,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 43,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": {
+                            "quiz_id": 44,
+                            "status": "not-taken",
+                            "grade_percent": null,
+                            "passmark_percent": null,
+                            "graded_at": null
+                        }
+                    },
+                    {
+                        "lesson_id": 45,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 47,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": {
+                            "quiz_id": 48,
+                            "status": "not-taken",
+                            "grade_percent": null,
+                            "passmark_percent": null,
+                            "graded_at": null
+                        }
+                    },
+                    {
+                        "lesson_id": 49,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": null
+                    }
+                ]
+            },
+            {
+                "course_id": 59,
+                "status": "not-started",
+                "enrolled_at": null,
+                "completed_at": null,
+                "progress_percent": 0,
+                "lessons": []
+            }
+        ]
+    },
+    "learnlink-learner-05": {
+        "learner": "learnlink-learner-05",
+        "courses": [
+            {
+                "course_id": 57,
+                "status": "not-started",
+                "enrolled_at": "2026-10-17T00:09:57Z",
+                "completed_at": null,
+                "progress_percent": 0,
+                "lessons": [
+                    {
+                        "lesson_id": 35,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 37,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": {
+                            "quiz_id": 38,
+                            "status": "not-taken",
+                            "grade_percent": null,
+                            "passmark_percent": null,
+                            "graded_at": null
+                        }
+                    },
+                    {
+                        "lesson_id": 39,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": {
+                            "quiz_id": 40,
+                            "status": "not-taken",
+                            "grade_percent": null,
+                            "passmark_percent": null,
+                            "graded_at": null
+                        }
+                    },
+                    {
+                        "lesson_id": 41,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 43,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": {
+                            "quiz_id": 44,
+                            "status": "not-taken",
+                            "grade_percent": null,
+                            "passmark_percent": null,
+                            "graded_at": null
+                        }
+                    },
+                    {
+                        "lesson_id": 45,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 47,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": {
+                            "quiz_id": 48,
+                            "status": "not-taken",
+                            "grade_percent": null,
+                            "passmark_percent": null,
+                            "graded_at": null
+                        }
+                    },
+                    {
+                        "lesson_id": 49,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": null
+                    }
+                ]
+            },
+            {
+                "course_id": 59,
+                "status": "not-started",
+                "enrolled_at": null,
+                "completed_at": null,
+                "progress_percent": 0,
+                "lessons": []
+            }
+        ]
+    },
+    "learnlink-learner-06": {
+        "learner": "learnlink-learner-06",
+        "courses": [
+            {
+                "course_id": 57,
+                "status": "not-started",
+                "enrolled_at": "2026-10-17T00:09:57Z",
+                "completed_at": null,
+                "progress_percent": 0,
+                "lessons": [
+                    {
+                        "lesson_id": 35,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 37,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": {
+                            "quiz_id": 38,
+                            "status": "not-taken",
+                            "grade_percent": null,
+                            "passmark_percent": null,
+                            "graded_at": null
+                        }
+                    },
+                    {
+                        "lesson_id": 39,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": {
+                            "quiz_id": 40,
+                            "status": "not-taken",
+                            "grade_percent": null,
+                            "passmark_percent": null,
+                            "graded_at": null
+                        }
+                    },
+                    {
+                        "lesson_id": 41,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 43,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": {
+                            "quiz_id": 44,
+                            "status": "not-taken",
+                            "grade_percent": null,
+                            "passmark_percent": null,
+                            "graded_at": null
+                        }
+                    },
+                    {
+                        "lesson_id": 45,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 47,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": {
+                            "quiz_id": 48,
+                            "status": "not-taken",
+                            "grade_percent": null,
+                            "passmark_percent": null,
+                            "graded_at": null
+                        }
+                    },
+                    {
+                        "lesson_id": 49,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": null
+                    }
+                ]
+            },
+            {
+                "course_id": 59,
+                "status": "not-started",
+                "enrolled_at": null,
+                "completed_at": null,
+                "progress_percent": 0,
+                "lessons": []
+            }
+        ]
+    },
+    "learnlink-learner-07": {
+        "learner": "learnlink-learner-07",
+        "courses": [
+            {
+                "course_id": 57,
+                "status": "in-progress",
+                "enrolled_at": "2026-10-17T00:09:24Z",
+                "completed_at": null,
+                "progress_percent": 50,
+                "lessons": [
+                    {
+                        "lesson_id": 35,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:24Z",
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 37,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:24Z",
+                        "quiz": {
+                            "quiz_id": 38,
+                            "status": "passed",
+                            "grade_percent": 100,
+                            "passmark_percent": 70,
+                            "graded_at": "2026-10-17T00:09:24Z"
+                        }
+                    },
+                    {
+                        "lesson_id": 39,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:25Z",
+                        "quiz": {
+                            "quiz_id": 40,
+                            "status": "passed",
+                            "grade_percent": 100,
+                            "passmark_percent": 70,
+                            "graded_at": "2026-10-17T00:09:25Z"
+                        }
+                    },
+                    {
+                        "lesson_id": 41,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:25Z",
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 43,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": {
+                            "quiz_id": 44,
+                            "status": "not-taken",
+                            "grade_percent": null,
+                            "passmark_percent": null,
+                            "graded_at": null
+                        }
+                    },
+                    {
+                        "lesson_id": 45,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 47,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": {
+                            "quiz_id": 48,
+                            "status": "not-taken",
+                            "grade_percent": null,
+                            "passmark_percent": null,
+                            "graded_at": null
+                        }
+                    },
+                    {
+                        "lesson_id": 49,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": null
+                    }
+                ]
+            },
+            {
+                "course_id": 59,
+                "status": "in-progress",
+                "enrolled_at": "2026-10-17T00:09:25Z",
+                "completed_at": null,
+                "progress_percent": 33,
+                "lessons": [
+                    {
+                        "lesson_id": 51,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:25Z",
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 53,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 55,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": null
+                    }
+                ]
+            }
+        ]
+    },
+    "learnlink-learner-08": {
+        "learner": "learnlink-learner-08",
+        "courses": [
+            {
+                "course_id": 57,
+                "status": "in-progress",
+                "enrolled_at": "2026-10-17T00:09:26Z",
+                "completed_at": null,
+                "progress_percent": 50,
+                "lessons": [
+                    {
+                        "lesson_id": 35,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:26Z",
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 37,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:26Z",
+                        "quiz": {
+                            "quiz_id": 38,
+                            "status": "passed",
+                            "grade_percent": 100,
+                            "passmark_percent": 70,
+                            "graded_at": "2026-10-17T00:09:26Z"
+                        }
+                    },
+                    {
+                        "lesson_id": 39,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:27Z",
+                        "quiz": {
+                            "quiz_id": 40,
+                            "status": "passed",
+                            "grade_percent": 100,
+                            "passmark_percent": 70,
+                            "graded_at": "2026-10-17T00:09:27Z"
+                        }
+                    },
+                    {
+                        "lesson_id": 41,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:27Z",
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 43,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": {
+                            "quiz_id": 44,
+                            "status": "not-taken",
+                            "grade_percent": null,
+                            "passmark_percent": null,
+                            "graded_at": null
+                        }
+                    },
+                    {
+                        "lesson_id": 45,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 47,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": {
+                            "quiz_id": 48,
+                            "status": "not-taken",
+                            "grade_percent": null,
+                            "passmark_percent": null,
+                            "graded_at": null
+                        }
+                    },
+                    {
+                        "lesson_id": 49,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": null
+                    }
+                ]
+            },
+            {
+                "course_id": 59,
+                "status": "in-progress",
+                "enrolled_at": "2026-10-17T00:09:27Z",
+                "completed_at": null,
+                "progress_percent": 33,
+                "lessons": [
+                    {
+                        "lesson_id": 51,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:27Z",
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 53,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 55,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": null
+                    }
+                ]
+            }
+        ]
+    },
+    "learnlink-learner-09": {
+        "learner": "learnlink-learner-09",
+        "courses": [
+            {
+                "course_id": 57,
+                "status": "in-progress",
+                "enrolled_at": "2026-10-17T00:09:28Z",
+                "completed_at": null,
+                "progress_percent": 50,
+                "lessons": [
+                    {
+                        "lesson_id": 35,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:28Z",
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 37,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:28Z",
+                        "quiz": {
+                            "quiz_id": 38,
+                            "status": "passed",
+                            "grade_percent": 100,
+                            "passmark_percent": 70,
+                            "graded_at": "2026-10-17T00:09:28Z"
+                        }
+                    },
+                    {
+                        "lesson_id": 39,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:29Z",
+                        "quiz": {
+                            "quiz_id": 40,
+                            "status": "passed",
+                            "grade_percent": 100,
+                            "passmark_percent": 70,
+                            "graded_at": "2026-10-17T00:09:29Z"
+                        }
+                    },
+                    {
+                        "lesson_id": 41,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:29Z",
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 43,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": {
+                            "quiz_id": 44,
+                            "status": "not-taken",
+                            "grade_percent": null,
+                            "passmark_percent": null,
+                            "graded_at": null
+                        }
+                    },
+                    {
+                        "lesson_id": 45,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 47,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": {
+                            "quiz_id": 48,
+                            "status": "not-taken",
+                            "grade_percent": null,
+                            "passmark_percent": null,
+                            "graded_at": null
+                        }
+                    },
+                    {
+                        "lesson_id": 49,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": null
+                    }
+                ]
+            },
+            {
+                "course_id": 59,
+                "status": "in-progress",
+                "enrolled_at": "2026-10-17T00:09:29Z",
+                "completed_at": null,
+                "progress_percent": 33,
+                "lessons": [
+                    {
+                        "lesson_id": 51,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:29Z",
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 53,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 55,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": null
+                    }
+                ]
+            }
+        ]
+    },
+    "learnlink-learner-10": {
+        "learner": "learnlink-learner-10",
+        "courses": [
+            {
+                "course_id": 57,
+                "status": "in-progress",
+                "enrolled_at": "2026-10-17T00:09:30Z",
+                "completed_at": null,
+                "progress_percent": 50,
+                "lessons": [
+                    {
+                        "lesson_id": 35,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:30Z",
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 37,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:30Z",
+                        "quiz": {
+                            "quiz_id": 38,
+                            "status": "passed",
+                            "grade_percent": 100,
+                            "passmark_percent": 70,
+                            "graded_at": "2026-10-17T00:09:30Z"
+                        }
+                    },
+                    {
+                        "lesson_id": 39,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:31Z",
+                        "quiz": {
+                            "quiz_id": 40,
+                            "status": "passed",
+                            "grade_percent": 100,
+                            "passmark_percent": 70,
+                            "graded_at": "2026-10-17T00:09:31Z"
+                        }
+                    },
+                    {
+                        "lesson_id": 41,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:31Z",
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 43,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": {
+                            "quiz_id": 44,
+                            "status": "not-taken",
+                            "grade_percent": null,
+                            "passmark_percent": null,
+                            "graded_at": null
+                        }
+                    },
+                    {
+                        "lesson_id": 45,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 47,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": {
+                            "quiz_id": 48,
+                            "status": "not-taken",
+                            "grade_percent": null,
+                            "passmark_percent": null,
+                            "graded_at": null
+                        }
+                    },
+                    {
+                        "lesson_id": 49,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": null
+                    }
+                ]
+            },
+            {
+                "course_id": 59,
+                "status": "in-progress",
+                "enrolled_at": "2026-10-17T00:09:31Z",
+                "completed_at": null,
+                "progress_percent": 33,
+                "lessons": [
+                    {
+                        "lesson_id": 51,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:31Z",
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 53,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 55,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": null
+                    }
+                ]
+            }
+        ]
+    },
+    "learnlink-learner-11": {
+        "learner": "learnlink-learner-11",
+        "courses": [
+            {
+                "course_id": 57,
+                "status": "in-progress",
+                "enrolled_at": "2026-10-17T00:09:32Z",
+                "completed_at": null,
+                "progress_percent": 13,
+                "lessons": [
+                    {
+                        "lesson_id": 35,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:32Z",
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 37,
+                        "status": "in-progress",
+                        "completed_at": null,
+                        "quiz": {
+                            "quiz_id": 38,
+                            "status": "failed",
+                            "grade_percent": 0,
+                            "passmark_percent": 70,
+                            "graded_at": "2026-10-17T00:09:32Z"
+                        }
+                    },
+                    {
+                        "lesson_id": 39,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": {
+                            "quiz_id": 40,
+                            "status": "not-taken",
+                            "grade_percent": null,
+                            "passmark_percent": null,
+                            "graded_at": null
+                        }
+                    },
+                    {
+                        "lesson_id": 41,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 43,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": {
+                            "quiz_id": 44,
+                            "status": "not-taken",
+                            "grade_percent": null,
+                            "passmark_percent": null,
+                            "graded_at": null
+                        }
+                    },
+                    {
+                        "lesson_id": 45,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 47,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": {
+                            "quiz_id": 48,
+                            "status": "not-taken",
+                            "grade_percent": null,
+                            "passmark_percent": null,
+                            "graded_at": null
+                        }
+                    },
+                    {
+                        "lesson_id": 49,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": null
+                    }
+                ]
+            },
+            {
+                "course_id": 59,
+                "status": "not-started",
+                "enrolled_at": null,
+                "completed_at": null,
+                "progress_percent": 0,
+                "lessons": []
+            }
+        ]
+    },
+    "learnlink-learner-12": {
+        "learner": "learnlink-learner-12",
+        "courses": [
+            {
+                "course_id": 57,
+                "status": "in-progress",
+                "enrolled_at": "2026-10-17T00:09:33Z",
+                "completed_at": null,
+                "progress_percent": 13,
+                "lessons": [
+                    {
+                        "lesson_id": 35,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:33Z",
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 37,
+                        "status": "in-progress",
+                        "completed_at": null,
+                        "quiz": {
+                            "quiz_id": 38,
+                            "status": "failed",
+                            "grade_percent": 0,
+                            "passmark_percent": 70,
+                            "graded_at": "2026-10-17T00:09:33Z"
+                        }
+                    },
+                    {
+                        "lesson_id": 39,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": {
+                            "quiz_id": 40,
+                            "status": "not-taken",
+                            "grade_percent": null,
+                            "passmark_percent": null,
+                            "graded_at": null
+                        }
+                    },
+                    {
+                        "lesson_id": 41,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 43,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": {
+                            "quiz_id": 44,
+                            "status": "not-taken",
+                            "grade_percent": null,
+                            "passmark_percent": null,
+                            "graded_at": null
+                        }
+                    },
+                    {
+                        "lesson_id": 45,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 47,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": {
+                            "quiz_id": 48,
+                            "status": "not-taken",
+                            "grade_percent": null,
+                            "passmark_percent": null,
+                            "graded_at": null
+                        }
+                    },
+                    {
+                        "lesson_id": 49,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": null
+                    }
+                ]
+            },
+            {
+                "course_id": 59,
+                "status": "not-started",
+                "enrolled_at": null,
+                "completed_at": null,
+                "progress_percent": 0,
+                "lessons": []
+            }
+        ]
+    },
+    "learnlink-learner-13": {
+        "learner": "learnlink-learner-13",
+        "courses": [
+            {
+                "course_id": 57,
+                "status": "in-progress",
+                "enrolled_at": "2026-10-17T00:09:34Z",
+                "completed_at": null,
+                "progress_percent": 13,
+                "lessons": [
+                    {
+                        "lesson_id": 35,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:34Z",
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 37,
+                        "status": "in-progress",
+                        "completed_at": null,
+                        "quiz": {
+                            "quiz_id": 38,
+                            "status": "failed",
+                            "grade_percent": 0,
+                            "passmark_percent": 70,
+                            "graded_at": "2026-10-17T00:09:34Z"
+                        }
+                    },
+                    {
+                        "lesson_id": 39,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": {
+                            "quiz_id": 40,
+                            "status": "not-taken",
+                            "grade_percent": null,
+                            "passmark_percent": null,
+                            "graded_at": null
+                        }
+                    },
+                    {
+                        "lesson_id": 41,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 43,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": {
+                            "quiz_id": 44,
+                            "status": "not-taken",
+                            "grade_percent": null,
+                            "passmark_percent": null,
+                            "graded_at": null
+                        }
+                    },
+                    {
+                        "lesson_id": 45,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 47,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": {
+                            "quiz_id": 48,
+                            "status": "not-taken",
+                            "grade_percent": null,
+                            "passmark_percent": null,
+                            "graded_at": null
+                        }
+                    },
+                    {
+                        "lesson_id": 49,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": null
+                    }
+                ]
+            },
+            {
+                "course_id": 59,
+                "status": "not-started",
+                "enrolled_at": null,
+                "completed_at": null,
+                "progress_percent": 0,
+                "lessons": []
+            }
+        ]
+    },
+    "learnlink-learner-14": {
+        "learner": "learnlink-learner-14",
+        "courses": [
+            {
+                "course_id": 57,
+                "status": "in-progress",
+                "enrolled_at": "2026-10-17T00:09:35Z",
+                "completed_at": null,
+                "progress_percent": 50,
+                "lessons": [
+                    {
+                        "lesson_id": 35,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:35Z",
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 37,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:35Z",
+                        "quiz": {
+                            "quiz_id": 38,
+                            "status": "passed",
+                            "grade_percent": 100,
+                            "passmark_percent": 70,
+                            "graded_at": "2026-10-17T00:09:35Z"
+                        }
+                    },
+                    {
+                        "lesson_id": 39,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:36Z",
+                        "quiz": {
+                            "quiz_id": 40,
+                            "status": "passed",
+                            "grade_percent": 100,
+                            "passmark_percent": 70,
+                            "graded_at": "2026-10-17T00:09:36Z"
+                        }
+                    },
+                    {
+                        "lesson_id": 41,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:36Z",
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 43,
+                        "status": "ungraded",
+                        "completed_at": null,
+                        "quiz": {
+                            "quiz_id": 44,
+                            "status": "ungraded",
+                            "grade_percent": null,
+                            "passmark_percent": null,
+                            "graded_at": null
+                        }
+                    },
+                    {
+                        "lesson_id": 45,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 47,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": {
+                            "quiz_id": 48,
+                            "status": "not-taken",
+                            "grade_percent": null,
+                            "passmark_percent": null,
+                            "graded_at": null
+                        }
+                    },
+                    {
+                        "lesson_id": 49,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": null
+                    }
+                ]
+            },
+            {
+                "course_id": 59,
+                "status": "not-started",
+                "enrolled_at": null,
+                "completed_at": null,
+                "progress_percent": 0,
+                "lessons": []
+            }
+        ]
+    },
+    "learnlink-learner-15": {
+        "learner": "learnlink-learner-15",
+        "courses": [
+            {
+                "course_id": 57,
+                "status": "in-progress",
+                "enrolled_at": "2026-10-17T00:09:36Z",
+                "completed_at": null,
+                "progress_percent": 50,
+                "lessons": [
+                    {
+                        "lesson_id": 35,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:37Z",
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 37,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:37Z",
+                        "quiz": {
+                            "quiz_id": 38,
+                            "status": "passed",
+                            "grade_percent": 100,
+                            "passmark_percent": 70,
+                            "graded_at": "2026-10-17T00:09:37Z"
+                        }
+                    },
+                    {
+                        "lesson_id": 39,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:37Z",
+                        "quiz": {
+                            "quiz_id": 40,
+                            "status": "passed",
+                            "grade_percent": 100,
+                            "passmark_percent": 70,
+                            "graded_at": "2026-10-17T00:09:37Z"
+                        }
+                    },
+                    {
+                        "lesson_id": 41,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:38Z",
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 43,
+                        "status": "ungraded",
+                        "completed_at": null,
+                        "quiz": {
+                            "quiz_id": 44,
+                            "status": "ungraded",
+                            "grade_percent": null,
+                            "passmark_percent": null,
+                            "graded_at": null
+                        }
+                    },
+                    {
+                        "lesson_id": 45,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 47,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": {
+                            "quiz_id": 48,
+                            "status": "not-taken",
+                            "grade_percent": null,
+                            "passmark_percent": null,
+                            "graded_at": null
+                        }
+                    },
+                    {
+                        "lesson_id": 49,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": null
+                    }
+                ]
+            },
+            {
+                "course_id": 59,
+                "status": "not-started",
+                "enrolled_at": null,
+                "completed_at": null,
+                "progress_percent": 0,
+                "lessons": []
+            }
+        ]
+    },
+    "learnlink-learner-16": {
+        "learner": "learnlink-learner-16",
+        "courses": [
+            {
+                "course_id": 57,
+                "status": "in-progress",
+                "enrolled_at": "2026-10-17T00:09:38Z",
+                "completed_at": null,
+                "progress_percent": 50,
+                "lessons": [
+                    {
+                        "lesson_id": 35,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:38Z",
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 37,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:39Z",
+                        "quiz": {
+                            "quiz_id": 38,
+                            "status": "passed",
+                            "grade_percent": 100,
+                            "passmark_percent": 70,
+                            "graded_at": "2026-10-17T00:09:39Z"
+                        }
+                    },
+                    {
+                        "lesson_id": 39,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:39Z",
+                        "quiz": {
+                            "quiz_id": 40,
+                            "status": "passed",
+                            "grade_percent": 100,
+                            "passmark_percent": 70,
+                            "graded_at": "2026-10-17T00:09:39Z"
+                        }
+                    },
+                    {
+                        "lesson_id": 41,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:39Z",
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 43,
+                        "status": "ungraded",
+                        "completed_at": null,
+                        "quiz": {
+                            "quiz_id": 44,
+                            "status": "ungraded",
+                            "grade_percent": null,
+                            "passmark_percent": null,
+                            "graded_at": null
+                        }
+                    },
+                    {
+                        "lesson_id": 45,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 47,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": {
+                            "quiz_id": 48,
+                            "status": "not-taken",
+                            "grade_percent": null,
+                            "passmark_percent": null,
+                            "graded_at": null
+                        }
+                    },
+                    {
+                        "lesson_id": 49,
+                        "status": "not-started",
+                        "completed_at": null,
+                        "quiz": null
+                    }
+                ]
+            },
+            {
+                "course_id": 59,
+                "status": "not-started",
+                "enrolled_at": null,
+                "completed_at": null,
+                "progress_percent": 0,
+                "lessons": []
+            }
+        ]
+    },
+    "learnlink-learner-17": {
+        "learner": "learnlink-learner-17",
+        "courses": [
+            {
+                "course_id": 57,
+                "status": "complete",
+                "enrolled_at": "2026-10-17T00:09:40Z",
+                "completed_at": "2026-10-17T00:09:43Z",
+                "progress_percent": 100,
+                "lessons": [
+                    {
+                        "lesson_id": 35,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:40Z",
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 37,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:41Z",
+                        "quiz": {
+                            "quiz_id": 38,
+                            "status": "passed",
+                            "grade_percent": 100,
+                            "passmark_percent": 70,
+                            "graded_at": "2026-10-17T00:09:41Z"
+                        }
+                    },
+                    {
+                        "lesson_id": 39,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:41Z",
+                        "quiz": {
+                            "quiz_id": 40,
+                            "status": "passed",
+                            "grade_percent": 100,
+                            "passmark_percent": 70,
+                            "graded_at": "2026-10-17T00:09:41Z"
+                        }
+                    },
+                    {
+                        "lesson_id": 41,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:41Z",
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 43,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:42Z",
+                        "quiz": {
+                            "quiz_id": 44,
+                            "status": "passed",
+                            "grade_percent": 90,
+                            "passmark_percent": 70,
+                            "graded_at": "2026-10-17T00:09:42Z"
+                        }
+                    },
+                    {
+                        "lesson_id": 45,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:42Z",
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 47,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:43Z",
+                        "quiz": {
+                            "quiz_id": 48,
+                            "status": "passed",
+                            "grade_percent": 100,
+                            "passmark_percent": 70,
+                            "graded_at": "2026-10-17T00:09:43Z"
+                        }
+                    },
+                    {
+                        "lesson_id": 49,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:43Z",
+                        "quiz": null
+                    }
+                ]
+            },
+            {
+                "course_id": 59,
+                "status": "complete",
+                "enrolled_at": "2026-10-17T00:09:43Z",
+                "completed_at": "2026-10-17T00:09:44Z",
+                "progress_percent": 100,
+                "lessons": [
+                    {
+                        "lesson_id": 51,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:43Z",
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 53,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:43Z",
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 55,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:44Z",
+                        "quiz": null
+                    }
+                ]
+            }
+        ]
+    },
+    "learnlink-learner-18": {
+        "learner": "learnlink-learner-18",
+        "courses": [
+            {
+                "course_id": 57,
+                "status": "complete",
+                "enrolled_at": "2026-10-17T00:09:44Z",
+                "completed_at": "2026-10-17T00:09:47Z",
+                "progress_percent": 100,
+                "lessons": [
+                    {
+                        "lesson_id": 35,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:45Z",
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 37,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:45Z",
+                        "quiz": {
+                            "quiz_id": 38,
+                            "status": "passed",
+                            "grade_percent": 100,
+                            "passmark_percent": 70,
+                            "graded_at": "2026-10-17T00:09:45Z"
+                        }
+                    },
+                    {
+                        "lesson_id": 39,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:45Z",
+                        "quiz": {
+                            "quiz_id": 40,
+                            "status": "passed",
+                            "grade_percent": 100,
+                            "passmark_percent": 70,
+                            "graded_at": "2026-10-17T00:09:45Z"
+                        }
+                    },
+                    {
+                        "lesson_id": 41,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:46Z",
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 43,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:46Z",
+                        "quiz": {
+                            "quiz_id": 44,
+                            "status": "passed",
+                            "grade_percent": 90,
+                            "passmark_percent": 70,
+                            "graded_at": "2026-10-17T00:09:46Z"
+                        }
+                    },
+                    {
+                        "lesson_id": 45,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:46Z",
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 47,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:47Z",
+                        "quiz": {
+                            "quiz_id": 48,
+                            "status": "passed",
+                            "grade_percent": 100,
+                            "passmark_percent": 70,
+                            "graded_at": "2026-10-17T00:09:47Z"
+                        }
+                    },
+                    {
+                        "lesson_id": 49,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:47Z",
+                        "quiz": null
+                    }
+                ]
+            },
+            {
+                "course_id": 59,
+                "status": "complete",
+                "enrolled_at": "2026-10-17T00:09:48Z",
+                "completed_at": "2026-10-17T00:09:48Z",
+                "progress_percent": 100,
+                "lessons": [
+                    {
+                        "lesson_id": 51,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:48Z",
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 53,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:48Z",
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 55,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:48Z",
+                        "quiz": null
+                    }
+                ]
+            }
+        ]
+    },
+    "learnlink-learner-19": {
+        "learner": "learnlink-learner-19",
+        "courses": [
+            {
+                "course_id": 57,
+                "status": "complete",
+                "enrolled_at": "2026-10-17T00:09:49Z",
+                "completed_at": "2026-10-17T00:09:51Z",
+                "progress_percent": 100,
+                "lessons": [
+                    {
+                        "lesson_id": 35,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:49Z",
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 37,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:49Z",
+                        "quiz": {
+                            "quiz_id": 38,
+                            "status": "passed",
+                            "grade_percent": 100,
+                            "passmark_percent": 70,
+                            "graded_at": "2026-10-17T00:09:49Z"
+                        }
+                    },
+                    {
+                        "lesson_id": 39,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:50Z",
+                        "quiz": {
+                            "quiz_id": 40,
+                            "status": "passed",
+                            "grade_percent": 100,
+                            "passmark_percent": 70,
+                            "graded_at": "2026-10-17T00:09:50Z"
+                        }
+                    },
+                    {
+                        "lesson_id": 41,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:50Z",
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 43,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:51Z",
+                        "quiz": {
+                            "quiz_id": 44,
+                            "status": "passed",
+                            "grade_percent": 90,
+                            "passmark_percent": 70,
+                            "graded_at": "2026-10-17T00:09:51Z"
+                        }
+                    },
+                    {
+                        "lesson_id": 45,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:51Z",
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 47,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:51Z",
+                        "quiz": {
+                            "quiz_id": 48,
+                            "status": "passed",
+                            "grade_percent": 100,
+                            "passmark_percent": 70,
+                            "graded_at": "2026-10-17T00:09:51Z"
+                        }
+                    },
+                    {
+                        "lesson_id": 49,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:51Z",
+                        "quiz": null
+                    }
+                ]
+            },
+            {
+                "course_id": 59,
+                "status": "complete",
+                "enrolled_at": "2026-10-17T00:09:52Z",
+                "completed_at": "2026-10-17T00:09:52Z",
+                "progress_percent": 100,
+                "lessons": [
+                    {
+                        "lesson_id": 51,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:52Z",
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 53,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:52Z",
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 55,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:52Z",
+                        "quiz": null
+                    }
+                ]
+            }
+        ]
+    },
+    "learnlink-learner-20": {
+        "learner": "learnlink-learner-20",
+        "courses": [
+            {
+                "course_id": 57,
+                "status": "complete",
+                "enrolled_at": "2026-10-17T00:09:53Z",
+                "completed_at": "2026-10-17T00:09:55Z",
+                "progress_percent": 100,
+                "lessons": [
+                    {
+                        "lesson_id": 35,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:53Z",
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 37,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:53Z",
+                        "quiz": {
+                            "quiz_id": 38,
+                            "status": "passed",
+                            "grade_percent": 100,
+                            "passmark_percent": 70,
+                            "graded_at": "2026-10-17T00:09:53Z"
+                        }
+                    },
+                    {
+                        "lesson_id": 39,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:54Z",
+                        "quiz": {
+                            "quiz_id": 40,
+                            "status": "passed",
+                            "grade_percent": 100,
+                            "passmark_percent": 70,
+                            "graded_at": "2026-10-17T00:09:54Z"
+                        }
+                    },
+                    {
+                        "lesson_id": 41,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:54Z",
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 43,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:55Z",
+                        "quiz": {
+                            "quiz_id": 44,
+                            "status": "passed",
+                            "grade_percent": 90,
+                            "passmark_percent": 70,
+                            "graded_at": "2026-10-17T00:09:55Z"
+                        }
+                    },
+                    {
+                        "lesson_id": 45,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:55Z",
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 47,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:55Z",
+                        "quiz": {
+                            "quiz_id": 48,
+                            "status": "passed",
+                            "grade_percent": 100,
+                            "passmark_percent": 70,
+                            "graded_at": "2026-10-17T00:09:55Z"
+                        }
+                    },
+                    {
+                        "lesson_id": 49,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:55Z",
+                        "quiz": null
+                    }
+                ]
+            },
+            {
+                "course_id": 59,
+                "status": "complete",
+                "enrolled_at": "2026-10-17T00:09:56Z",
+                "completed_at": "2026-10-17T00:09:56Z",
+                "progress_percent": 100,
+                "lessons": [
+                    {
+                        "lesson_id": 51,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:56Z",
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 53,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:56Z",
+                        "quiz": null
+                    },
+                    {
+                        "lesson_id": 55,
+                        "status": "complete",
+                        "completed_at": "2026-10-17T00:09:56Z",
+                        "quiz": null
+                    }
+                ]
+            }
+        ]
+    }
+}
+--- END JSON OUTPUT ---
