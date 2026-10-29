@@ -1,0 +1,7 @@
+{
+  "code": "learn_progress_revoked",
+  "message": "This connection was withdrawn.",
+  "data": {
+    "status": 403
+  }
+}

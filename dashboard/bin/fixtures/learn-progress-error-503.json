@@ -1,0 +1,7 @@
+{
+  "code": "learn_progress_unavailable",
+  "message": "Learn cannot read course progress right now.",
+  "data": {
+    "status": 503
+  }
+}
