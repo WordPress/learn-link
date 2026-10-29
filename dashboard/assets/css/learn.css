@@ -1,0 +1,90 @@
+/**
+ * Learn progress on the Student Report Card.
+ *
+ * The Student and Mentor Report Card styles provide the color, border and
+ * radius tokens. Keeping colors out of this file lets the active theme retain
+ * control of contrast and dark-mode choices.
+ */
+
+.wpcpm-learn {
+	border-top: 1px solid var( --wpcpm-border );
+	margin-top: 1.25em;
+	padding-top: 1.25em;
+}
+
+.wpcpm-learn__title {
+	font-size: 1em;
+	margin: 0 0 1em;
+}
+
+.wpcpm-learn__connect,
+.wpcpm-learn__footer,
+.wpcpm-learn__updated {
+	margin-bottom: 0;
+}
+
+.wpcpm-learn__course {
+	border: 1px solid var( --wpcpm-border );
+	border-radius: var( --wpcpm-radius );
+	margin: 0 0 1em;
+	padding: 1em;
+}
+
+.wpcpm-learn__course:last-of-type {
+	margin-bottom: 0;
+}
+
+.wpcpm-learn__course h5 {
+	font-size: 1em;
+	margin: 0 0 0.75em;
+}
+
+.wpcpm-learn__bar {
+	accent-color: currentColor;
+	display: block;
+	height: 1em;
+	width: 100%;
+}
+
+.wpcpm-learn__table {
+	border-collapse: collapse;
+	margin-top: 1em;
+	width: 100%;
+}
+
+.wpcpm-learn__table th,
+.wpcpm-learn__table td {
+	border-bottom: 1px solid var( --wpcpm-border );
+	padding: 0.55em 0.75em 0.55em 0;
+	text-align: left;
+	vertical-align: top;
+}
+
+.wpcpm-learn__table th {
+	font-weight: 600;
+}
+
+.wpcpm-learn__table tbody tr:last-child th,
+.wpcpm-learn__table tbody tr:last-child td {
+	border-bottom: 0;
+}
+
+.wpcpm-learn__table td {
+	overflow-wrap: anywhere;
+}
+
+.wpcpm-learn__footer,
+.wpcpm-learn__updated {
+	font-size: 0.875em;
+	opacity: 0.72;
+}
+
+@media ( max-width: 600px ) {
+	.wpcpm-learn__course {
+		overflow-x: auto;
+	}
+
+	.wpcpm-learn__table {
+		min-width: 34em;
+	}
+}

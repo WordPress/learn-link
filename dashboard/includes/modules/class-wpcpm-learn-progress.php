@@ -71,6 +71,50 @@ class WPCPM_Learn_Progress {
 	}
 
 	/**
+	 * Render the Learn panel from the Phase 1 example file.
+	 *
+	 * The local constant is an explicit safety gate: reviewed plugin code never
+	 * shows invented progress unless a developer opted into that fixture in the
+	 * local site's wp-config.php. Phase 2 replaces this branch with cached data.
+	 *
+	 * @param WP_User $student Student whose Report Card is being rendered.
+	 * @return string
+	 */
+	public static function panel( WP_User $student ) {
+		if ( ! self::enabled() || ! defined( 'WPCPM_LEARN_FIXTURE' ) || ! WPCPM_LEARN_FIXTURE ) {
+			return '';
+		}
+
+		if ( ! class_exists( 'WPCPM_Learn_Client' ) || ! class_exists( 'WPCPM_Learn_Progress_Card' ) ) {
+			return '';
+		}
+
+		$fixture = is_string( WPCPM_LEARN_FIXTURE ) && '' !== WPCPM_LEARN_FIXTURE
+			? WPCPM_LEARN_FIXTURE
+			: WPCPM_PLUGIN_DIR . 'bin/fixtures/learn-progress-in-progress.json';
+		$body    = is_readable( $fixture ) ? json_decode( (string) file_get_contents( $fixture ), true ) : null;
+
+		if ( ! is_array( $body ) ) {
+			return '';
+		}
+
+		$data = WPCPM_Learn_Client::parse( $body );
+
+		if ( is_wp_error( $data ) ) {
+			return '';
+		}
+
+		return WPCPM_Learn_Progress_Card::render(
+			'in_progress',
+			$data,
+			array(),
+			array(
+				'is_owner' => get_current_user_id() === (int) $student->ID,
+			)
+		);
+	}
+
+	/**
 	 * Start a connection.
 	 */
 	public static function handle_connect() {
