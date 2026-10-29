@@ -1,10 +1,10 @@
 # The Dashboard half
 
-The `WPCPM_Learn_Progress` module for the WPCredits Program Manager plugin, which runs the Dashboard on wordpresseducation.org. Nothing is built here yet: this folder starts empty in week 1.
+The `WPCPM_Learn_Progress` module for the WPCredits Program Manager plugin, which runs the Dashboard on wordpresseducation.org. This folder began empty in week 1 and now contains the Phase 1 parser, module skeleton, progress card, styles, contract fixtures and isolated suites.
 
 New files go here **in the same paths they will have in the plugin**, so that copying this folder over the plugin puts each file where it belongs. Changes to files that already exist in the plugin are not copied: they are listed in [INTEGRATION.md](INTEGRATION.md), and Maciej brings them into the plugin with each reviewed piece of work. Never open pull requests against WordPress/WPCredits for this work; that folder is a mirror that each plugin release overwrites.
 
-## Planned files
+## Module files
 
 From section 4.1 of the design spec, with the corrections in section 8.4 of the technical guide:
 
