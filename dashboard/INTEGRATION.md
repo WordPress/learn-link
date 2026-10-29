@@ -35,10 +35,64 @@ From section 8.4 of the technical guide. Follow the code, not the spec, on each 
 
 | Block | Existing plugin file | Edit | Owner | Task |
 | --- | --- | --- | --- | --- |
-| #1a | `wpcredits-program-manager.php` | Load `includes/modules/class-wpcpm-learn-progress.php` with `require_once` after the existing Learn and secret classes have been loaded. This block is also reserved for the Learn client and progress card when those files are added. | Pedro | P1.1 |
+| #1a | `wpcredits-program-manager.php` | Load `class-wpcpm-learn-client.php`, `class-wpcpm-learn-progress-card.php` and `class-wpcpm-learn-progress.php` after the existing Learn and secret classes. | Pedro | P1.1/P1.3 |
 | #2 | `includes/modules/class-wpcpm-students.php`, `WPCPM_Students::boot()` | Call `WPCPM_Learn_Progress::init()` after `WPCPM_Students_Dashboard::init()`. | Pedro | P1.1 |
 | #3 | `includes/class-wpcpm-settings.php` | Add the five Learn Link keys to `defaults()`, the `advanced` scope and `write()`, including validation for each value. | Pedro | P1.1 |
 | #4 | `includes/class-wpcpm-settings-screen.php`, `WPCPM_Settings_Screen::render_tab_advanced()` | Add the Learn Link section and its five settings controls. | Pedro | P1.1 |
+| #5 | `includes/modules/class-wpcpm-students-dashboard.php`, `render_links()` | Render `WPCPM_Learn_Progress::panel( $student )` below the course button and hours inside the My course section. | Pedro | P1.3 |
+| #6 | `includes/modules/class-wpcpm-students-dashboard.php`, `register()` and `render()` | Register `assets/css/learn.css` after `student.css`, then enqueue it with the Student Report Card. | Pedro | P1.3 |
+
+### Block #1a: Learn Link classes
+
+After the existing Learn and secret classes are loaded in `wpcredits-program-manager.php`, load the three Phase 1 classes in dependency order:
+
+```php
+require_once WPCPM_PLUGIN_DIR . 'includes/modules/class-wpcpm-learn-client.php';
+require_once WPCPM_PLUGIN_DIR . 'includes/modules/class-wpcpm-learn-progress-card.php';
+require_once WPCPM_PLUGIN_DIR . 'includes/modules/class-wpcpm-learn-progress.php';
+```
+
+### Block #5: Student Report Card panel
+
+In `WPCPM_Students_Dashboard::render_links()`, keep the existing two-column course content together, then render the Learn panel at full width before closing the My course section:
+
+This is a temporary Phase 1 path for local review. `WPCPM_Learn_Progress::panel()` reads `bin/fixtures/learn-progress-in-progress.json` only when `WPCPM_LEARN_FIXTURE` is explicitly set to `true` in the local site's `wp-config.php`. The constant must not be added to this repository, the plugin or a production site. A developer may instead set it to the absolute path of another contract fixture for a local check. P16 replaces this fixture path with the student's cached Learn progress.
+
+```php
+self::render_course_button( $course );
+WPCPM_Student_Report_Form::render_hours( $student, $program );
+
+echo '</div>';
+
+if ( class_exists( 'WPCPM_Learn_Progress' ) ) {
+	echo WPCPM_Learn_Progress::panel( $student ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- The card renderer escapes every value.
+}
+
+echo '</section>';
+```
+
+### Block #6: Learn progress stylesheet
+
+In `WPCPM_Students_Dashboard::register()`, after registering `self::STYLE`, register the Learn stylesheet with the Student Report Card stylesheet as its dependency:
+
+```php
+if ( class_exists( 'WPCPM_Learn_Progress_Card' ) && ! wp_style_is( WPCPM_Learn_Progress_Card::STYLE, 'registered' ) ) {
+	wp_register_style(
+		WPCPM_Learn_Progress_Card::STYLE,
+		WPCPM_PLUGIN_URL . 'assets/css/learn.css',
+		array( self::STYLE ),
+		WPCPM_VERSION
+	);
+}
+```
+
+In `WPCPM_Students_Dashboard::render()`, immediately after `wp_enqueue_style( self::STYLE );`, enqueue the registered Learn stylesheet:
+
+```php
+if ( class_exists( 'WPCPM_Learn_Progress_Card' ) ) {
+	wp_enqueue_style( WPCPM_Learn_Progress_Card::STYLE );
+}
+```
 
 ### Block #3: Learn Link settings
 
