@@ -151,6 +151,14 @@ namespace WPOrg_Learn\Learn_Progress\Reader {
 	ck( 'U-L13: complete+no-quiz -> lesson complete', $r['status'], 'complete' );
 	ck( 'U-L13: complete+no-quiz -> quiz null',        $r['quiz'], null );
 
+	// A required pass mark travels before the quiz is taken or graded too (contract review point 1).
+	$r = map_lesson( make_facts( '', true, 70 ) );
+	ck( 'not-taken+req -> passmark_percent 70', $r['quiz']['passmark_percent'], 70 );
+	$r = map_lesson( make_facts( 'ungraded', true, 70 ) );
+	ck( 'ungraded+req -> passmark_percent 70', $r['quiz']['passmark_percent'], 70 );
+	$r = map_lesson( make_facts( 'complete', true, 70, 80.0 ) );
+	ck( 'complete+quiz -> graded, passmark_percent null', array( $r['quiz']['status'], $r['quiz']['passmark_percent'] ), array( 'graded', null ) );
+
 	// U-L14: unknown raw status -> WP_Error with code learn_progress_unknown_status.
 	$r = map_lesson( make_facts( 'xyz_unknown' ) );
 	ck( 'U-L14: unknown raw -> is WP_Error',        is_wp_error( $r ), true );

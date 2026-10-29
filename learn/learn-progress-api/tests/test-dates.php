@@ -6,6 +6,11 @@
  * Coverage: U-L15 to U-L18.
  */
 
+// Satisfy the die() guard in dates.php without a WP bootstrap; without it the suite stops silently.
+if ( ! defined( 'WPINC' ) ) {
+	define( 'WPINC', 'wp-includes' );
+}
+
 require_once __DIR__ . '/lib.php';
 require_once __DIR__ . '/../inc/dates.php';
 
