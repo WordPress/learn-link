@@ -9,7 +9,7 @@ It has two halves, built together in this repository by a team of interns from C
 
 The two halves meet in one written agreement, the contract: [contract/learn-progress-v1.md](contract/learn-progress-v1.md). Read it first. It lets both halves be built at the same time, and it is the first thing a Meta team reviewer will read.
 
-**Status:** week 1 starter. The contract is a draft until the team freezes it in week 2. Nothing in this repository runs on learn.wordpress.org or wordpresseducation.org, and everything in it is invented data.
+**Status:** week 1 starter. The contract is a draft until the team freezes it by Friday 30 October, the end of Phase 1. Nothing in this repository runs on learn.wordpress.org or wordpresseducation.org, and everything in it is invented data.
 
 ## What is where
 
