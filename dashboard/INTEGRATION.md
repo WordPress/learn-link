@@ -1,6 +1,6 @@
 # Where the module connects to the plugin
 
-The few places in existing WPCredits Program Manager files that the module needs, from section 8.2 of the technical guide. Paths are from the plugin's root folder. Line numbers are for **WPCredits Program Manager 1.122.27**; search by name if they move.
+The few places in existing WPCredits Program Manager files that the module needs, from section 8.2 of the technical guide. Paths are from the plugin's root folder. The line numbers were surveyed against **WPCredits Program Manager 1.122.27**, and the integration blocks below were also applied and tested locally with **1.122.36**. Search by class and method name instead of relying on an exact line when the plugin version changes.
 
 When your work needs an edit in one of these files, describe the exact lines in your pull request, and add them to the "Edits to bring into the plugin" list at the end of this page. Maciej brings them into the plugin with each reviewed piece of work.
 
