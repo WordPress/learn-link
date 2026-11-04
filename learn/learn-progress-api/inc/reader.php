@@ -79,7 +79,8 @@ function map_lesson( array $facts ) {
 			'quiz_id'          => (int) $facts['quiz_id'],
 			'status'           => (string) $status,
 			'grade_percent'    => $is_graded ? max( 0, min( 100, (int) round( (float) $facts['grade'] ) ) ) : null,
-			'passmark_percent' => in_array( $status, array( 'passed', 'failed' ), true ) ? (int) $facts['passmark'] : null,
+			// Exactly when a pass is required (passmark is null otherwise); `graded` always has null.
+			'passmark_percent' => 'graded' !== $status && null !== $facts['passmark'] ? (int) $facts['passmark'] : null,
 			'graded_at'        => $is_graded ? $at : null,
 		);
 	};
@@ -137,7 +138,7 @@ function lesson_facts( $lesson_id, $user_id ) {
 	$passmark      = ( $required && '' !== $passmark_meta ) ? (int) round( (float) $passmark_meta ) : null;
 
 	$grade = 0.0;
-	if ( $has_quiz && function_exists( 'Sensei_Quiz' ) || class_exists( 'Sensei_Quiz' ) ) {
+	if ( $has_quiz && class_exists( 'Sensei_Quiz' ) ) {
 		$grade = (float) \Sensei_Quiz::get_user_quiz_grade( $lesson_id, $user_id );
 	}
 
