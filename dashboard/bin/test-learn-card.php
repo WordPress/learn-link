@@ -16,6 +16,7 @@ define( 'WPCPM_LEARN_FIXTURE', true );
 $GLOBALS['wpcpm_card_settings']        = array();
 $GLOBALS['wpcpm_card_current_user_id'] = 0;
 $GLOBALS['wpcpm_card_title_reads']     = 0;
+$GLOBALS['wpcpm_card_meta']            = array();
 
 /**
  * Minimal WordPress user for the isolated panel test.
@@ -113,6 +114,14 @@ class WPCPM_Learn {
  */
 function get_current_user_id() {
 	return (int) $GLOBALS['wpcpm_card_current_user_id'];
+}
+
+function get_user_meta( $user_id, $key, $single = false ) {
+	unset( $single );
+
+	return isset( $GLOBALS['wpcpm_card_meta'][ (int) $user_id ][ (string) $key ] )
+		? $GLOBALS['wpcpm_card_meta'][ (int) $user_id ][ (string) $key ]
+		: '';
 }
 
 /**
@@ -514,6 +523,26 @@ wpcpm_card_check( 'disabled panel renders nothing', WPCPM_Learn_Progress::panel(
 
 $GLOBALS['wpcpm_card_settings']['learn_enabled'] = true;
 $GLOBALS['wpcpm_card_current_user_id']           = 42;
+$wpcpm_card_owner_panel                          = WPCPM_Learn_Progress::panel( $wpcpm_card_student );
+
+wpcpm_card_check( 'owner panel without a token is not connected', false !== strpos( $wpcpm_card_owner_panel, 'data-state="not_connected"' ), true );
+wpcpm_card_check( 'owner panel without a token offers Connect', false !== strpos( $wpcpm_card_owner_panel, 'Connect your Learn account' ), true );
+
+$GLOBALS['wpcpm_card_current_user_id'] = 7;
+$wpcpm_card_manager_panel              = WPCPM_Learn_Progress::panel( $wpcpm_card_student );
+
+wpcpm_card_check( 'Administrator panel without a token says Not connected', false !== strpos( $wpcpm_card_manager_panel, '>Not connected</p>' ), true );
+wpcpm_card_check( 'Administrator panel cannot connect for the student', false === strpos( $wpcpm_card_manager_panel, '<form' ), true );
+
+$GLOBALS['wpcpm_card_current_user_id'] = 42;
+$GLOBALS['wpcpm_card_meta'][42][ WPCPM_Learn_Progress::META_WITHDRAWN_AT ] = gmmktime( 9, 0, 0, 11, 4, 2026 );
+$wpcpm_card_withdrawn_panel = WPCPM_Learn_Progress::panel( $wpcpm_card_student );
+
+wpcpm_card_check( 'withdrawn student panel uses the withdrawn state', false !== strpos( $wpcpm_card_withdrawn_panel, 'data-state="withdrawn"' ), true );
+wpcpm_card_check( 'withdrawn student panel never offers Connect', false === strpos( $wpcpm_card_withdrawn_panel, '<form' ), true );
+
+unset( $GLOBALS['wpcpm_card_meta'][42][ WPCPM_Learn_Progress::META_WITHDRAWN_AT ] );
+$GLOBALS['wpcpm_card_meta'][42][ WPCPM_Learn_Progress::META_TOKEN ] = 'sealed-token';
 $wpcpm_card_fixture_panel                        = WPCPM_Learn_Progress::panel( $wpcpm_card_student );
 
 wpcpm_card_check( 'fixture panel renders the in-progress state', false !== strpos( $wpcpm_card_fixture_panel, 'data-state="in_progress"' ), true );
