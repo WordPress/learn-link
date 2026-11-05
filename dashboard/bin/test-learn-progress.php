@@ -14,6 +14,7 @@ define( 'WPCPM_PLUGIN_DIR', dirname( __DIR__ ) . '/' );
 
 $GLOBALS['wpcpm_learn_test_settings'] = array();
 $GLOBALS['wpcpm_learn_test_actions']  = array();
+$GLOBALS['wpcpm_learn_sync_calls']    = 0;
 
 /**
  * Minimal settings stand-in for this isolated module test.
@@ -30,6 +31,18 @@ class WPCPM_Settings {
 		return array_key_exists( $key, $GLOBALS['wpcpm_learn_test_settings'] )
 			? $GLOBALS['wpcpm_learn_test_settings'][ $key ]
 			: $fallback;
+	}
+}
+
+/**
+ * Record whether the optional sync module starts.
+ */
+class WPCPM_Learn_Progress_Sync {
+	/**
+	 * Record one initialization.
+	 */
+	public static function init() {
+		++$GLOBALS['wpcpm_learn_sync_calls'];
 	}
 }
 
@@ -71,6 +84,19 @@ function wpcpm_learn_check( $label, $got, $want ) {
 }
 
 wpcpm_learn_check( 'disabled by default', WPCPM_Learn_Progress::enabled(), false );
+
+// WordPress stores a transient's value and expiration as separate options.
+$wpcpm_learn_state_key = WPCPM_Learn_Progress::STATE_PREFIX . 'test-state';
+wpcpm_learn_check(
+	'state value is covered by the uninstall Learn sweep',
+	0 === strpos( '_transient_' . $wpcpm_learn_state_key, '_transient_wpcpm_learn_' ),
+	true
+);
+wpcpm_learn_check(
+	'state timeout is covered by the uninstall Learn sweep',
+	0 === strpos( '_transient_timeout_' . $wpcpm_learn_state_key, '_transient_timeout_wpcpm_learn_' ),
+	true
+);
 wpcpm_learn_check(
 	'default settings',
 	WPCPM_Learn_Progress::settings(),
@@ -88,6 +114,7 @@ WPCPM_Learn_Progress::init();
 $wpcpm_learn_disabled_output = ob_get_clean();
 wpcpm_learn_check( 'disabled prints nothing', $wpcpm_learn_disabled_output, '' );
 wpcpm_learn_check( 'disabled registers no handlers', $GLOBALS['wpcpm_learn_test_actions'], array() );
+wpcpm_learn_check( 'disabled does not start sync', $GLOBALS['wpcpm_learn_sync_calls'], 0 );
 
 $GLOBALS['wpcpm_learn_test_settings'] = array(
 	'learn_enabled'     => true,
@@ -110,6 +137,7 @@ wpcpm_learn_check(
 );
 
 WPCPM_Learn_Progress::init();
+wpcpm_learn_check( 'enabled starts sync once', $GLOBALS['wpcpm_learn_sync_calls'], 1 );
 wpcpm_learn_check(
 	'enabled registers only its three handlers',
 	array_keys( $GLOBALS['wpcpm_learn_test_actions'] ),
@@ -137,7 +165,7 @@ wpcpm_learn_check(
 );
 
 $wpcpm_learn_parent = get_parent_class( 'WPCPM_Learn_Progress' );
-wpcpm_learn_check( 'module does not extend another class', false, $wpcpm_learn_parent );
+wpcpm_learn_check( 'module does not extend another class', $wpcpm_learn_parent, false );
 
 if ( 0 !== $wpcpm_learn_failures ) {
 	echo "\n{$wpcpm_learn_failures} FAILED ({$wpcpm_learn_checks} checks)\n";
