@@ -61,6 +61,106 @@ function is_wp_error( $thing ) {
 	return $thing instanceof WP_Error;
 }
 
+/**
+ * Remove trailing forward slashes and backslashes.
+ *
+ * @param string $string What to untrailingslash.
+ * @return string
+ */
+function untrailingslashit( $string ) {
+	return rtrim( $string, '/\\' );
+}
+
+/**
+ * Encode data as JSON.
+ *
+ * @param mixed $data Data to encode.
+ * @return string|false
+ */
+function wp_json_encode( $data ) {
+	return json_encode( $data );
+}
+
+/**
+ * Mock settings class for testing.
+ */
+class WPCPM_Settings {
+	/** @var array<string, mixed> */
+	public static $options = array();
+
+	/**
+	 * Retrieve a setting value.
+	 *
+	 * @param string $key Setting key.
+	 * @param mixed  $default Default value.
+	 * @return mixed
+	 */
+	public static function get_value( $key, $default = '' ) {
+		return array_key_exists( $key, self::$options ) ? self::$options[ $key ] : $default;
+	}
+}
+
+/** @var array<string, mixed> Global tracking for mocked HTTP requests. */
+$wpcpm_http_mock = array(
+	'last_url'     => null,
+	'last_args'    => null,
+	'next_return'  => null,
+);
+
+/**
+ * Mock wp_remote_post.
+ *
+ * @param string $url  Request URL.
+ * @param array  $args Request arguments.
+ * @return array|WP_Error
+ */
+function wp_remote_post( $url, array $args = array() ) {
+	global $wpcpm_http_mock;
+	$wpcpm_http_mock['last_url']  = $url;
+	$wpcpm_http_mock['last_args'] = $args;
+	return $wpcpm_http_mock['next_return'];
+}
+
+/**
+ * Mock wp_remote_request.
+ *
+ * @param string $url  Request URL.
+ * @param array  $args Request arguments.
+ * @return array|WP_Error
+ */
+function wp_remote_request( $url, array $args = array() ) {
+	global $wpcpm_http_mock;
+	$wpcpm_http_mock['last_url']  = $url;
+	$wpcpm_http_mock['last_args'] = $args;
+	return $wpcpm_http_mock['next_return'];
+}
+
+/**
+ * Mock wp_remote_retrieve_response_code.
+ *
+ * @param array|WP_Error $response Response to inspect.
+ * @return int|string
+ */
+function wp_remote_retrieve_response_code( $response ) {
+	if ( is_wp_error( $response ) || ! is_array( $response ) || ! isset( $response['response']['code'] ) ) {
+		return '';
+	}
+	return (int) $response['response']['code'];
+}
+
+/**
+ * Mock wp_remote_retrieve_body.
+ *
+ * @param array|WP_Error $response Response to inspect.
+ * @return string
+ */
+function wp_remote_retrieve_body( $response ) {
+	if ( is_wp_error( $response ) || ! is_array( $response ) || ! isset( $response['body'] ) ) {
+		return '';
+	}
+	return (string) $response['body'];
+}
+
 require_once WPCPM_PLUGIN_DIR . 'includes/modules/class-wpcpm-learn-client.php';
 
 $wpcpm_learn_client_failures = 0;
@@ -521,6 +621,124 @@ wpcpm_learn_client_check(
 	WPCPM_Learn_Client::parse( $wpcpm_body ),
 	WPCPM_Learn_Client::parse( $wpcpm_quiz_body )
 );
+
+// --- Tests for WPCPM_Learn_Client::exchange() and revoke() ---
+
+// 1. Unreachable when learn_base_url is empty.
+WPCPM_Settings::$options = array(
+	'learn_base_url'  => '',
+	'learn_client_id' => 'client-123',
+);
+$res = WPCPM_Learn_Client::exchange( 'code_123', 'verifier_456' );
+wpcpm_learn_client_check( 'exchange returns wpcpm_learn_unreachable when base URL is empty', is_wp_error( $res ) ? $res->get_error_code() : null, 'wpcpm_learn_unreachable' );
+
+$res = WPCPM_Learn_Client::revoke( 'token_123' );
+wpcpm_learn_client_check( 'revoke returns wpcpm_learn_unreachable when base URL is empty', is_wp_error( $res ) ? $res->get_error_code() : null, 'wpcpm_learn_unreachable' );
+
+// Setup base URL for subsequent tests.
+WPCPM_Settings::$options['learn_base_url'] = 'https://learn.test/';
+
+// 2. Network error / unreachable during exchange.
+$wpcpm_http_mock['next_return'] = new WP_Error( 'http_request_failed' );
+$res = WPCPM_Learn_Client::exchange( 'code_123', 'verifier_456' );
+wpcpm_learn_client_check( 'exchange returns wpcpm_learn_unreachable on network failure', is_wp_error( $res ) ? $res->get_error_code() : null, 'wpcpm_learn_unreachable' );
+wpcpm_learn_client_check( 'exchange sets redirection to 0', $wpcpm_http_mock['last_args']['redirection'], 0 );
+wpcpm_learn_client_check( 'exchange sets timeout to 5', $wpcpm_http_mock['last_args']['timeout'], 5 );
+wpcpm_learn_client_check( 'exchange calls expected token endpoint', $wpcpm_http_mock['last_url'], 'https://learn.test/wp-json/learn-progress/v1/token' );
+
+// 3. Successful exchange (200 with valid token and username).
+$valid_token_43 = 'ABCdefGHIjklMNOpqrSTUvwxYZ_0123456789-abcde';
+$wpcpm_http_mock['next_return'] = array(
+	'response' => array( 'code' => 200 ),
+	'body'     => json_encode(
+		array(
+			'token'   => $valid_token_43,
+			'learner' => array( 'wporg_username' => 'learn_student_01' ),
+		)
+	),
+);
+$res = WPCPM_Learn_Client::exchange( 'code_123', 'verifier_456' );
+wpcpm_learn_client_check( 'exchange returns array on valid 200 response', is_array( $res ), true );
+wpcpm_learn_client_check( 'exchange returns matching token', isset( $res['token'] ) ? $res['token'] : null, $valid_token_43 );
+wpcpm_learn_client_check( 'exchange returns matching username', isset( $res['username'] ) ? $res['username'] : null, 'learn_student_01' );
+
+// 4. Malformed 200 responses -> bad_answer.
+// 4a. Token is 42 chars (invalid length).
+$wpcpm_http_mock['next_return']['body'] = json_encode(
+	array(
+		'token'   => substr( $valid_token_43, 0, 42 ),
+		'learner' => array( 'wporg_username' => 'learn_student_01' ),
+	)
+);
+$res = WPCPM_Learn_Client::exchange( 'code_123', 'verifier_456' );
+wpcpm_learn_client_check( 'exchange rejects 42-char token as bad_answer', is_wp_error( $res ) ? $res->get_error_code() : null, 'wpcpm_learn_bad_answer' );
+
+// 4b. Missing username.
+$wpcpm_http_mock['next_return']['body'] = json_encode(
+	array(
+		'token'   => $valid_token_43,
+		'learner' => array( 'wporg_username' => '   ' ),
+	)
+);
+$res = WPCPM_Learn_Client::exchange( 'code_123', 'verifier_456' );
+wpcpm_learn_client_check( 'exchange rejects empty username as bad_answer', is_wp_error( $res ) ? $res->get_error_code() : null, 'wpcpm_learn_bad_answer' );
+
+// 5. Contract error responses during exchange (TOKEN_ERRORS).
+$token_errors_to_test = array(
+	'learn_progress_invalid_grant',
+	'learn_progress_invalid_client',
+	'learn_progress_invalid_request',
+	'learn_progress_slow_down',
+);
+foreach ( $token_errors_to_test as $err_code ) {
+	$wpcpm_http_mock['next_return'] = array(
+		'response' => array( 'code' => 400 ),
+		'body'     => json_encode( array( 'code' => $err_code, 'message' => 'Detail for ' . $err_code ) ),
+	);
+	$res = WPCPM_Learn_Client::exchange( 'code_123', 'verifier_456' );
+	wpcpm_learn_client_check( "exchange maps {$err_code} contract code", is_wp_error( $res ) ? $res->get_error_code() : null, $err_code );
+}
+
+// 6. 500 error during exchange -> learn_progress_unavailable.
+$wpcpm_http_mock['next_return'] = array(
+	'response' => array( 'code' => 503 ),
+	'body'     => 'Service Unavailable',
+);
+$res = WPCPM_Learn_Client::exchange( 'code_123', 'verifier_456' );
+wpcpm_learn_client_check( 'exchange maps 503 to learn_progress_unavailable', is_wp_error( $res ) ? $res->get_error_code() : null, 'learn_progress_unavailable' );
+
+// 7. Revoke tests.
+// 7a. 204 No Content -> true.
+$wpcpm_http_mock['next_return'] = array(
+	'response' => array( 'code' => 204 ),
+	'body'     => '',
+);
+$res = WPCPM_Learn_Client::revoke( $valid_token_43 );
+wpcpm_learn_client_check( 'revoke returns true on 204', $res, true );
+wpcpm_learn_client_check( 'revoke sets DELETE method', $wpcpm_http_mock['last_args']['method'], 'DELETE' );
+wpcpm_learn_client_check( 'revoke sets Authorization Bearer header', $wpcpm_http_mock['last_args']['headers']['Authorization'], 'Bearer ' . $valid_token_43 );
+wpcpm_learn_client_check( 'revoke sets redirection to 0', $wpcpm_http_mock['last_args']['redirection'], 0 );
+
+// 7b. 401 Unauthorized -> true (idempotent: already revoked or expired).
+$wpcpm_http_mock['next_return'] = array(
+	'response' => array( 'code' => 401 ),
+	'body'     => json_encode( array( 'code' => 'learn_progress_invalid_token' ) ),
+);
+$res = WPCPM_Learn_Client::revoke( $valid_token_43 );
+wpcpm_learn_client_check( 'revoke returns true on 401 (idempotent)', $res, true );
+
+// 7c. Network failure during revoke.
+$wpcpm_http_mock['next_return'] = new WP_Error( 'http_request_failed' );
+$res = WPCPM_Learn_Client::revoke( $valid_token_43 );
+wpcpm_learn_client_check( 'revoke returns wpcpm_learn_unreachable on network failure', is_wp_error( $res ) ? $res->get_error_code() : null, 'wpcpm_learn_unreachable' );
+
+// 7d. 500 server error during revoke.
+$wpcpm_http_mock['next_return'] = array(
+	'response' => array( 'code' => 500 ),
+	'body'     => 'Server error',
+);
+$res = WPCPM_Learn_Client::revoke( $valid_token_43 );
+wpcpm_learn_client_check( 'revoke returns learn_progress_unavailable on 500 error', is_wp_error( $res ) ? $res->get_error_code() : null, 'learn_progress_unavailable' );
 
 if ( 0 !== $wpcpm_learn_client_failures ) {
 	echo "\n{$wpcpm_learn_client_failures} FAILED ({$wpcpm_learn_client_checks} checks)\n";

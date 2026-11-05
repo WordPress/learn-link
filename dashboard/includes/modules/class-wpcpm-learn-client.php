@@ -34,6 +34,14 @@ final class WPCPM_Learn_Client {
 		'learn_progress_unavailable',
 	);
 
+	/** Error codes that Learn Link token exchange defines. */
+	const TOKEN_ERRORS = array(
+		'learn_progress_invalid_grant',
+		'learn_progress_invalid_client',
+		'learn_progress_invalid_request',
+		'learn_progress_slow_down',
+	);
+
 	/**
 	 * Validate and normalize a progress response from Learn.
 	 *
@@ -333,6 +341,165 @@ final class WPCPM_Learn_Client {
 		$timestamp = self::date( $value );
 
 		return null === $timestamp ? false : $timestamp;
+	}
+
+	/**
+	 * Retrieve the configured Learn base URL, ensuring no trailing slash.
+	 *
+	 * @return string|\WP_Error Base URL or WP_Error if unconfigured.
+	 */
+	private static function base() {
+		$url = untrailingslashit( WPCPM_Settings::get_value( 'learn_base_url', '' ) );
+
+		if ( '' === $url ) {
+			return new \WP_Error(
+				'wpcpm_learn_unreachable',
+				__( 'Learn WordPress URL is not configured.', 'wpcredits-program-manager' )
+			);
+		}
+
+		return $url;
+	}
+
+	/**
+	 * Exchange an authorization code for an access token and learner username.
+	 *
+	 * @param string $code     Single-use authorization code from Learn callback.
+	 * @param string $verifier PKCE code verifier matching the challenge sent on connect.
+	 * @return array{token: string, username: string}|\WP_Error Array with token and username on success, WP_Error on failure.
+	 */
+	public static function exchange( $code, $verifier ) {
+		$base = self::base();
+
+		if ( is_wp_error( $base ) ) {
+			return $base;
+		}
+
+		$client_id = WPCPM_Settings::get_value( 'learn_client_id', '' );
+
+		$response = wp_remote_post(
+			$base . '/wp-json/learn-progress/v1/token',
+			array(
+				'timeout'     => 5,
+				'redirection' => 0,
+				'headers'     => array(
+					'Content-Type' => 'application/json',
+					'Accept'       => 'application/json',
+				),
+				'body'        => wp_json_encode(
+					array(
+						'grant_type'    => 'authorization_code',
+						'client_id'     => $client_id,
+						'code'          => $code,
+						'code_verifier' => $verifier,
+					)
+				),
+			)
+		);
+
+		if ( is_wp_error( $response ) ) {
+			return new \WP_Error(
+				'wpcpm_learn_unreachable',
+				__( 'Could not connect to Learn WordPress.', 'wpcredits-program-manager' )
+			);
+		}
+
+		$status = (int) wp_remote_retrieve_response_code( $response );
+		$body   = json_decode( wp_remote_retrieve_body( $response ), true );
+
+		if ( 200 === $status ) {
+			if ( ! is_array( $body ) || ! isset( $body['token'] ) || ! is_string( $body['token'] ) ) {
+				return self::bad_answer();
+			}
+
+			if ( 1 !== preg_match( '/^[A-Za-z0-9_-]{43}$/', $body['token'] ) ) {
+				return self::bad_answer();
+			}
+
+			$learner  = isset( $body['learner'] ) && is_array( $body['learner'] ) ? $body['learner'] : array();
+			$username = isset( $learner['wporg_username'] ) && is_string( $learner['wporg_username'] )
+				? trim( $learner['wporg_username'] )
+				: '';
+
+			if ( '' === $username ) {
+				return self::bad_answer();
+			}
+
+			return array(
+				'token'    => $body['token'],
+				'username' => $username,
+			);
+		}
+
+		if ( is_array( $body ) && isset( $body['code'] ) && in_array( $body['code'], self::TOKEN_ERRORS, true ) ) {
+			$message = isset( $body['message'] ) && is_string( $body['message'] ) ? $body['message'] : '';
+			return new \WP_Error( $body['code'], $message );
+		}
+
+		if ( $status >= 500 && $status <= 599 ) {
+			return new \WP_Error(
+				'learn_progress_unavailable',
+				__( 'Learn WordPress is temporarily unavailable.', 'wpcredits-program-manager' )
+			);
+		}
+
+		return self::bad_answer();
+	}
+
+	/**
+	 * Revoke an access token on Learn WordPress.
+	 *
+	 * @param string $token Stored access token to revoke.
+	 * @return true|\WP_Error True if revoked or already invalid (204/401), WP_Error on failure.
+	 */
+	public static function revoke( $token ) {
+		$base = self::base();
+
+		if ( is_wp_error( $base ) ) {
+			return $base;
+		}
+
+		$response = wp_remote_request(
+			$base . '/wp-json/learn-progress/v1/token',
+			array(
+				'method'      => 'DELETE',
+				'timeout'     => 5,
+				'redirection' => 0,
+				'headers'     => array(
+					'Authorization' => 'Bearer ' . $token,
+					'Accept'        => 'application/json',
+				),
+			)
+		);
+
+		if ( is_wp_error( $response ) ) {
+			return new \WP_Error(
+				'wpcpm_learn_unreachable',
+				__( 'Could not connect to Learn WordPress.', 'wpcredits-program-manager' )
+			);
+		}
+
+		$status = (int) wp_remote_retrieve_response_code( $response );
+
+		if ( 204 === $status || 401 === $status ) {
+			return true;
+		}
+
+		$body = json_decode( wp_remote_retrieve_body( $response ), true );
+
+		if ( is_array( $body ) && isset( $body['code'] ) && is_string( $body['code'] ) ) {
+			$message = isset( $body['message'] ) && is_string( $body['message'] ) ? $body['message'] : '';
+			return new \WP_Error( $body['code'], $message );
+		}
+
+		if ( $status >= 500 && $status <= 599 ) {
+			return new \WP_Error(
+				'learn_progress_unavailable',
+				__( 'Learn WordPress is temporarily unavailable.', 'wpcredits-program-manager' )
+			);
+		}
+
+		return self::bad_answer();
 	}
 
 	/**
