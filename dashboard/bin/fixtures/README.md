@@ -3,9 +3,8 @@
 These examples use invented learner data. Their baseline is the seven
 `contract/example-*.json` files in the Learn Link repository.
 
-The three success fixtures are adapted to section 6, points 1 and 3, of
-the team's working document `Docs/learn-progress-v1-updated.md` (held outside
-this repository).
+The three success fixtures follow review points 1 and 3 tracked in
+[issue #1](https://github.com/WordPress/learn-link/issues/1).
 
 Lesson `297903`, quiz `297953`, has no required pass mark:
 

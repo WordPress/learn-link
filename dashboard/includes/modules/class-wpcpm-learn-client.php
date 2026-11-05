@@ -78,9 +78,28 @@ final class WPCPM_Learn_Client {
 	}
 
 	/**
+	 * Whether Learn returned the WordPress.org username expected for a student.
+	 *
+	 * @param mixed $received Username returned by Learn.
+	 * @param mixed $expected Username already known by the Dashboard.
+	 * @return bool
+	 */
+	public static function same_username( $received, $expected ) {
+		if ( ! is_string( $received ) || ! is_string( $expected ) ) {
+			return false;
+		}
+
+		$received = trim( $received );
+		$expected = trim( $expected );
+
+		return '' !== $received && '' !== $expected && 0 === strcasecmp( $received, $expected );
+	}
+
+	/**
 	 * Identify a failed response, preferring the contract's code over HTTP status.
 	 *
-	 * The HTTP fallback follows the P07 guide for missing or unknown JSON codes.
+	 * Contract section 2 says to decide Learn errors by code alone. The HTTP
+	 * fallback covers only rate limiting and server failures without a known code.
 	 * Learn's message is never returned: the Dashboard supplies its own words.
 	 *
 	 * @param int   $status HTTP response status.
@@ -97,8 +116,6 @@ final class WPCPM_Learn_Client {
 		}
 
 		$codes = array(
-			401 => 'learn_progress_invalid_token',
-			403 => 'learn_progress_revoked',
 			429 => 'learn_progress_slow_down',
 		);
 
@@ -262,6 +279,12 @@ final class WPCPM_Learn_Client {
 		$passmark = $item['passmark_percent'];
 
 		if ( ( null !== $grade && ! is_int( $grade ) ) || ( null !== $passmark && ! is_int( $passmark ) ) ) {
+			return self::bad_answer();
+		}
+
+		$has_grade = in_array( $item['status'], array( 'graded', 'passed', 'failed' ), true );
+
+		if ( ( $has_grade && null === $grade ) || ( ! $has_grade && null !== $grade ) ) {
 			return self::bad_answer();
 		}
 

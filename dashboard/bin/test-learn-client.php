@@ -105,6 +105,11 @@ $wpcpm_parsed = WPCPM_Learn_Client::parse( $wpcpm_valid );
 wpcpm_learn_client_check( 'a contract fixture passes the outer validation', is_array( $wpcpm_parsed ), true );
 wpcpm_learn_client_check( 'the username is normalized to the top level', $wpcpm_parsed['username'], 'adaexample' );
 wpcpm_learn_client_check( 'the generated date becomes a Unix timestamp', is_int( $wpcpm_parsed['generated_at'] ), true );
+wpcpm_learn_client_check( 'the same username matches exactly', WPCPM_Learn_Client::same_username( 'adaexample', 'adaexample' ), true );
+wpcpm_learn_client_check( 'username comparison ignores case and surrounding whitespace', WPCPM_Learn_Client::same_username( ' AdaExample ', ' adaexample' ), true );
+wpcpm_learn_client_check( 'a different username does not match', WPCPM_Learn_Client::same_username( 'another-user', 'adaexample' ), false );
+wpcpm_learn_client_check( 'blank usernames do not match', WPCPM_Learn_Client::same_username( '  ', '' ), false );
+wpcpm_learn_client_check( 'a non-text username does not match', WPCPM_Learn_Client::same_username( array( 'adaexample' ), 'adaexample' ), false );
 
 $wpcpm_bad             = $wpcpm_valid;
 $wpcpm_bad['contract'] = 'learn-progress/2';
@@ -130,6 +135,17 @@ $wpcpm_with_unknown            = $wpcpm_valid;
 $wpcpm_with_unknown['private'] = 'must not survive';
 $wpcpm_parsed                  = WPCPM_Learn_Client::parse( $wpcpm_with_unknown );
 wpcpm_learn_client_check( 'unknown top-level fields are not normalized', array_key_exists( 'private', $wpcpm_parsed ), false );
+
+foreach ( array( 'learner', 'generated_at', 'courses', 'contract' ) as $wpcpm_field ) {
+	$wpcpm_bad = $wpcpm_valid;
+	unset( $wpcpm_bad[ $wpcpm_field ] );
+	$wpcpm_result = WPCPM_Learn_Client::parse( $wpcpm_bad );
+	wpcpm_learn_client_check(
+		'a response missing ' . $wpcpm_field . ' is refused',
+		is_wp_error( $wpcpm_result ) ? $wpcpm_result->get_error_code() : 'accepted',
+		'wpcpm_learn_bad_answer'
+	);
+}
 
 $wpcpm_in_progress = WPCPM_Learn_Client::parse( wpcpm_learn_client_fixture( 'in-progress' ) );
 $wpcpm_course_ids  = array_keys( $wpcpm_in_progress['courses'] );
@@ -172,6 +188,17 @@ wpcpm_learn_client_check( 'a percentage written as text is refused', WPCPM_Learn
 $wpcpm_bad                            = $wpcpm_valid;
 $wpcpm_bad['courses'][0]['lessons']   = array( 'lesson' => array() );
 wpcpm_learn_client_check( 'lessons must be a list', WPCPM_Learn_Client::parse( $wpcpm_bad )->get_error_code(), 'wpcpm_learn_bad_answer' );
+
+foreach ( array( 'course_id', 'status', 'enrolled_at', 'completed_at', 'progress_percent', 'lessons' ) as $wpcpm_field ) {
+	$wpcpm_bad = $wpcpm_valid;
+	unset( $wpcpm_bad['courses'][0][ $wpcpm_field ] );
+	$wpcpm_result = WPCPM_Learn_Client::parse( $wpcpm_bad );
+	wpcpm_learn_client_check(
+		'a course missing ' . $wpcpm_field . ' is refused',
+		is_wp_error( $wpcpm_result ) ? $wpcpm_result->get_error_code() : 'accepted',
+		'wpcpm_learn_bad_answer'
+	);
+}
 
 $wpcpm_bad              = $wpcpm_valid;
 $wpcpm_bad['courses'][] = $wpcpm_bad['courses'][0];
@@ -403,6 +430,33 @@ foreach ( array( 'not-taken', 'ungraded' ) as $wpcpm_status ) {
 	wpcpm_learn_client_check( $wpcpm_status . ' allows no pass requirement', is_array( $wpcpm_result ), true );
 }
 
+foreach ( array( 'graded', 'passed', 'failed' ) as $wpcpm_status ) {
+	$wpcpm_body = $wpcpm_quiz_body;
+	$wpcpm_body['courses'][0]['lessons'][1]['quiz']['status'] = $wpcpm_status;
+	$wpcpm_body['courses'][0]['lessons'][1]['quiz']['grade_percent'] = null;
+	$wpcpm_body['courses'][0]['lessons'][1]['quiz']['passmark_percent'] = 'graded' === $wpcpm_status ? null : 70;
+	$wpcpm_result = WPCPM_Learn_Client::parse( $wpcpm_body );
+	wpcpm_learn_client_check(
+		$wpcpm_status . ' without a grade is refused',
+		is_wp_error( $wpcpm_result ) ? $wpcpm_result->get_error_code() : 'accepted',
+		'wpcpm_learn_bad_answer'
+	);
+}
+
+foreach ( array( 'not-taken', 'ungraded' ) as $wpcpm_status ) {
+	$wpcpm_body = $wpcpm_quiz_body;
+	$wpcpm_body['courses'][0]['lessons'][1]['quiz']['status'] = $wpcpm_status;
+	$wpcpm_body['courses'][0]['lessons'][1]['quiz']['grade_percent'] = 85;
+	$wpcpm_body['courses'][0]['lessons'][1]['quiz']['passmark_percent'] = null;
+	$wpcpm_body['courses'][0]['lessons'][1]['quiz']['graded_at'] = null;
+	$wpcpm_result = WPCPM_Learn_Client::parse( $wpcpm_body );
+	wpcpm_learn_client_check(
+		$wpcpm_status . ' with a grade is refused',
+		is_wp_error( $wpcpm_result ) ? $wpcpm_result->get_error_code() : 'accepted',
+		'wpcpm_learn_bad_answer'
+	);
+}
+
 $wpcpm_body = $wpcpm_quiz_body;
 $wpcpm_body['courses'][0]['lessons'][1]['quiz']['private'] = 'must not survive';
 $wpcpm_result = WPCPM_Learn_Client::parse( $wpcpm_body );
@@ -431,8 +485,8 @@ foreach ( $wpcpm_error_fixtures as $wpcpm_http_status => $wpcpm_expected ) {
 }
 
 $wpcpm_http_cases = array(
-	401 => 'learn_progress_invalid_token',
-	403 => 'learn_progress_revoked',
+	401 => 'wpcpm_learn_bad_answer',
+	403 => 'wpcpm_learn_bad_answer',
 	429 => 'learn_progress_slow_down',
 	500 => 'learn_progress_unavailable',
 	502 => 'learn_progress_unavailable',
