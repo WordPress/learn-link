@@ -27,18 +27,19 @@ class WPCPM_Learn_Progress {
 	const ACTION_CALLBACK = 'wpcpm_learn_callback';
 	const ACTION_WITHDRAW = 'wpcpm_learn_withdraw';
 
-	const STATE_PREFIX = 'wpcpm_learnlink_state_';
+	// Keep state values and timeouts within uninstall.php's Learn transient sweep.
+	const STATE_PREFIX = 'wpcpm_learn_state_';
 
 	/**
 	 * Start the Learn Link hooks.
 	 */
 	public static function init() {
-		if ( class_exists( 'WPCPM_Learn_Progress_Sync' ) ) {
-			WPCPM_Learn_Progress_Sync::init();
-		}
-
 		if ( ! self::enabled() ) {
 			return;
+		}
+
+		if ( class_exists( 'WPCPM_Learn_Progress_Sync' ) ) {
+			WPCPM_Learn_Progress_Sync::init();
 		}
 
 		add_action( 'admin_post_' . self::ACTION_CONNECT, array( __CLASS__, 'handle_connect' ) );
