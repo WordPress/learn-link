@@ -1,11 +1,11 @@
 # Learn Progress contract, version 1
 
-> **DRAFT. Not frozen.** The team reviews this page in weeks 1 to 3, writes a proposed answer to each of the five open review points in section 6, and freezes it by Friday 30 October 2026, the end of Phase 1, with the approval of the product owners, Maciej Pilarski and Isotta Peira. Until then anything here may change, and neither half should treat it as final. Once frozen, it changes only by a new version (`learn-progress-v2.md`), never in place.
+> **FROZEN on 9 November 2026.** Changes only by a new version (`learn-progress-v2.md`), never in place. Approved by Maciej Pilarski, to whom Isotta Peira left the product owners' decisions, in [#1](https://github.com/WordPress/learn-link/issues/1).
 
 | | |
 | --- | --- |
 | Version in the body | `learn-progress/1` |
-| Status | Draft, to be frozen by the team by Friday 30 October 2026 |
+| Status | Frozen on 9 November 2026 |
 | Sources | Section 2 of the [Learn Link design spec](https://github.com/WordPress/WPCredits/blob/trunk/Education/WordPress%20Education%20Dashboard/wpcredits-program-manager/docs/specs/2026-09-07-learn-link-design.md) (7 September 2026); the five review points in section 5 of the project handbook, found while testing Sensei LMS 4.26.4 on 16 October 2026 |
 | Example files | Beside this page, listed in section 5 |
 
@@ -19,7 +19,7 @@ Authorization: Bearer <token>
 Accept: application/json
 ```
 
-No query parameters are needed. The course list is fixed on the Learn side for this client: the whitelist is the whole scope, and the Dashboard cannot widen it. A `courses` parameter, when sent, may only narrow the list to a subset of the whitelist; anything outside it is ignored, never an error, so a probe learns nothing about the whitelist.
+No query parameters are needed. The course list is fixed on the Learn side for this client: the whitelist is the whole scope, and the Dashboard cannot widen it. A `courses` parameter, when sent, may only narrow the list to a subset of the whitelist; anything outside it is ignored, never an error, so a probe learns nothing about the whitelist. Its format and the order of `courses` in the response are in section 1.4.
 
 The endpoint identifies the learner from the token and nothing else. It has no user parameter, so there is no way to ask it about anyone else.
 
@@ -81,29 +81,36 @@ A shortened example (the full one is [example-in-progress.json](example-in-progr
 | `generated_at` | string | When Learn built this answer. RFC 3339, UTC. |
 | `courses` | array | One entry for every whitelisted course, including courses the learner never enrolled in. |
 | `courses[].course_id` | integer | The course's post ID on Learn. |
-| `courses[].status` | string | `not-started`, `in-progress` or `complete`. See review point 2. |
+| `courses[].status` | string | `not-started`, `in-progress` or `complete`. Sensei may keep a course `complete` after a new lesson is published, even when `progress_percent` falls below 100. See review point 2. |
 | `courses[].enrolled_at` | string or null | When the learner enrolled. Null when they never did. |
 | `courses[].completed_at` | string or null | When the course was completed. Null until then. |
-| `courses[].progress_percent` | integer | 0 to 100. See review point 5. |
+| `courses[].progress_percent` | integer | 0 to 100, calculated from published lessons whose status is `complete`. May be below 100 for a `complete` course if lessons were published later. See review points 2 and 5. |
 | `courses[].lessons` | array | For an enrolled course, its published lessons in course order. Empty for a course the learner never enrolled in. |
 | `lessons[].lesson_id` | integer | The lesson's post ID on Learn. |
 | `lessons[].status` | string | `not-started`, `in-progress`, `complete` or `ungraded` (the learner submitted the quiz, and nobody has graded it yet). |
 | `lessons[].completed_at` | string or null | When the lesson was completed. Null until then. |
 | `lessons[].quiz` | object or null | Null for a lesson without a quiz. (Sensei gives every lesson a quiz post, even an empty one; a lesson "has a quiz" when that quiz has questions.) |
 | `quiz.quiz_id` | integer | The quiz's post ID on Learn. |
-| `quiz.status` | string | `not-taken`, `ungraded`, `passed` or `failed`. See review points 1 and 3. |
+| `quiz.status` | string | `not-taken`, `ungraded`, `graded`, `passed` or `failed`. `graded` applies when no pass is required; `passed` and `failed` require a pass mark. See review points 1 and 3. |
 | `quiz.grade_percent` | integer or null | 0 to 100. Null until graded. |
-| `quiz.passmark_percent` | integer | 0 to 100. |
+| `quiz.passmark_percent` | integer or null | 0 to 100 exactly when a pass is required; null otherwise, even if Sensei stores an old pass mark. `passed` and `failed` must have a non-null pass mark; `graded` must have null. |
 | `quiz.graded_at` | string or null | When the quiz was graded. Null until then. |
 
 ### 1.3 Rules that keep the shape safe and stable
 
 - **IDs only: no titles, no module tree.** Learn sends what only Learn knows: status, dates and grades. Names and the module grouping come from Learn's public course structure (`/wp-json/sensei-internal/v1/course-structure/<course id>`), which the Dashboard reads on its own. A curriculum rename changes nothing in the contract, and nothing personal travels that does not have to.
 - **Every whitelisted course appears,** including one the learner never enrolled in (`status` `not-started`, `enrolled_at` null, `lessons` empty). "Not connected" and "connected but not started" must look different on the Student Report Card, and the second one has to come from Learn.
-- **Closed vocabularies.** The status lists in section 1.2 are complete. A value outside them is an error, and the Dashboard refuses the body rather than guessing.
-- **Percentages are whole numbers** from 0 to 100.
+- **Closed vocabularies.** The status lists in section 1.2 are complete. A value outside them is an error, and the Dashboard refuses the body rather than guessing. For quizzes, `passed` and `failed` require a non-null `passmark_percent`, while `graded` requires null; reject inconsistent combinations.
+- **Percentages are whole numbers** from 0 to 100. Count only published lessons with status `complete`, and round with integer arithmetic (section 6).
+- **Course status and percent are independent.** `courses[].status` comes from Sensei's own course completion result (with the rule that an enrolled course with no lesson started is `not-started`, review point 2), and `progress_percent` counts the course's currently published lessons. The two can disagree in both directions: `complete` below 100 (a lesson published after the learner completed the course), or `in-progress` at 100. Neither half recomputes one from the other, and the Dashboard accepts both combinations.
 - **Times are UTC, RFC 3339** (`2026-10-14T09:12:33Z`). The Dashboard formats them in its own site's time zone. See review point 4.
 - **The learner block carries the WordPress.org username.** The Dashboard compares it with the student's known username on every read.
+
+### 1.4 The `courses` parameter and the order of courses
+
+- **Format:** comma-separated course IDs, for example `?courses=297853,123456`.
+- **It can only narrow** Learn's fixed list for the client. IDs outside the list, and anything that is not a positive whole number, are ignored. A duplicate counts once. If nothing usable is left, the parameter counts as absent and the whole list comes back. It is never an error.
+- **Order:** `courses` in the response always follows the order of Learn's fixed list for the client, track course first, whatever the order in the parameter. The Dashboard matches courses by `course_id` and never relies on position.
 
 ## 2. Errors
 
@@ -116,6 +123,16 @@ Every error is JSON with a `code` and a `message`. WordPress adds `data.status` 
 | 429 | `learn_progress_slow_down` | Too many reads. Honor the `Retry-After` header, which Learn always sends with this status. | [example-error-429-slow-down.json](example-error-429-slow-down.json) |
 | 503 | `learn_progress_unavailable` | Learn cannot read results right now. Keep the cache, and say so. | [example-error-503-unavailable.json](example-error-503-unavailable.json) |
 
+### 2.1 Errors from `POST /learn-progress/v1/token`
+
+The code exchange (section 3, step 3) answers with these codes, following RFC 6749 section 5.2. `learn_progress_slow_down` (429) and `learn_progress_unavailable` (503) apply here too.
+
+| Status | `code` | Meaning for the Dashboard | Example |
+| --- | --- | --- | --- |
+| 400 | `learn_progress_invalid_request` | A parameter is missing or malformed, or `grant_type` is not `authorization_code`. | [example-error-400-invalid-request.json](example-error-400-invalid-request.json) |
+| 400 | `learn_progress_invalid_grant` | The code is expired, already used, or does not match the code verifier. The student starts again. | [example-error-400-invalid-grant.json](example-error-400-invalid-grant.json) |
+| 401 | `learn_progress_invalid_client` | Learn does not know the client. Tell an Administrator. | [example-error-401-invalid-client.json](example-error-401-invalid-client.json) |
+
 Every response, success or error, carries `Cache-Control: no-store`.
 
 **Rate expectation:** the Dashboard reads a student at most once per cache window, plus one nightly warmer pass. Learn may refuse more than sixty reads per token per hour.
@@ -124,7 +141,7 @@ Every response, success or error, carries `Cache-Control: no-store`.
 
 Modeled on WordPress core's `authorize-application.php`, with two changes: a one-time code instead of a token in the redirect, and a code verifier (PKCE) instead of a client secret. No secret ever has to live in this public repository, and no token ever appears in a browser's address bar, a referrer or a server log.
 
-This section depends on open decision 1 of the handbook (a code exchange or a token in the redirect); the code exchange is the recommendation. See [docs/decisions/002-code-exchange-pkce.md](../docs/decisions/002-code-exchange-pkce.md).
+The code exchange was decided by Maciej Pilarski on 5 November 2026 (decision 1 in [#2](https://github.com/WordPress/learn-link/issues/2)). See [docs/decisions/002-code-exchange-pkce.md](../docs/decisions/002-code-exchange-pkce.md).
 
 1. **Start.** The student presses "Connect your Learn account" on their own Student Report Card. The Dashboard creates `state` (32 random bytes, base64url) and `code_verifier` (43 to 128 characters), keeps both for 15 minutes together with the student's user ID, computes `code_challenge = base64url( sha256( code_verifier ) )`, and sends the browser to:
 
@@ -171,17 +188,20 @@ A Learn administrator may also withdraw a grant from the learner's profile scree
 
 ## 5. The example files
 
-The Dashboard's suites run against exactly these files, and the Learn half's output for the seeded learners should match their shape. All IDs except the track course 297853 are invented; course 123456 stands for a foundational course until open decision 4 names the real ones.
+The Dashboard's suites run against exactly these files, and the Learn half's output for the seeded learners should match their shape. All IDs except the track course 297853 are invented; course 123456 stands for a second whitelisted course. (Decision 4 in [#2](https://github.com/WordPress/learn-link/issues/2): Learn's fixed list holds every live track course, and the Dashboard narrows it to the student's own track course with `courses`.)
 
 | File | What it shows |
 | --- | --- |
-| [example-in-progress.json](example-in-progress.json) | The track course, eight lessons in every state: complete without a quiz, complete with a passed quiz, complete with a failed quiz where no pass is required, waiting to be graded, in progress with a failed quiz where a pass is required, in progress with the quiz not taken, and not started. A second whitelisted course, never enrolled. |
+| [example-in-progress.json](example-in-progress.json) | The track course, eight lessons in every state: complete without a quiz, complete with a passed quiz, complete with a graded quiz where no pass is required, waiting to be graded, in progress with a failed quiz where a pass is required, in progress with the quiz not taken, and not started. A second whitelisted course, never enrolled. |
 | [example-not-started.json](example-not-started.json) | Enrolled in the track course, nothing done; the second course never enrolled. |
-| [example-complete.json](example-complete.json) | The same learner at the end of the term: both courses complete, one quiz graded by hand, and the quiz that failed where no pass is required still failed, because a complete course does not mean every quiz passed. |
+| [example-complete.json](example-complete.json) | The same learner at the end of the term: both courses complete, one quiz graded by hand, and a quiz graded without a required pass mark (`graded` with `passmark_percent` null). |
 | [example-error-401-invalid-token.json](example-error-401-invalid-token.json) | Unknown or malformed token. |
 | [example-error-403-revoked.json](example-error-403-revoked.json) | Grant withdrawn on Learn. |
 | [example-error-429-slow-down.json](example-error-429-slow-down.json) | Too many reads (the real response also has a `Retry-After` header). |
 | [example-error-503-unavailable.json](example-error-503-unavailable.json) | Learn cannot read results right now. |
+| [example-error-400-invalid-request.json](example-error-400-invalid-request.json) | Token endpoint: a missing or malformed parameter, or a wrong `grant_type`. |
+| [example-error-400-invalid-grant.json](example-error-400-invalid-grant.json) | Token endpoint: an expired, used or mismatched code or code verifier. |
+| [example-error-401-invalid-client.json](example-error-401-invalid-client.json) | Token endpoint: an unknown client. |
 
 The track course in the examples has this shape, the same in all three files:
 
@@ -189,37 +209,61 @@ The track course in the examples has this shape, the same in all three files:
 | --- | --- | --- | --- |
 | 297901 | none | | |
 | 297902 | 297952 | automatic, pass mark 70% | yes |
-| 297903 | 297953 | automatic, pass mark 70% | no |
+| 297903 | 297953 | automatic, no required pass mark | no |
 | 297904 | none | | |
 | 297905 | 297955 | by hand, pass mark 70% | yes |
 | 297906 | 297956 | automatic, pass mark 70% | yes |
 | 297907 | 297957 | automatic, pass mark 70% | yes |
 | 297908 | none | | |
 
-## 6. Open review points: settle these before the freeze
+## 6. Review points: agreed answers
 
-These came out of testing Sensei on 16 October 2026 (section 6 of the technical guide). For each one, write the team's proposed answer here, in a pull request with the `contract` label, before the freeze.
+These came out of testing Sensei on 16 October 2026 (section 6 of the technical guide). Maciej agreed with the team's five answers in his review of 21 October 2026, with the clarifications recorded below, and confirmed the edge case in point 2 on 5 November 2026 ([#1](https://github.com/WordPress/learn-link/issues/1)).
 
-1. **A graded quiz status.** Sensei has a quiz status the contract does not: `graded`, meaning marked when no pass mark is required. It counts as complete. Either add `graded` to the quiz vocabulary, or map it to `passed`.
-   - Team's proposal: _to be written_
-2. **What course "not-started" means.** Enrolling creates a course record at once, with the status in-progress. Define the contract's course `not-started` as "enrolled, no lesson started" (or never enrolled, which `enrolled_at` null tells apart), not as "no record". The examples follow this definition.
-   - Team's proposal: _to be written_
-3. **A failed quiz where a pass is required.** It leaves the lesson incomplete, so the lesson is `in-progress` and the quiz is `failed` (lesson 297906 in example-in-progress.json). A failed quiz where no pass is required leaves the lesson `complete` (lesson 297903). Say whether the quiz object should also carry whether a pass is required, so the Dashboard can explain why a lesson is not complete.
-   - Team's proposal: _to be written_
-4. **Dates in UTC.** Sensei stores some dates in the site's time zone and others in UTC. Learn converts every date to UTC before sending it. List which fields come from which store.
-   - Team's proposal: _to be written_
-5. **A computed percent.** Compute `progress_percent` on Learn (completed lessons divided by published lessons). Do not trust Sensei's stored "percent" value, which can be wrong when Sensei reads from its custom tables. Also say how it rounds: one lesson of eight is 12.5%, which the seed check prints as 13%.
-   - Team's proposal: _to be written_
+1. **A graded quiz status.** Sensei uses `graded` for a marked quiz where no pass is required. Such a quiz is never `failed` and counts as complete.
+   - Agreed rule: Add `graded` to the closed quiz vocabulary (`not-taken`, `ungraded`, `graded`, `passed`, `failed`). Keep it distinct from `passed`: a quiz with no required pass mark is `graded`, not `passed` or `failed`. `graded` must carry `passmark_percent` null.
+2. **What course "not-started" means.** Enrolling creates a course record with Sensei status `in-progress`, even when no lesson has started.
+   - Agreed rule: Map an enrolled course with no lesson started to `not-started`, and a started but not completed course to `in-progress`. Preserve never-enrolled whitelisted courses as `not-started`, with `enrolled_at` null and `lessons` empty. Distinguish enrolled `not-started` by non-null `enrolled_at`.
+   - Edge case, confirmed on 5 November 2026: course `status` and `progress_percent` may disagree in both directions. Sensei preserves course completion when a new lesson is published after the learner completed the course, while the percentage reflects the currently published lessons, so a course can be `complete` at 88%; a course can also be `in-progress` at 100%. Use Sensei's course completion result for `status`, never a rule that ties it to the percentage, and neither half recomputes one from the other (section 1.3). The Learn half's reader suite ([#4](https://github.com/WordPress/learn-link/issues/4)) carries a regression test for each direction.
+3. **A failed quiz where a pass is required.** Failure to reach a required pass mark holds the associated lesson at `in-progress`; it is not a fully independent lesson outcome.
+   - Agreed rule: When a required pass mark is not met, return lesson `in-progress`, quiz `failed`, and lesson `completed_at` null. A quiz with no required pass mark is `graded` rather than `failed` and does not block lesson completion on pass-mark grounds. Do not add `pass_required`; instead set `passmark_percent` to an integer (0 to 100) **exactly when pass is required**, and null otherwise, even if Sensei still holds an old stored pass mark. Enforce that quiz `passed` and `failed` always have an integer pass mark and quiz `graded` always has null. Update lesson 297903 to `graded` with null pass mark and remove the impossible "still failed" wording from the complete example.
+4. **Dates in UTC.** Sensei stores some dates in the site's time zone and others in UTC; the API must return UTC.
+   - Agreed rule: Normalize `generated_at`, `enrolled_at`, course and lesson `completed_at`, and `graded_at` to RFC 3339 UTC (`YYYY-MM-DDTHH:MM:SSZ`), preserving nulls. Interpret each timestamp using its real source time zone before conversion, not by simply appending `Z`. The exact field-to-store and time-zone mapping is documented and tested in the Learn half, tracked in [#3](https://github.com/WordPress/learn-link/issues/3) (`learn/docs/sensei-storage.md`).
+5. **A computed percent.** Do not rely on Sensei's stored percent, which can be wrong when reading from custom tables.
+   - Agreed rule: Calculate `progress_percent` from **only published lessons with lesson status `complete`**, divided by all published lessons. An `ungraded` lesson does not count as complete. Return a whole number from 0 to 100, with halves rounded upward, using **integer arithmetic** to avoid PHP floating-point edge cases: `intdiv( 200 * $done + $total, 2 * $total )` for `$total > 0`. Test **1 of 8 = 13** and **23 of 40 = 58**. Exclude unpublished lessons from both counts; return 0 when there are no published lessons, avoiding division by zero.
 
-## 7. Not yet specified
+### 6.1 From Sensei's statuses to the contract's
 
-Noticed while preparing this draft, and not among the five review points. Settle or consciously defer each one in the same review:
+| Sensei | Condition | Contract |
+| --- | --- | --- |
+| Course, no record | Never enrolled | course `not-started`, `enrolled_at` null, `lessons` empty |
+| Course `in-progress` | Enrolled, no lesson started | course `not-started`, `enrolled_at` set |
+| Course `in-progress` | At least one lesson started | course `in-progress` |
+| Course `complete` | Sensei's course completion result | course `complete`, whatever `progress_percent` says |
+| Lesson, no record | Not started | lesson `not-started`, quiz `not-taken` (if the lesson has a quiz) |
+| Lesson `in-progress` | Started, quiz not submitted | lesson `in-progress`, quiz `not-taken` |
+| Lesson `complete` | No quiz | lesson `complete`, quiz null |
+| Lesson `complete` | With a quiz | lesson `complete`, quiz `graded`, `passmark_percent` null |
+| Lesson `ungraded` | Quiz submitted, waiting for grading | lesson `ungraded`, quiz `ungraded` |
+| Lesson `graded` | Marked, no pass required | lesson `complete`, quiz `graded`, `passmark_percent` null |
+| Lesson `passed` | Pass required and met | lesson `complete`, quiz `passed`, integer `passmark_percent` |
+| Lesson `passed` | No pass required | lesson `complete`, quiz `graded`, `passmark_percent` null |
+| Lesson `failed` | Pass required and not met | lesson `in-progress`, quiz `failed`, integer `passmark_percent`, lesson `completed_at` null |
+| Lesson `failed` | No pass required | lesson `complete`, quiz `graded`, `passmark_percent` null |
 
-- The error bodies of the token endpoint (an expired or reused code, a verifier that does not match, an unknown client).
-- The format of the optional `courses` parameter.
-- The order of `courses` in the response (the Dashboard lists the track course first).
-- `passmark_percent` for a quiz that sets no pass mark.
+Any other Sensei status is an error on Learn's side; the endpoint never guesses (section 1.3, closed vocabularies).
+
+## 7. Settled before the freeze
+
+The items left open in the 21 October draft were settled by Maciej Pilarski on 5 November 2026 ([#1](https://github.com/WordPress/learn-link/issues/1)):
+
+- **Token endpoint error bodies:** section 2.1, with an example file for each code.
+- **The optional `courses` parameter** and **the order of `courses` in the response:** section 1.4.
+- **`passmark_percent` for a quiz that sets no pass mark:** null, as review points 1 and 3 say.
 
 ## Change log
 
 - 16 October 2026: first draft, from section 2 of the design spec and section 5 of the handbook. Not frozen.
+- 21 October 2026: incorporated Maciej's review into sections 1.2, 1.3, 5, 6 and 7; clarified graded/pass-mark consistency, later-published lessons, UTC issue, and integer percent rounding. Freeze still pending.
+- 5 November 2026: the product owners' answers in #1 applied: course status and percent independent in both directions (section 1.3), token endpoint errors with three new example files (section 2.1), the `courses` parameter and order (section 1.4). Section 3 records decision 1 of #2, and section 6.1 maps Sensei's statuses.
+- 9 November 2026: frozen. Changes only by a new version (`learn-progress-v2.md`).

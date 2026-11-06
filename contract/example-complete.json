@@ -36,9 +36,9 @@
           "completed_at": "2026-09-15T19:02:41Z",
           "quiz": {
             "quiz_id": 297953,
-            "status": "failed",
+            "status": "graded",
             "grade_percent": 50,
-            "passmark_percent": 70,
+            "passmark_percent": null,
             "graded_at": "2026-09-15T19:02:41Z"
           }
         },

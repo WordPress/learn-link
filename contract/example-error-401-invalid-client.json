@@ -1,0 +1,7 @@
+{
+  "code": "learn_progress_invalid_client",
+  "message": "The client is not known.",
+  "data": {
+    "status": 401
+  }
+}

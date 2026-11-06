@@ -38,7 +38,7 @@
             "quiz_id": 297953,
             "status": "not-taken",
             "grade_percent": null,
-            "passmark_percent": 70,
+            "passmark_percent": null,
             "graded_at": null
           }
         },
