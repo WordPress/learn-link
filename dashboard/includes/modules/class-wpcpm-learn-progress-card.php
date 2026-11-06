@@ -43,18 +43,21 @@ class WPCPM_Learn_Progress_Card {
 					self::render_nothing_started( $ctx );
 					break;
 				case 'in_progress':
-					self::render_progress( $data, $structure );
+					self::render_progress( $data, $structure, $ctx );
 					self::render_last_updated( $data );
 					self::render_connected_footer();
 					break;
 				case 'complete':
-					self::render_complete( $data, $structure );
+					self::render_complete( $data, $structure, $ctx );
 					break;
 				case 'withdrawn':
 					self::render_withdrawn( $ctx );
 					break;
 				case 'unavailable':
-					self::render_unavailable( $data, $structure );
+					self::render_unavailable( $data, $structure, $ctx );
+					break;
+				default:
+					self::render_unavailable( array(), array(), array() );
 					break;
 			}
 			?>
@@ -97,6 +100,13 @@ class WPCPM_Learn_Progress_Card {
 	 */
 	private static function render_nothing_started( array $ctx ) {
 		$connected_at = self::format_date( isset( $ctx['connected_at'] ) ? $ctx['connected_at'] : 0 );
+
+		if ( '' === $connected_at ) {
+			?>
+			<p><?php echo esc_html__( 'You are connected, but you have not started the course yet.', 'wpcredits-program-manager' ); ?></p>
+			<?php
+			return;
+		}
 		?>
 		<p><?php /* translators: %s: Learn connection date. */ echo esc_html( sprintf( __( 'Connected on %s. You have not started the course yet.', 'wpcredits-program-manager' ), $connected_at ) ); ?></p>
 		<?php
@@ -112,8 +122,15 @@ class WPCPM_Learn_Progress_Card {
 	 */
 	private static function render_withdrawn( array $ctx ) {
 		$withdrawn_at = self::format_date( isset( $ctx['withdrawn_at'] ) ? $ctx['withdrawn_at'] : 0 );
+
+		if ( '' === $withdrawn_at ) {
+			?>
+			<p><?php echo esc_html__( 'This connection was withdrawn. Contact a program Administrator if you think this is a mistake.', 'wpcredits-program-manager' ); ?></p>
+			<?php
+			return;
+		}
 		?>
-		<p><?php /* translators: %s: Learn connection withdrawal date. */ echo esc_html( sprintf( __( 'A program Administrator withdrew this connection on %s. Ask your mentor if you think this is a mistake.', 'wpcredits-program-manager' ), $withdrawn_at ) ); ?></p>
+		<p><?php /* translators: %s: Learn connection withdrawal date. */ echo esc_html( sprintf( __( 'This connection was withdrawn on %s. Contact a program Administrator if you think this is a mistake.', 'wpcredits-program-manager' ), $withdrawn_at ) ); ?></p>
 		<?php
 	}
 
@@ -124,11 +141,12 @@ class WPCPM_Learn_Progress_Card {
 	 * cache exists, this state deliberately contains no percentage.
 	 *
 	 * @param array $data      Normalized cached progress, or an empty array.
-	 * @param array $structure Public course structure.
+	 * @param array $structure Modules returned by WPCPM_Learn::structure().
+	 * @param array $ctx       Display context for the current viewer.
 	 */
-	private static function render_unavailable( array $data, array $structure ) {
+	private static function render_unavailable( array $data, array $structure, array $ctx ) {
 		if ( ! empty( $data['courses'] ) ) {
-			self::render_progress( $data, $structure );
+			self::render_progress( $data, $structure, $ctx );
 			$updated_at = self::updated_at( $data );
 			?>
 			<p><?php /* translators: %s: Date and time of the cached Learn progress. */ echo esc_html( sprintf( __( 'Learn did not answer just now. These are your results as of %s.', 'wpcredits-program-manager' ), self::format_datetime( $updated_at ) ) ); ?></p>
@@ -146,9 +164,10 @@ class WPCPM_Learn_Progress_Card {
 	 * Render a completed course before its shared progress picture.
 	 *
 	 * @param array $data      Normalized progress data.
-	 * @param array $structure Public course structure.
+	 * @param array $structure Modules returned by WPCPM_Learn::structure().
+	 * @param array $ctx       Display context for the current viewer.
 	 */
-	private static function render_complete( array $data, array $structure ) {
+	private static function render_complete( array $data, array $structure, array $ctx ) {
 		$completed_at = 0;
 
 		foreach ( isset( $data['courses'] ) && is_array( $data['courses'] ) ? $data['courses'] : array() as $course ) {
@@ -157,10 +176,17 @@ class WPCPM_Learn_Progress_Card {
 				break;
 			}
 		}
-		?>
-		<p><?php /* translators: %s: Course completion date. */ echo esc_html( sprintf( __( 'Completed on %s.', 'wpcredits-program-manager' ), self::format_date( $completed_at ) ) ); ?></p>
-		<?php
-		self::render_progress( $data, $structure );
+		$completed_date = self::format_date( $completed_at );
+		if ( '' === $completed_date ) {
+			?>
+			<p><?php echo esc_html__( 'You completed this course.', 'wpcredits-program-manager' ); ?></p>
+			<?php
+		} else {
+			?>
+			<p><?php /* translators: %s: Course completion date. */ echo esc_html( sprintf( __( 'Completed on %s.', 'wpcredits-program-manager' ), $completed_date ) ); ?></p>
+			<?php
+		}
+		self::render_progress( $data, $structure, $ctx );
 		self::render_last_updated( $data );
 		self::render_connected_footer();
 	}
@@ -172,9 +198,10 @@ class WPCPM_Learn_Progress_Card {
 	 * course titles are added in Phase 3 without changing this public renderer.
 	 *
 	 * @param array $data      Normalized progress data.
-	 * @param array $structure Public course structure.
+	 * @param array $structure Modules returned by WPCPM_Learn::structure().
+	 * @param array $ctx       Display context, including optional course titles.
 	 */
-	private static function render_progress( array $data, array $structure ) {
+	private static function render_progress( array $data, array $structure, array $ctx ) {
 		$courses = isset( $data['courses'] ) && is_array( $data['courses'] ) ? $data['courses'] : array();
 
 		foreach ( $courses as $course_id => $course ) {
@@ -192,13 +219,22 @@ class WPCPM_Learn_Progress_Card {
 				}
 			}
 
-			$title = self::course_title( $structure, $course_id );
+			$title      = self::course_title( $ctx, $course_id );
+			$heading_id = 'wpcpm-learn-course-' . absint( $course_id );
 			?>
 			<section class="wpcpm-learn__course">
-				<h5><?php echo esc_html( $title ); ?></h5>
-				<progress class="wpcpm-learn__bar" max="100" value="<?php echo esc_attr( $percent ); ?>"><?php /* translators: %d: Course completion percentage. */ echo esc_html( sprintf( __( '%d%% of the course', 'wpcredits-program-manager' ), $percent ) ); ?></progress>
+				<h5 id="<?php echo esc_attr( $heading_id ); ?>"><?php echo esc_html( $title ); ?></h5>
+				<?php if ( array_key_exists( 'enrolled_at', $course ) && null === $course['enrolled_at'] ) : ?>
+					<p><?php echo esc_html__( 'You haven\'t enrolled in this course yet.', 'wpcredits-program-manager' ); ?></p>
+				</section>
+					<?php
+					continue;
+				endif;
+				?>
+				<progress class="wpcpm-learn__bar" aria-labelledby="<?php echo esc_attr( $heading_id ); ?>" max="100" value="<?php echo esc_attr( $percent ); ?>"><?php /* translators: %d: Course completion percentage. */ echo esc_html( sprintf( __( '%d%% of the course', 'wpcredits-program-manager' ), $percent ) ); ?></progress>
+				<p class="wpcpm-learn__percent"><?php /* translators: %d: Course completion percentage. */ echo esc_html( sprintf( __( '%d%%', 'wpcredits-program-manager' ), $percent ) ); ?></p>
 				<p><?php /* translators: 1: Number of completed lessons, 2: Total number of lessons. */ echo esc_html( sprintf( __( '%1$d of %2$d lessons', 'wpcredits-program-manager' ), $done, count( $lessons ) ) ); ?></p>
-				<?php self::render_lessons( $lessons, $structure, $course_id ); ?>
+				<?php self::render_lessons( $lessons, $structure ); ?>
 			</section>
 			<?php
 		}
@@ -208,10 +244,9 @@ class WPCPM_Learn_Progress_Card {
 	 * Render a flat lesson table for Phase 1.
 	 *
 	 * @param array $lessons   Normalized lessons.
-	 * @param array $structure Public course structure.
-	 * @param mixed $course_id Learn course ID.
+	 * @param array $structure Modules returned by WPCPM_Learn::structure().
 	 */
-	private static function render_lessons( array $lessons, array $structure, $course_id ) {
+	private static function render_lessons( array $lessons, array $structure ) {
 		if ( empty( $lessons ) ) {
 			return;
 		}
@@ -232,7 +267,7 @@ class WPCPM_Learn_Progress_Card {
 					}
 
 					$lesson_id = isset( $lesson['id'] ) ? absint( $lesson['id'] ) : 0;
-					$title     = self::lesson_title( $structure, $course_id, $lesson_id );
+					$title     = self::lesson_title( $structure, $lesson_id );
 					$status    = self::lesson_status( isset( $lesson['status'] ) ? $lesson['status'] : '' );
 					$quiz      = self::quiz_result( isset( $lesson['quiz'] ) ? $lesson['quiz'] : null );
 					?>
@@ -250,13 +285,13 @@ class WPCPM_Learn_Progress_Card {
 	/**
 	 * Find a course title, falling back safely when Phase 3 structure is absent.
 	 *
-	 * @param array $structure Public course structure.
+	 * @param array $ctx       Display context with optional titles by course ID.
 	 * @param mixed $course_id Learn course ID.
 	 * @return string
 	 */
-	private static function course_title( array $structure, $course_id ) {
-		if ( isset( $structure[ $course_id ]['title'] ) && '' !== trim( (string) $structure[ $course_id ]['title'] ) ) {
-			return (string) $structure[ $course_id ]['title'];
+	private static function course_title( array $ctx, $course_id ) {
+		if ( isset( $ctx['course_titles'][ $course_id ] ) && '' !== trim( (string) $ctx['course_titles'][ $course_id ] ) ) {
+			return (string) $ctx['course_titles'][ $course_id ];
 		}
 
 		/* translators: %d: Learn course ID. */
@@ -264,31 +299,18 @@ class WPCPM_Learn_Progress_Card {
 	}
 
 	/**
-	 * Find a lesson title across a course's modules.
+	 * Find a lesson title with the plugin's existing Learn structure helper.
 	 *
-	 * @param array $structure Public course structure.
-	 * @param mixed $course_id Learn course ID.
+	 * @param array $structure Modules returned by WPCPM_Learn::structure().
 	 * @param int   $lesson_id Learn lesson ID.
 	 * @return string
 	 */
-	private static function lesson_title( array $structure, $course_id, $lesson_id ) {
-		$modules = isset( $structure[ $course_id ]['modules'] ) && is_array( $structure[ $course_id ]['modules'] )
-			? $structure[ $course_id ]['modules']
-			: array();
+	private static function lesson_title( array $structure, $lesson_id ) {
+		if ( class_exists( 'WPCPM_Learn' ) ) {
+			$title = trim( (string) WPCPM_Learn::lesson_title( $structure, $lesson_id ) );
 
-		foreach ( $modules as $module ) {
-			$module_lessons = is_array( $module ) && isset( $module['lessons'] ) && is_array( $module['lessons'] )
-				? $module['lessons']
-				: array();
-
-			foreach ( $module_lessons as $lesson ) {
-				if ( is_array( $lesson ) && isset( $lesson['id'] ) && absint( $lesson['id'] ) === $lesson_id ) {
-					$title = isset( $lesson['title'] ) ? trim( (string) $lesson['title'] ) : '';
-
-					if ( '' !== $title ) {
-						return $title;
-					}
-				}
+			if ( '' !== $title ) {
+				return $title;
 			}
 		}
 
@@ -344,6 +366,16 @@ class WPCPM_Learn_Progress_Card {
 			return '';
 		}
 
+		if ( in_array( $status, array( 'passed', 'failed' ), true ) && isset( $quiz['passmark'] ) ) {
+			return sprintf(
+				/* translators: 1: Quiz grade percentage, 2: Quiz status, 3: Required pass mark percentage. */
+				__( '%1$d%%, %2$s (pass mark %3$d%%)', 'wpcredits-program-manager' ),
+				min( 100, absint( $quiz['grade'] ) ),
+				$labels[ $status ],
+				min( 100, absint( $quiz['passmark'] ) )
+			);
+		}
+
 		return sprintf(
 			/* translators: 1: Quiz grade percentage, 2: Quiz status. */
 			__( '%1$d%%, %2$s', 'wpcredits-program-manager' ),
@@ -368,7 +400,7 @@ class WPCPM_Learn_Progress_Card {
 	 */
 	private static function render_connected_footer() {
 		?>
-		<p class="wpcpm-learn__footer"><?php echo esc_html__( 'This connection lasts for the program. Ask your mentor or a program Administrator if it must be withdrawn.', 'wpcredits-program-manager' ); ?></p>
+		<p class="wpcpm-learn__footer"><?php echo esc_html__( 'This connection lasts for the program. Only a program Administrator can withdraw it.', 'wpcredits-program-manager' ); ?></p>
 		<?php
 	}
 
@@ -393,7 +425,9 @@ class WPCPM_Learn_Progress_Card {
 	 * @return string
 	 */
 	private static function format_date( $timestamp ) {
-		return wp_date( (string) get_option( 'date_format' ), absint( $timestamp ) );
+		$timestamp = absint( $timestamp );
+
+		return 0 === $timestamp ? '' : wp_date( (string) get_option( 'date_format' ), $timestamp );
 	}
 
 	/**

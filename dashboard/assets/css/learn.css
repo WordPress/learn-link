@@ -46,6 +46,11 @@
 	width: 100%;
 }
 
+.wpcpm-learn__percent {
+	font-weight: 600;
+	margin: 0.35em 0 0;
+}
+
 .wpcpm-learn__table {
 	border-collapse: collapse;
 	margin-top: 1em;
