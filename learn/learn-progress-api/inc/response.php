@@ -16,6 +16,9 @@ defined( 'WPINC' ) || die();
  *
  * Sensei is read only through Reader\read_course(), the one place that touches its data.
  *
+ * `wporg_username` is `user_login`, assuming a Learn login is always the WordPress.org username, as
+ * wporg-learn/inc/form.php does. Not yet confirmed for production accounts (to check with Meta).
+ *
  * @param \WP_User $user          The learner. Always the authenticated one, never a parameter.
  * @param array    $client        The client, from Clients\get().
  * @param string   $courses_param The optional `courses` parameter, which can only narrow the whitelist.
