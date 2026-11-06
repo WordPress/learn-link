@@ -15,7 +15,7 @@ The two halves meet in one written agreement, the contract: [contract/learn-prog
 
 | Path | What it holds |
 | --- | --- |
-| [`contract/`](contract/) | The contract draft and its example responses. Both halves test against these files. |
+| [`contract/`](contract/) | The contract, frozen on 9 November 2026, and its example responses. Both halves test against these files. |
 | [`learn/`](learn/) | The Sensei extension for Learn WordPress. |
 | [`dashboard/`](dashboard/) | The new plugin files, in the same paths they will have in the plugin. [`INTEGRATION.md`](dashboard/INTEGRATION.md) lists the few lines to add to existing plugin files. |
 | [`seed/`](seed/) | Invented courses, twenty invented learners, one invented student and mentor, and a read-only check. |
