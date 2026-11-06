@@ -13,27 +13,7 @@ use function WPOrg_Learn\Learn_Progress\Response\narrow;
 define( 'WPINC', 'wp-includes' );
 
 require_once __DIR__ . '/../inc/response.php';
-
-$total = 0;
-$fail  = 0;
-
-/**
- * One check: print ok or FAIL, and count it.
- */
-function ck( $label, $actual, $expected ) {
-	global $total, $fail;
-	++$total;
-
-	// phpcs:disable WordPress.Security.EscapeOutput.OutputNotEscaped -- Plain text to a terminal, not HTML.
-	if ( $actual === $expected ) {
-		echo "ok   $label\n";
-		return;
-	}
-
-	++$fail;
-	echo "FAIL $label\n     expected: " . var_export( $expected, true ) . "\n     actual:   " . var_export( $actual, true ) . "\n";
-	// phpcs:enable
-}
+require_once __DIR__ . '/lib.php';
 
 // U-L22.
 ck( 'duplicates, words and a course outside the whitelist are ignored', narrow( array( 12, 21 ), '21,abc,21,99999' ), array( 21 ) );
@@ -48,5 +28,4 @@ ck( 'a negative, a decimal or a signed number is not a course ID', narrow( array
 ck( 'whitelist IDs stored as strings come back as integers', narrow( array( '12', '21' ), '21' ), array( 21 ) );
 ck( 'a whitelist with a repeated ID lists it once', narrow( array( 12, 21, 12 ), '' ), array( 12, 21 ) );
 
-printf( "\n%s (%d checks)\n", $fail ? sprintf( '%d FAILURE(S)', $fail ) : 'ALL PASS', $total ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Plain text to a terminal.
-exit( $fail ? 1 : 0 );
+test_summary();
