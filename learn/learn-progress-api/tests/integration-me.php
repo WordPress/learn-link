@@ -116,6 +116,7 @@ $error_503  = fixture( 'example-error-503-unavailable.json' );
 $example    = fixture( 'example-in-progress.json' );
 
 ck( 'preconditions: the seeded learners 07 and 08, the local client with 2 courses, the contract files', array( (bool) $learner_07, (bool) $learner_08, count( $whitelist ), $error_401 && $error_503 && $example ), array( true, true, 2, true ) );
+ck( 'the site is not production, so register_routes() adds the route', 'production' !== wp_get_environment_type(), true );
 ck( 'the route is registered', isset( rest_get_server()->get_routes()['/learn-progress/v1/me'] ), true );
 
 // I-L03, SEC-21: signed out.

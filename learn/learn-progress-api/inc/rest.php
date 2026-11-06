@@ -25,8 +25,17 @@ add_filter( 'rest_post_dispatch', __NAMESPACE__ . '\no_store', 10, 3 );
  *
  * `/me` has no user parameter: the learner is the authenticated one and nobody else. A `user`,
  * `user_id` or `author` sent anyway is not in `args`, and nothing here reads it.
+ *
+ * Phase 1 only: on a `production` site no route is registered, so `/me` answers WordPress's own 404
+ * `rest_no_route`. The cookie check in authenticate() is for a local site, and this keeps it off a
+ * live one even if the plugin is deployed by mistake. Studio sites report `local`. The guard goes
+ * when the Bearer token version replaces authenticate() (P13).
  */
 function register_routes() {
+	if ( 'production' === wp_get_environment_type() ) {
+		return;
+	}
+
 	register_rest_route(
 		ROUTE_NAMESPACE,
 		'/me',
@@ -49,7 +58,8 @@ function register_routes() {
  * Let the request through only for a signed-in learner.
  *
  * Phase 1 only: the signed-in browser (cookie and `wp_rest` nonce), on a local site. Phase 2
- * replaces this with the Bearer token (P13); never deploy this version.
+ * replaces this with the Bearer token (P13). Until then register_routes() adds no route on a
+ * `production` site.
  *
  * @param \WP_REST_Request $request The request.
  *
