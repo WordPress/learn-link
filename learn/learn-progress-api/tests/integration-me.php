@@ -153,6 +153,53 @@ $r = me( $learner_07->ID );
 remove_filter( 'learn_progress_clients', '__return_empty_array', 99 );
 ck( 'no client configured: 503 with the contract error and no-store', array( $r['status'], $r['body']['code'], $r['body']['message'], $r['no_store'] ), array( 503, $error_503['code'], $error_503['message'], true ) );
 
+// SEC-21: a wrong X-WP-Nonce on a cookie session. WordPress refuses it before our permission check,
+// with its own 403 rest_cookie_invalid_nonce, which is not one of the contract's codes (the Dashboard
+// treats a 401 or 403 without a Learn code as a bad answer, contract section 2).
+// First the steps WP_REST_Server::serve_request() takes, in this process: check_authentication(),
+// the error turned into a response, then rest_post_dispatch, which it applies to errors too.
+global $wp_rest_auth_cookie;
+$saved_auth_cookie          = $wp_rest_auth_cookie;
+$wp_rest_auth_cookie        = true; // What rest_cookie_collect_status() sets for a valid logged-in cookie.
+$_SERVER['HTTP_X_WP_NONCE'] = 'not-a-nonce';
+wp_set_current_user( $learner_07->ID );
+
+$auth     = rest_get_server()->check_authentication();
+$request  = new WP_REST_Request( 'GET', '/learn-progress/v1/me' );
+$response = apply_filters( 'rest_post_dispatch', is_wp_error( $auth ) ? rest_convert_error_to_response( $auth ) : rest_ensure_response( $auth ), rest_get_server(), $request );
+$headers  = $response->get_headers();
+
+unset( $_SERVER['HTTP_X_WP_NONCE'] );
+$wp_rest_auth_cookie = $saved_auth_cookie;
+remove_filter( 'rest_send_nocache_headers', '__return_true', 20 );
+$data = $response->get_data();
+ck( 'SEC-21 wrong X-WP-Nonce: 403 rest_cookie_invalid_nonce, and our filter adds no-store', array( $response->get_status(), isset( $data['code'] ) ? $data['code'] : null, isset( $headers['Cache-Control'] ) ? $headers['Cache-Control'] : null ), array( 403, 'rest_cookie_invalid_nonce', 'no-store' ) );
+
+// Then one real HTTP request to the site, as learner 07 with a wrong nonce. For this error WordPress
+// also sends its no-cache headers, whose Cache-Control replaces ours and includes no-store.
+// The session token is created for this request only, and destroyed right after it.
+$expires = time() + 5 * MINUTE_IN_SECONDS;
+$session = WP_Session_Tokens::get_instance( $learner_07->ID );
+$token   = $session->create( $expires );
+$http    = wp_remote_get(
+	rest_url( 'learn-progress/v1/me' ),
+	array(
+		'headers'   => array( 'X-WP-Nonce' => 'not-a-nonce' ),
+		'cookies'   => array( LOGGED_IN_COOKIE => wp_generate_auth_cookie( $learner_07->ID, $expires, 'logged_in', $token ) ),
+		'timeout'   => 15,
+		'sslverify' => false, // A local site's certificate, if any, is self-signed.
+	)
+);
+$session->destroy( $token );
+
+if ( is_wp_error( $http ) ) {
+	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Plain text to a terminal.
+	echo 'skip SEC-21 wrong X-WP-Nonce over HTTP: the site is not reachable from this process (' . $http->get_error_message() . ")\n";
+} else {
+	$body = json_decode( wp_remote_retrieve_body( $http ), true );
+	ck( 'SEC-21 wrong X-WP-Nonce over HTTP: 403 rest_cookie_invalid_nonce, and Cache-Control includes no-store', array( wp_remote_retrieve_response_code( $http ), isset( $body['code'] ) ? $body['code'] : null, false !== strpos( (string) wp_remote_retrieve_header( $http, 'cache-control' ), 'no-store' ) ), array( 403, 'rest_cookie_invalid_nonce', true ) );
+}
+
 // The no-store filter touches only learn-progress routes.
 $request  = new WP_REST_Request( 'GET', '/wp/v2/types' );
 $response = apply_filters( 'rest_post_dispatch', rest_do_request( $request ), rest_get_server(), $request );
