@@ -2,13 +2,12 @@
 /**
  * Pure unit tests for Reader — no WordPress or Sensei required.
  *
- * Covers U-L01 to U-L14 as specified in Fase_1.md section 2.3 and problema-05 section L.
+ * Covers U-L01 to U-L14 as specified in Issue #4.
  *
- * Run with the Studio PHP binary (no WP bootstrap needed):
- *   & "C:\Users\Rafae\AppData\Local\studio_app\app-1.24.0\resources\php-bin\8.4.26-studio-1\php.exe"
- *     "C:\Users\Rafae\Documents\GitHub\Practica_CUC\learn-link\learn\learn-progress-api\tests\test-reader-pure.php"
+ * Run with:
+ *   php tests/test-reader-pure.php
  *
- * Expected output: ALL PASS (14 checks)
+ * Expected output: ALL PASS (34 checks)
  *
  * Architecture: all code uses bracketed-namespace form so multiple namespace
  * blocks can coexist in one file (required to stub Dates and Reader namespaces).
@@ -156,8 +155,18 @@ namespace WPOrg_Learn\Learn_Progress\Reader {
 	ck( 'not-taken+req -> passmark_percent 70', $r['quiz']['passmark_percent'], 70 );
 	$r = map_lesson( make_facts( 'ungraded', true, 70 ) );
 	ck( 'ungraded+req -> passmark_percent 70', $r['quiz']['passmark_percent'], 70 );
+
+	// When complete with a required pass (e.g. administrative completion), quiz maps to passed with passmark preserved.
 	$r = map_lesson( make_facts( 'complete', true, 70, 80.0 ) );
-	ck( 'complete+quiz -> graded, passmark_percent null', array( $r['quiz']['status'], $r['quiz']['passmark_percent'] ), array( 'graded', null ) );
+	ck( 'complete+quiz+req -> passed, passmark 70', array( $r['quiz']['status'], $r['quiz']['passmark_percent'] ), array( 'passed', 70 ) );
+
+	// When complete without a required pass, quiz maps to graded with passmark null.
+	$r = map_lesson( make_facts( 'complete', false, null, 80.0 ) );
+	ck( 'complete+quiz+!req -> graded, passmark null', array( $r['quiz']['status'], $r['quiz']['passmark_percent'] ), array( 'graded', null ) );
+
+	// If pass is required but passmark is 0, passmark_percent is 0 (never null).
+	$r = map_lesson( make_facts( 'passed', true, 0, 100.0 ) );
+	ck( 'passed+req+passmark 0 -> passmark_percent 0', $r['quiz']['passmark_percent'], 0 );
 
 	// U-L14: unknown raw status -> WP_Error with code learn_progress_unknown_status.
 	$r = map_lesson( make_facts( 'xyz_unknown' ) );

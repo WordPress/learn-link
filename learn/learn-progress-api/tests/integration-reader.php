@@ -6,7 +6,7 @@
  *   studio wp eval-file wp-content/plugins/learn-progress-api/tests/integration-reader.php --path="C:\Studio\learn-link-learn"
  *
  * Tests the 20 seeded learners (learnlink-learner-01 to 20), regression C-16,
- * and database read-only immutability (wp_comments and wp_usermeta row counts).
+ * stale enrolment cache behavior, and database read-only immutability.
  * Outputs full formatted JSON for inclusion in Pull Request evidence.
  */
 
@@ -26,9 +26,27 @@ echo "====================================================================\n\n";
 
 global $wpdb;
 
-// Record row counts before running tests to verify strict read-only behavior.
-$comments_before = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->comments}" );
-$usermeta_before = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->usermeta}" );
+// Hook guards to detect unwanted write actions during reads.
+add_action(
+	'sensei_user_course_start',
+	function () {
+		ck( 'sensei_user_course_start did not fire', false, true );
+	}
+);
+
+add_filter(
+	'wp_mail',
+	function ( $args ) {
+		ck( 'wp_mail did not fire', false, true );
+		return $args;
+	}
+);
+
+// Record baseline row counts before running tests to verify strict read-only behavior.
+$comments_before    = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->comments}" );
+$commentmeta_before = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->commentmeta}" );
+$usermeta_before    = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->usermeta}" );
+$terms_before       = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->term_relationships}" );
 
 // Retrieve the two seed test courses.
 $course_main = get_page_by_path( 'learn-link-test-course', OBJECT, 'course' );
@@ -66,7 +84,7 @@ for ( $n = 1; $n <= 20; $n++ ) {
 		),
 	);
 
-	// Group assertions per specification (problema-05 section L):
+	// Group assertions per specification:
 	if ( $n >= 1 && $n <= 3 ) {
 		// Group 01-03: Not enrolled in either course.
 		ck( "{$login} [main] not-started", $res_main['status'], 'not-started' );
@@ -113,15 +131,58 @@ for ( $n = 1; $n <= 20; $n++ ) {
 	}
 }
 
-// Immutability check (row counts must not change).
-$comments_after = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->comments}" );
-$usermeta_after = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->usermeta}" );
+// Immutability check across 20 learners (database must be completely untouched).
+$comments_after    = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->comments}" );
+$commentmeta_after = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->commentmeta}" );
+$usermeta_after    = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->usermeta}" );
+$terms_after       = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->term_relationships}" );
 
 ck( 'Immutability: wp_comments rows unchanged', $comments_after, $comments_before );
+ck( 'Immutability: wp_commentmeta rows unchanged', $commentmeta_after, $commentmeta_before );
 ck( 'Immutability: wp_usermeta rows unchanged', $usermeta_after, $usermeta_before );
+ck( 'Immutability: wp_term_relationships rows unchanged', $terms_after, $terms_before );
 
-test_summary();
+// Stale enrolment cache test: ensure reading a learner with stale/missing cache doesn't trigger save_enrolment.
+$learner_01 = get_user_by( 'login', 'learnlink-learner-01' );
+if ( $learner_01 && class_exists( 'Sensei_Course_Enrolment' ) ) {
+	$course_enrolment = Sensei_Course_Enrolment::get_course_instance( $main_id );
+	if ( method_exists( $course_enrolment, 'invalidate_learner_result' ) ) {
+		$course_enrolment->invalidate_learner_result( (int) $learner_01->ID );
+	}
+	$comments_stale_before = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->comments}" );
+	$stale_res             = Reader\read_course( (int) $learner_01->ID, $main_id );
+	$comments_stale_after  = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->comments}" );
 
+	ck( 'Stale enrolment read: status remains not-started', $stale_res['status'], 'not-started' );
+	ck( 'Stale enrolment read: no course progress comment created', $comments_stale_after, $comments_stale_before );
+}
+
+// Regression C-16: A completed course with 8 lessons that receives a 9th lesson computes 89% and remains complete.
+$learner_17 = get_user_by( 'login', 'learnlink-learner-17' );
+if ( $learner_17 ) {
+	$temp_lesson_id = wp_insert_post(
+		array(
+			'post_title'  => 'C-16 Regression Test Lesson',
+			'post_type'   => 'lesson',
+			'post_status' => 'publish',
+		)
+	);
+	if ( $temp_lesson_id && ! is_wp_error( $temp_lesson_id ) ) {
+		update_post_meta( $temp_lesson_id, '_lesson_course', $main_id );
+
+		$res_c16 = Reader\read_course( (int) $learner_17->ID, $main_id );
+
+		ck( 'C-16: course with added 9th lesson has 89 percent', $res_c16['progress_percent'], 89 );
+		ck( 'C-16: completed status preserved despite new lesson', $res_c16['status'], 'complete' );
+
+		// Clean up the temporary test lesson.
+		wp_delete_post( $temp_lesson_id, true );
+	}
+}
+
+// Output JSON for PR evidence BEFORE test_summary() because test_summary() exits.
 echo "\n--- JSON OUTPUT OF 20 LEARNERS (FOR PULL REQUEST) ---\n";
 echo wp_json_encode( $all_results, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ) . "\n";
-echo "--- END JSON OUTPUT ---\n";
+echo "--- END JSON OUTPUT ---\n\n";
+
+test_summary();
