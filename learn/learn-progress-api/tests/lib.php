@@ -46,8 +46,9 @@ function test_summary() {
 	echo "\n";
 	if ( 0 === $fails ) {
 		echo "ALL PASS ({$total} checks)\n";
-		return;
+	} else {
+		echo "FAILED ({$fails} of {$total} checks failed)\n";
 	}
 
-	echo "FAILED ({$fails} of {$total} checks failed)\n";
+	exit( $fails ? 1 : 0 );
 }

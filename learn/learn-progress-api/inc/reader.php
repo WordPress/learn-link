@@ -79,8 +79,8 @@ function map_lesson( array $facts ) {
 			'quiz_id'          => (int) $facts['quiz_id'],
 			'status'           => (string) $status,
 			'grade_percent'    => $is_graded ? max( 0, min( 100, (int) round( (float) $facts['grade'] ) ) ) : null,
-			// Exactly when a pass is required (passmark is null otherwise); `graded` always has null.
-			'passmark_percent' => 'graded' !== $status && null !== $facts['passmark'] ? (int) $facts['passmark'] : null,
+			// Exactly when a pass is required (passmark is null otherwise).
+			'passmark_percent' => ! empty( $facts['pass_required'] ) ? (int) $facts['passmark'] : null,
 			'graded_at'        => $is_graded ? $at : null,
 		);
 	};
@@ -107,7 +107,11 @@ function map_lesson( array $facts ) {
 				: row( $facts, 'complete', $at, $quiz( 'graded', true ) );
 
 		case 'complete':
-			return row( $facts, 'complete', $at, ! empty( $facts['quiz_id'] ) ? $quiz( 'graded', true ) : null );
+			if ( empty( $facts['quiz_id'] ) ) {
+				return row( $facts, 'complete', $at, null );
+			}
+			$quiz_status = ! empty( $facts['pass_required'] ) ? 'passed' : 'graded';
+			return row( $facts, 'complete', $at, $quiz( $quiz_status, true ) );
 
 		default:
 			return new \WP_Error( 'learn_progress_unknown_status', 'Unknown Sensei lesson status.' );
@@ -128,14 +132,14 @@ function lesson_facts( $lesson_id, $user_id ) {
 	$lesson_id = (int) $lesson_id;
 	$user_id   = (int) $user_id;
 
-	// D-09: Read user status comment via public Sensei utility.
+	// Read user status comment via public Sensei utility (Decision record 006, #2).
 	$comment  = \Sensei_Utils::user_lesson_status( $lesson_id, $user_id );
 	$has_quiz = \Sensei_Lesson::lesson_quiz_has_questions( $lesson_id );
 	$quiz_id  = $has_quiz ? (int) \Sensei()->lesson->lesson_quizzes( $lesson_id ) : 0;
 	$required = $has_quiz && 'on' === get_post_meta( $quiz_id, '_pass_required', true );
 
 	$passmark_meta = get_post_meta( $quiz_id, '_quiz_passmark', true );
-	$passmark      = ( $required && '' !== $passmark_meta ) ? (int) round( (float) $passmark_meta ) : null;
+	$passmark      = $required ? ( '' !== $passmark_meta ? (int) round( (float) $passmark_meta ) : 0 ) : null;
 
 	$grade = 0.0;
 	if ( $has_quiz && class_exists( 'Sensei_Quiz' ) ) {
@@ -179,7 +183,19 @@ function read_course( $user_id, $course_id ) {
 	);
 
 	// Contract §1.3: If not enrolled, return course with status not-started and empty lessons.
-	if ( ! \Sensei_Course::is_user_enrolled( $course_id, $user_id ) ) {
+	// Check enrolment strictly read-only without invoking mutating Sensei methods.
+	$has_progress = (bool) \Sensei_Utils::has_started_course( $course_id, $user_id );
+	$has_term     = false;
+
+	if ( ! $has_progress && class_exists( 'Sensei_Learner' ) && class_exists( 'Sensei_PostTypes' ) ) {
+		$term = \Sensei_Learner::get_learner_term( $user_id );
+		if ( $term && ! is_wp_error( $term ) ) {
+			$object_ids = get_objects_in_term( $term->term_id, \Sensei_PostTypes::LEARNER_TAXONOMY_NAME );
+			$has_term   = in_array( (string) $course_id, $object_ids, true ) || in_array( (int) $course_id, $object_ids, true );
+		}
+	}
+
+	if ( ! $has_progress && ! $has_term ) {
 		return $empty_course;
 	}
 
@@ -210,22 +226,45 @@ function read_course( $user_id, $course_id ) {
 	}
 
 	$complete = \Sensei_Utils::user_completed_course( $course_id, $user_id );
-	$progress = \Sensei_Utils::has_started_course( $course_id, $user_id );
-	$record   = $progress ? get_comment( $progress ) : null;
 
 	// Contract §6.2: Status is calculated: complete, in-progress, or not-started.
 	$course_status = $complete ? 'complete' : ( $started ? 'in-progress' : 'not-started' );
 
+	// Storage-agnostic progress dates lookup (works for both HPPS tables and legacy comments).
 	$enrolled_at  = null;
 	$completed_at = null;
 
-	if ( $progress ) {
-		$start_meta  = get_comment_meta( $progress, 'start', true );
-		$enrolled_at = Dates\from_local( $start_meta );
-	}
+	$progress_repo = ( function_exists( 'Sensei' ) && isset( \Sensei()->course_progress_repository ) )
+		? \Sensei()->course_progress_repository
+		: null;
 
-	if ( $complete && $record ) {
-		$completed_at = Dates\from_gmt( $record->comment_date_gmt );
+	$progress_model = $progress_repo ? $progress_repo->get( $course_id, $user_id ) : null;
+
+	if ( $progress_model ) {
+		$started_at = $progress_model->get_started_at();
+		if ( $started_at instanceof \DateTimeInterface ) {
+			$utc_started = ( clone $started_at )->setTimezone( new \DateTimeZone( 'UTC' ) );
+			$enrolled_at = $utc_started->format( 'Y-m-d\TH:i:s\Z' );
+		}
+
+		if ( $complete ) {
+			$ended_at = $progress_model->get_completed_at();
+			if ( $ended_at instanceof \DateTimeInterface ) {
+				$utc_ended    = ( clone $ended_at )->setTimezone( new \DateTimeZone( 'UTC' ) );
+				$completed_at = $utc_ended->format( 'Y-m-d\TH:i:s\Z' );
+			}
+		}
+	} else {
+		// Fallback to direct comment metadata lookup if repository is not available.
+		$progress = \Sensei_Utils::has_started_course( $course_id, $user_id );
+		if ( $progress ) {
+			$start_meta  = get_comment_meta( $progress, 'start', true );
+			$enrolled_at = Dates\from_local( $start_meta );
+			if ( $complete ) {
+				$record       = get_comment( $progress );
+				$completed_at = $record ? Dates\from_gmt( $record->comment_date_gmt ) : null;
+			}
+		}
 	}
 
 	return array(
