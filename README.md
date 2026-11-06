@@ -9,13 +9,13 @@ It has two halves, built together in this repository by a team of interns from C
 
 The two halves meet in one written agreement, the contract: [contract/learn-progress-v1.md](contract/learn-progress-v1.md). Read it first. It lets both halves be built at the same time, and it is the first thing a Meta team reviewer will read.
 
-**Status:** week 1 starter. The contract is a draft until the team freezes it by Friday 30 October, the end of Phase 1. Nothing in this repository runs on learn.wordpress.org or wordpresseducation.org, and everything in it is invented data.
+**Status:** week 1 starter. The contract was frozen on Monday 9 November 2026; it changes only by a new version. Nothing in this repository runs on learn.wordpress.org or wordpresseducation.org, and everything in it is invented data.
 
 ## What is where
 
 | Path | What it holds |
 | --- | --- |
-| [`contract/`](contract/) | The contract draft and its example responses. Both halves test against these files. |
+| [`contract/`](contract/) | The contract, frozen on 9 November 2026, and its example responses. Both halves test against these files. |
 | [`learn/`](learn/) | The Sensei extension for Learn WordPress. |
 | [`dashboard/`](dashboard/) | The new plugin files, in the same paths they will have in the plugin. [`INTEGRATION.md`](dashboard/INTEGRATION.md) lists the few lines to add to existing plugin files. |
 | [`seed/`](seed/) | Invented courses, twenty invented learners, one invented student and mentor, and a read-only check. |
