@@ -80,6 +80,25 @@ function shape( $value, $path = '$', array &$out = array() ) {
 }
 
 /**
+ * A hash of every row of each table, so a changed value shows, not only a new or deleted row.
+ *
+ * The rows are sorted here rather than in SQL, so the hash does not depend on the database's order.
+ */
+function fingerprint( array $tables ) {
+	global $wpdb;
+
+	$out = array();
+	foreach ( $tables as $table ) {
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery -- A test reading whole tables; every name comes from $wpdb.
+		$rows = $wpdb->get_results( "SELECT * FROM {$table}", ARRAY_N );
+		sort( $rows );
+		$out[ $table ] = md5( wp_json_encode( $rows ) );
+	}
+
+	return $out;
+}
+
+/**
  * One of the contract's example files, decoded, or null when it cannot be read.
  */
 function fixture( $name ) {
@@ -146,6 +165,54 @@ $lesson = get_posts(
 ck( '?courses=<the second course> answers only that one', wp_list_pluck( me( $learner_07->ID, array( 'courses' => (string) $whitelist[1] ) )['body']['courses'], 'course_id' ), array( $whitelist[1] ) );
 ck( '?courses=99999 answers the whole whitelist', wp_list_pluck( me( $learner_07->ID, array( 'courses' => '99999' ) )['body']['courses'], 'course_id' ), $whitelist );
 ck( 'SEC-08 ?courses=<a post outside the whitelist> reveals nothing', wp_list_pluck( me( $learner_07->ID, array( 'courses' => (string) $lesson[0] ) )['body']['courses'], 'course_id' ), $whitelist );
+
+// READ-ONLY: a GET changes nothing. The reader must not enroll, start a course or send mail
+// (Maciej's note on is_user_enrolled() in #14). One learner from each seeded group, plus one whose
+// stored enrollment result is stale, the case where Sensei would save the enrollment again.
+global $wpdb;
+$readers = array();
+foreach ( array( '01', '04', '07', '11', '14', '17' ) as $number ) {
+	$user = get_user_by( 'login', 'learnlink-learner-' . $number );
+	if ( $user ) {
+		$readers[ $number ] = (int) $user->ID;
+	}
+}
+ck( 'READ-ONLY preconditions: learners 01, 04, 07, 11, 14 and 17', array_map( 'strval', array_keys( $readers ) ), array( '01', '04', '07', '11', '14', '17' ) );
+
+// Learner 04 is enrolled with nothing done. Invalidating the stored result is itself a write, so it
+// happens before the snapshot below.
+if ( isset( $readers['04'] ) && class_exists( 'Sensei_Course_Enrolment' ) ) {
+	Sensei_Course_Enrolment::get_course_instance( $whitelist[0] )->invalidate_learner_result( $readers['04'] );
+}
+
+$progress_tables = array( $wpdb->comments, $wpdb->commentmeta, $wpdb->usermeta, $wpdb->terms, $wpdb->term_taxonomy, $wpdb->term_relationships );
+$progress_tables = array_merge( $progress_tables, $wpdb->get_col( $wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $wpdb->prefix . 'sensei_lms_' ) . '%' ) ) );
+$before          = fingerprint( $progress_tables );
+
+$writes = array();
+$record = function ( $value = null ) use ( &$writes ) {
+	$writes[] = current_filter();
+	return $value; // wp_mail is a filter: hand its arguments back.
+};
+$watched = array( 'sensei_user_course_start', 'sensei_user_lesson_start', 'wp_mail', 'wp_insert_comment', 'edit_comment', 'delete_comment', 'added_comment_meta', 'updated_comment_meta', 'deleted_comment_meta', 'added_user_meta', 'updated_user_meta', 'deleted_user_meta', 'set_object_terms' );
+foreach ( $watched as $hook ) {
+	add_filter( $hook, $record );
+}
+
+$statuses = array();
+foreach ( $readers as $user_id ) {
+	$statuses[] = me( $user_id )['status'];
+	$statuses[] = me( $user_id, array( 'courses' => (string) $whitelist[0] ) )['status'];
+}
+
+foreach ( $watched as $hook ) {
+	remove_filter( $hook, $record );
+}
+$changed = array_keys( array_diff_assoc( fingerprint( $progress_tables ), $before ) );
+
+ck( 'READ-ONLY six learners, twelve GETs: every answer is 200', array_unique( $statuses ), array( 200 ) );
+ck( 'READ-ONLY no write hook fired (enrollment, course or lesson start, comment, meta, terms, mail)', array_values( array_unique( $writes ) ), array() );
+ck( 'READ-ONLY every progress table is byte for byte the same, Sensei tables included', $changed, array() );
 
 // SEC-21: an error from the callback also carries no-store.
 add_filter( 'learn_progress_clients', '__return_empty_array', 99 );
