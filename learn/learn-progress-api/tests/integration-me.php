@@ -6,6 +6,9 @@
  *
  * Run: studio wp eval-file wp-content/plugins/learn-progress-api/tests/integration-me.php
  *
+ * Exit status: 0 all pass, 1 a check failed, 2 skipped because the contract files were not found
+ * (see contract_dir()).
+ *
  * @package WPOrg_Learn\Learn_Progress
  */
 
@@ -99,12 +102,44 @@ function fingerprint( array $tables ) {
 }
 
 /**
+ * The learn-link `contract/` folder that holds the example files, or null when none is found.
+ *
+ * The LEARN_PROGRESS_CONTRACT_DIR constant wins, for a plugin folder copied into wp-content/plugins/
+ * (define it in wp-config.php). Otherwise every folder above this file is tried, so a plugin
+ * symlinked from the repository (Studio) finds the repository's `contract/`: __DIR__ has the
+ * symlinks resolved.
+ */
+function contract_dir() {
+	$candidates = defined( 'LEARN_PROGRESS_CONTRACT_DIR' ) ? array( rtrim( LEARN_PROGRESS_CONTRACT_DIR, '/\\' ) ) : array();
+
+	for ( $dir = __DIR__; dirname( $dir ) !== $dir; $dir = dirname( $dir ) ) {
+		$candidates[] = dirname( $dir ) . '/contract';
+	}
+
+	foreach ( $candidates as $candidate ) {
+		if ( is_readable( $candidate . '/learn-progress-v1.md' ) ) {
+			return $candidate;
+		}
+	}
+
+	return null;
+}
+
+/**
  * One of the contract's example files, decoded, or null when it cannot be read.
  */
 function fixture( $name ) {
-	$file = dirname( __DIR__, 3 ) . '/contract/' . $name;
+	$file = $GLOBALS['contract_dir'] . '/' . $name;
 
 	return is_readable( $file ) ? json_decode( file_get_contents( $file ), true ) : null;
+}
+
+$GLOBALS['contract_dir'] = contract_dir();
+
+if ( null === $GLOBALS['contract_dir'] ) {
+	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Plain text to a terminal.
+	echo "SKIP integration-me.php: the contract's example files were not found.\n     No contract/learn-progress-v1.md in any folder above " . __DIR__ . ".\n     Symlink the plugin from the learn-link repository, or define LEARN_PROGRESS_CONTRACT_DIR\n     in wp-config.php as the path of the repository's contract/ folder.\n\nSKIPPED (0 checks)\n";
+	exit( 2 );
 }
 
 $learner_07 = get_user_by( 'login', 'learnlink-learner-07' );
