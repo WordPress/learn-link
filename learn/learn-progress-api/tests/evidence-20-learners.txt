@@ -1,4 +1,4 @@
-====================================================================
+﻿====================================================================
 LEARN LINK - INTEGRATION SUITE: 20 LEARNERS & IMMUTABILITY
 ====================================================================
 
@@ -93,9 +93,13 @@ LEARN LINK - INTEGRATION SUITE: 20 LEARNERS & IMMUTABILITY
 [PASS] learnlink-learner-20 [fnd] complete
 [PASS] learnlink-learner-20 [fnd] 100 percent
 [PASS] Immutability: wp_comments rows unchanged
+[PASS] Immutability: wp_commentmeta rows unchanged
 [PASS] Immutability: wp_usermeta rows unchanged
-
-ALL PASS (92 checks)
+[PASS] Immutability: wp_term_relationships rows unchanged
+[PASS] Stale enrolment read: status remains not-started
+[PASS] Stale enrolment read: no course progress comment created
+[PASS] C-16: course with added 9th lesson has 89 percent
+[PASS] C-16: completed status preserved despite new lesson
 
 --- JSON OUTPUT OF 20 LEARNERS (FOR PULL REQUEST) ---
 {
@@ -186,7 +190,7 @@ ALL PASS (92 checks)
                             "quiz_id": 38,
                             "status": "not-taken",
                             "grade_percent": null,
-                            "passmark_percent": null,
+                            "passmark_percent": 70,
                             "graded_at": null
                         }
                     },
@@ -198,7 +202,7 @@ ALL PASS (92 checks)
                             "quiz_id": 40,
                             "status": "not-taken",
                             "grade_percent": null,
-                            "passmark_percent": null,
+                            "passmark_percent": 70,
                             "graded_at": null
                         }
                     },
@@ -216,7 +220,7 @@ ALL PASS (92 checks)
                             "quiz_id": 44,
                             "status": "not-taken",
                             "grade_percent": null,
-                            "passmark_percent": null,
+                            "passmark_percent": 70,
                             "graded_at": null
                         }
                     },
@@ -234,7 +238,7 @@ ALL PASS (92 checks)
                             "quiz_id": 48,
                             "status": "not-taken",
                             "grade_percent": null,
-                            "passmark_percent": null,
+                            "passmark_percent": 70,
                             "graded_at": null
                         }
                     },
@@ -280,7 +284,7 @@ ALL PASS (92 checks)
                             "quiz_id": 38,
                             "status": "not-taken",
                             "grade_percent": null,
-                            "passmark_percent": null,
+                            "passmark_percent": 70,
                             "graded_at": null
                         }
                     },
@@ -292,7 +296,7 @@ ALL PASS (92 checks)
                             "quiz_id": 40,
                             "status": "not-taken",
                             "grade_percent": null,
-                            "passmark_percent": null,
+                            "passmark_percent": 70,
                             "graded_at": null
                         }
                     },
@@ -310,7 +314,7 @@ ALL PASS (92 checks)
                             "quiz_id": 44,
                             "status": "not-taken",
                             "grade_percent": null,
-                            "passmark_percent": null,
+                            "passmark_percent": 70,
                             "graded_at": null
                         }
                     },
@@ -328,7 +332,7 @@ ALL PASS (92 checks)
                             "quiz_id": 48,
                             "status": "not-taken",
                             "grade_percent": null,
-                            "passmark_percent": null,
+                            "passmark_percent": 70,
                             "graded_at": null
                         }
                     },
@@ -374,7 +378,7 @@ ALL PASS (92 checks)
                             "quiz_id": 38,
                             "status": "not-taken",
                             "grade_percent": null,
-                            "passmark_percent": null,
+                            "passmark_percent": 70,
                             "graded_at": null
                         }
                     },
@@ -386,7 +390,7 @@ ALL PASS (92 checks)
                             "quiz_id": 40,
                             "status": "not-taken",
                             "grade_percent": null,
-                            "passmark_percent": null,
+                            "passmark_percent": 70,
                             "graded_at": null
                         }
                     },
@@ -404,7 +408,7 @@ ALL PASS (92 checks)
                             "quiz_id": 44,
                             "status": "not-taken",
                             "grade_percent": null,
-                            "passmark_percent": null,
+                            "passmark_percent": 70,
                             "graded_at": null
                         }
                     },
@@ -422,7 +426,7 @@ ALL PASS (92 checks)
                             "quiz_id": 48,
                             "status": "not-taken",
                             "grade_percent": null,
-                            "passmark_percent": null,
+                            "passmark_percent": 70,
                             "graded_at": null
                         }
                     },
@@ -498,7 +502,7 @@ ALL PASS (92 checks)
                             "quiz_id": 44,
                             "status": "not-taken",
                             "grade_percent": null,
-                            "passmark_percent": null,
+                            "passmark_percent": 70,
                             "graded_at": null
                         }
                     },
@@ -516,7 +520,7 @@ ALL PASS (92 checks)
                             "quiz_id": 48,
                             "status": "not-taken",
                             "grade_percent": null,
-                            "passmark_percent": null,
+                            "passmark_percent": 70,
                             "graded_at": null
                         }
                     },
@@ -611,7 +615,7 @@ ALL PASS (92 checks)
                             "quiz_id": 44,
                             "status": "not-taken",
                             "grade_percent": null,
-                            "passmark_percent": null,
+                            "passmark_percent": 70,
                             "graded_at": null
                         }
                     },
@@ -629,7 +633,7 @@ ALL PASS (92 checks)
                             "quiz_id": 48,
                             "status": "not-taken",
                             "grade_percent": null,
-                            "passmark_percent": null,
+                            "passmark_percent": 70,
                             "graded_at": null
                         }
                     },
@@ -724,7 +728,7 @@ ALL PASS (92 checks)
                             "quiz_id": 44,
                             "status": "not-taken",
                             "grade_percent": null,
-                            "passmark_percent": null,
+                            "passmark_percent": 70,
                             "graded_at": null
                         }
                     },
@@ -742,7 +746,7 @@ ALL PASS (92 checks)
                             "quiz_id": 48,
                             "status": "not-taken",
                             "grade_percent": null,
-                            "passmark_percent": null,
+                            "passmark_percent": 70,
                             "graded_at": null
                         }
                     },
@@ -837,7 +841,7 @@ ALL PASS (92 checks)
                             "quiz_id": 44,
                             "status": "not-taken",
                             "grade_percent": null,
-                            "passmark_percent": null,
+                            "passmark_percent": 70,
                             "graded_at": null
                         }
                     },
@@ -855,7 +859,7 @@ ALL PASS (92 checks)
                             "quiz_id": 48,
                             "status": "not-taken",
                             "grade_percent": null,
-                            "passmark_percent": null,
+                            "passmark_percent": 70,
                             "graded_at": null
                         }
                     },
@@ -932,7 +936,7 @@ ALL PASS (92 checks)
                             "quiz_id": 40,
                             "status": "not-taken",
                             "grade_percent": null,
-                            "passmark_percent": null,
+                            "passmark_percent": 70,
                             "graded_at": null
                         }
                     },
@@ -950,7 +954,7 @@ ALL PASS (92 checks)
                             "quiz_id": 44,
                             "status": "not-taken",
                             "grade_percent": null,
-                            "passmark_percent": null,
+                            "passmark_percent": 70,
                             "graded_at": null
                         }
                     },
@@ -968,7 +972,7 @@ ALL PASS (92 checks)
                             "quiz_id": 48,
                             "status": "not-taken",
                             "grade_percent": null,
-                            "passmark_percent": null,
+                            "passmark_percent": 70,
                             "graded_at": null
                         }
                     },
@@ -1026,7 +1030,7 @@ ALL PASS (92 checks)
                             "quiz_id": 40,
                             "status": "not-taken",
                             "grade_percent": null,
-                            "passmark_percent": null,
+                            "passmark_percent": 70,
                             "graded_at": null
                         }
                     },
@@ -1044,7 +1048,7 @@ ALL PASS (92 checks)
                             "quiz_id": 44,
                             "status": "not-taken",
                             "grade_percent": null,
-                            "passmark_percent": null,
+                            "passmark_percent": 70,
                             "graded_at": null
                         }
                     },
@@ -1062,7 +1066,7 @@ ALL PASS (92 checks)
                             "quiz_id": 48,
                             "status": "not-taken",
                             "grade_percent": null,
-                            "passmark_percent": null,
+                            "passmark_percent": 70,
                             "graded_at": null
                         }
                     },
@@ -1120,7 +1124,7 @@ ALL PASS (92 checks)
                             "quiz_id": 40,
                             "status": "not-taken",
                             "grade_percent": null,
-                            "passmark_percent": null,
+                            "passmark_percent": 70,
                             "graded_at": null
                         }
                     },
@@ -1138,7 +1142,7 @@ ALL PASS (92 checks)
                             "quiz_id": 44,
                             "status": "not-taken",
                             "grade_percent": null,
-                            "passmark_percent": null,
+                            "passmark_percent": 70,
                             "graded_at": null
                         }
                     },
@@ -1156,7 +1160,7 @@ ALL PASS (92 checks)
                             "quiz_id": 48,
                             "status": "not-taken",
                             "grade_percent": null,
-                            "passmark_percent": null,
+                            "passmark_percent": 70,
                             "graded_at": null
                         }
                     },
@@ -1232,7 +1236,7 @@ ALL PASS (92 checks)
                             "quiz_id": 44,
                             "status": "ungraded",
                             "grade_percent": null,
-                            "passmark_percent": null,
+                            "passmark_percent": 70,
                             "graded_at": null
                         }
                     },
@@ -1250,7 +1254,7 @@ ALL PASS (92 checks)
                             "quiz_id": 48,
                             "status": "not-taken",
                             "grade_percent": null,
-                            "passmark_percent": null,
+                            "passmark_percent": 70,
                             "graded_at": null
                         }
                     },
@@ -1326,7 +1330,7 @@ ALL PASS (92 checks)
                             "quiz_id": 44,
                             "status": "ungraded",
                             "grade_percent": null,
-                            "passmark_percent": null,
+                            "passmark_percent": 70,
                             "graded_at": null
                         }
                     },
@@ -1344,7 +1348,7 @@ ALL PASS (92 checks)
                             "quiz_id": 48,
                             "status": "not-taken",
                             "grade_percent": null,
-                            "passmark_percent": null,
+                            "passmark_percent": 70,
                             "graded_at": null
                         }
                     },
@@ -1420,7 +1424,7 @@ ALL PASS (92 checks)
                             "quiz_id": 44,
                             "status": "ungraded",
                             "grade_percent": null,
-                            "passmark_percent": null,
+                            "passmark_percent": 70,
                             "graded_at": null
                         }
                     },
@@ -1438,7 +1442,7 @@ ALL PASS (92 checks)
                             "quiz_id": 48,
                             "status": "not-taken",
                             "grade_percent": null,
-                            "passmark_percent": null,
+                            "passmark_percent": 70,
                             "graded_at": null
                         }
                     },
@@ -1914,3 +1918,6 @@ ALL PASS (92 checks)
     }
 }
 --- END JSON OUTPUT ---
+
+
+ALL PASS (98 checks)
