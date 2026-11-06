@@ -1,0 +1,7 @@
+{
+  "code": "learn_progress_invalid_token",
+  "message": "The token is not valid.",
+  "data": {
+    "status": 401
+  }
+}
