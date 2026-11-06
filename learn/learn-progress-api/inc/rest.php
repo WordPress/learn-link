@@ -67,6 +67,12 @@ function authenticate( \WP_REST_Request $request ) {
  * @return \WP_REST_Response|\WP_Error
  */
 function get_me( \WP_REST_Request $request ) {
+	// The reader calls Sensei's public functions, so without Sensei the first call would be fatal.
+	// Answer the contract's 503 instead: Learn cannot read progress right now (contract section 2).
+	if ( ! class_exists( 'Sensei_Course' ) ) {
+		return error( 'learn_progress_unavailable', 503 );
+	}
+
 	// Phase 1: the one local client. Phase 2: the client of the token's grant (P13).
 	$client = Clients\get( 'wpcredits' );
 
