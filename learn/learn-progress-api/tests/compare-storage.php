@@ -5,12 +5,12 @@
  * Compares output between traditional WordPress comment storage and
  * Sensei LMS High-Performance Progress Storage (HPPS).
  *
- * In Phase 1 (R1.1 / ISS-LL-04), this file provides the test scaffolding and
+ * In Phase 1 (#3), this file provides the test scaffolding and
  * documents the technical limitations.
- * Full execution across twin sites (comentarios vs HPPS) is scheduled for Phase 4 (R4.1 / P24).
+ * Full execution across twin sites (comments vs HPPS) is scheduled for Phase 4 (#24).
  *
  * Usage with Studio WP-CLI:
- *   studio wp eval-file wp-content/plugins/learn-progress-api/tests/compare-storage.php --path="C:\Studio\learn-link-learn"
+ *   studio wp eval-file wp-content/plugins/learn-progress-api/tests/compare-storage.php
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -21,12 +21,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 echo "=== Learn Progress API: Storage Comparison Helper ===\n";
 
 // 1. Detect current storage mode.
-$settings = get_option( 'sensei-settings', array() );
-$has_hpps = ! empty( $settings['experimental_progress_storage'] );
-$sync_on  = ! empty( $settings['experimental_progress_storage_synchronization'] );
+$settings   = get_option( 'sensei-settings', array() );
+$has_hpps   = ! empty( $settings['experimental_progress_storage'] );
+$sync_on    = ! empty( $settings['experimental_progress_storage_synchronization'] );
+$repository = $settings['experimental_progress_storage_repository'] ?? 'comments';
 
 echo 'Current Sensei Engine: ' . ( $has_hpps ? 'HPPS (Experimental Tables)' : 'Traditional (wp_comments)' ) . "\n";
-echo 'Synchronization:      ' . ( $sync_on ? 'Enabled' : 'Disabled' ) . "\n\n";
+echo 'Synchronization:      ' . ( $sync_on ? 'Enabled' : 'Disabled' ) . "\n";
+echo 'Repository Setting:   ' . $repository . "\n\n";
 
 // 2. Technical Limitation Notice for Phase 1.
 echo "LIMITATION NOTICE:\n";
@@ -37,8 +39,8 @@ echo "without migration leaves HPPS tables empty and leads to inconsistent progr
 // 3. Execution condition.
 if ( ! function_exists( 'WPOrg_Learn\Learn_Progress\Reader\read_course' ) ) {
 	echo "Status: READER NOT LOADED.\n";
-	echo "The reader function (WPOrg_Learn\\Learn_Progress\\Reader\\read_course) will be implemented in R1.2 (P05).\n";
-	echo "Once R1.2 is completed and twin sites are configured in R4.1 (P24), this script will export\n";
+	echo "The reader function (WPOrg_Learn\\Learn_Progress\\Reader\\read_course) is implemented in #4.\n";
+	echo "Once #4 is completed and twin sites are configured in #24, this script will export\n";
 	echo "and compare the 20 seeded learners across both storage engines.\n";
 	exit( 0 );
 }
