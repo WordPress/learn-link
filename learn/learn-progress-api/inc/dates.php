@@ -17,7 +17,10 @@ function from_gmt( $mysql ) {
 		return null;
 	}
 	$date = \DateTimeImmutable::createFromFormat( 'Y-m-d H:i:s', $mysql, new \DateTimeZone( 'UTC' ) );
-	return $date ? $date->format( 'Y-m-d\TH:i:s\Z' ) : null;
+	if ( ! $date || $date->format( 'Y-m-d H:i:s' ) !== $mysql ) {
+		return null;
+	}
+	return $date->format( 'Y-m-d\TH:i:s\Z' );
 }
 
 /**
@@ -34,5 +37,8 @@ function from_local( $mysql, ?\DateTimeZone $site_zone = null ) {
 	}
 	$zone = $site_zone ?: ( function_exists( 'wp_timezone' ) ? wp_timezone() : new \DateTimeZone( 'UTC' ) );
 	$date = \DateTimeImmutable::createFromFormat( 'Y-m-d H:i:s', $mysql, $zone );
-	return $date ? $date->setTimezone( new \DateTimeZone( 'UTC' ) )->format( 'Y-m-d\TH:i:s\Z' ) : null;
+	if ( ! $date || $date->format( 'Y-m-d H:i:s' ) !== $mysql ) {
+		return null;
+	}
+	return $date->setTimezone( new \DateTimeZone( 'UTC' ) )->format( 'Y-m-d\TH:i:s\Z' );
 }
