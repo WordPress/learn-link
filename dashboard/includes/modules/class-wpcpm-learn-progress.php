@@ -66,7 +66,7 @@ class WPCPM_Learn_Progress {
 			'learn_enabled'     => self::enabled(),
 			'learn_base_url'    => (string) WPCPM_Settings::get_value( 'learn_base_url', 'https://learn.wordpress.org' ),
 			'learn_client_id'   => (string) WPCPM_Settings::get_value( 'learn_client_id', 'wpcredits' ),
-			'learn_courses'     => (string) WPCPM_Settings::get_value( 'learn_courses', '297853' ),
+			'learn_courses'     => (string) WPCPM_Settings::get_value( 'learn_courses', '' ),
 			'learn_cache_hours' => (int) WPCPM_Settings::get_value( 'learn_cache_hours', 6 ),
 		);
 	}

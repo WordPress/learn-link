@@ -104,7 +104,7 @@ wpcpm_learn_check(
 		'learn_enabled'     => false,
 		'learn_base_url'    => 'https://learn.wordpress.org',
 		'learn_client_id'   => 'wpcredits',
-		'learn_courses'     => '297853',
+		'learn_courses'     => '',
 		'learn_cache_hours' => 6,
 	)
 );

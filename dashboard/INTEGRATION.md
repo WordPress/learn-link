@@ -20,12 +20,6 @@ When your work needs an edit in one of these files, describe the exact lines in 
 
 A new module is also checked by existing suites: `bin/test-settings.php`, `bin/test-uninstall.php`, `bin/test-handlers.php` and `bin/test-student-modules.php`.
 
-Connect and callback handlers must use `WPCPM_Learn_Progress::STATE_PREFIX`
-consistently. When carrying this change into Phase 2, update literal keys in
-tests and local instructions too. An in-flight connection created with the old
-prefix will no longer be found by the updated callback; restart it with Connect.
-Its old transient expires after 15 minutes. Do not rename pending state keys.
-
 ## Where the design spec and today's code disagree
 
 From section 8.4 of the technical guide. Follow the code, not the spec, on each of these:
@@ -41,10 +35,45 @@ From section 8.4 of the technical guide. Follow the code, not the spec, on each 
 
 | Block | Existing plugin file | Edit | Owner | Task |
 | --- | --- | --- | --- | --- |
-| #1a | `wpcredits-program-manager.php` | Load `includes/modules/class-wpcpm-learn-progress.php` with `require_once` after the existing Learn and secret classes have been loaded. This block is also reserved for the Learn client and progress card when those files are added. | Pedro | P1.1 |
-| #2 | `includes/modules/class-wpcpm-students.php`, `WPCPM_Students::boot()` | Call `WPCPM_Learn_Progress::init()` after `WPCPM_Students_Dashboard::init()`. | Pedro | P1.1 |
+| #1a | `wpcredits-program-manager.php`, `uninstall.php` | Load `includes/modules/class-wpcpm-learn-progress.php` with `require_once` after the existing Learn and secret classes have been loaded. The uninstall loader must require the same class. This block is also reserved for the Learn client and progress card when those files are added. | Pedro | P1.1 |
+| #2 | `includes/modules/class-wpcpm-students.php`, `WPCPM_Students::boot()`, `bin/test-students-screen.php` | Call `WPCPM_Learn_Progress::init()` after `WPCPM_Students_Dashboard::init()`, and add its no-op stub to the isolated students screen suite. | Pedro | P1.1 |
 | #3 | `includes/class-wpcpm-settings.php` | Add the five Learn Link keys to `defaults()`, the `advanced` scope and `write()`, including validation for each value. | Pedro | P1.1 |
 | #4 | `includes/class-wpcpm-settings-screen.php`, `WPCPM_Settings_Screen::render_tab_advanced()` | Add the Learn Link section and its five settings controls. | Pedro | P1.1 |
+
+### Block #1a: load the module in normal and uninstall requests
+
+In `wpcredits-program-manager.php`, after the existing Learn and secret classes
+are loaded, add:
+
+```php
+require_once WPCPM_PLUGIN_DIR . 'includes/modules/class-wpcpm-learn-progress.php';
+```
+
+In `uninstall.php`, beside its existing `class-wpcpm-learn.php` include, load
+the same module with the uninstall file's path convention. `bin/test-roles.php`
+checks that every class loaded by the plugin is also available to uninstall:
+
+```php
+require_once plugin_dir_path( __FILE__ ) . 'includes/modules/class-wpcpm-learn-progress.php';
+```
+
+### Block #2: boot the module and keep the isolated screen suite loadable
+
+In `WPCPM_Students::boot()`, immediately after
+`WPCPM_Students_Dashboard::init()`, add:
+
+```php
+WPCPM_Learn_Progress::init();
+```
+
+In `bin/test-students-screen.php`, beside its `WPCPM_Students_Dashboard`
+stand-in, add the class that the updated `boot()` now calls:
+
+```php
+class WPCPM_Learn_Progress {
+	public static function init() {}
+}
+```
 
 ### Block #3: Learn Link settings
 
@@ -54,7 +83,7 @@ In `WPCPM_Settings::defaults()`, add the five Learn Link defaults:
 'learn_enabled'     => false,
 'learn_base_url'    => 'https://learn.wordpress.org',
 'learn_client_id'   => 'wpcredits',
-'learn_courses'     => '297853',
+'learn_courses'     => '',
 'learn_cache_hours' => 6,
 ```
 
@@ -102,18 +131,23 @@ if ( isset( $input['learn_client_id'] ) ) {
 Validate the complete comma-separated Learn course list before changing the
 saved value. Each ID must contain only decimal digits and represent a positive
 integer within PHP's integer range. Trim whitespace, normalize leading zeros,
-and remove duplicates while preserving their first occurrence order. Reject
-blank input, empty entries, non-string input, and any invalid ID as a whole;
-do not save just the valid part of a malformed list. A missing key leaves the
-saved value alone. `$clean` already contains the saved settings in `write()`.
+and remove duplicates while preserving their first occurrence order. A blank
+string means "no override" and saves an empty value, so the Dashboard uses the
+student's own track course. For a non-blank value, reject empty entries,
+non-string input, and any invalid ID as a whole; do not save just the valid part
+of a malformed list. A missing key leaves the saved value alone. `$clean`
+already contains the saved settings in `write()`.
 
 ```php
 if ( array_key_exists( 'learn_courses', $input ) ) {
+	$raw     = is_string( $input['learn_courses'] ) ? trim( wp_unslash( $input['learn_courses'] ) ) : null;
 	$courses = array();
-	$valid   = is_string( $input['learn_courses'] );
+	$valid   = is_string( $raw );
 
-	if ( $valid ) {
-		foreach ( explode( ',', wp_unslash( $input['learn_courses'] ) ) as $course ) {
+	if ( '' === $raw ) {
+		$clean['learn_courses'] = '';
+	} elseif ( $valid ) {
+		foreach ( explode( ',', $raw ) as $course ) {
 			$course = trim( $course );
 			$id     = ltrim( $course, '0' );
 
@@ -126,9 +160,9 @@ if ( array_key_exists( 'learn_courses', $input ) ) {
 		}
 	}
 
-	if ( $valid ) {
+	if ( '' !== $raw && $valid ) {
 		$clean['learn_courses'] = implode( ',', array_unique( $courses ) );
-	} else {
+	} elseif ( '' !== $raw ) {
 		WPCPM_Flash::set( 'learn-courses-refused', true );
 	}
 }
@@ -233,10 +267,10 @@ WPCPM_Settings_Rows::text_row(
 	'learn_courses',
 	__( 'Course IDs', 'wpcredits-program-manager' ),
 	$settings['learn_courses'],
-	__( 'Comma-separated Learn course IDs, with the program track course first.', 'wpcredits-program-manager' ),
+	__( 'Leave blank to use each student\'s own track course. On a test copy, enter the local course IDs, separated by commas.', 'wpcredits-program-manager' ),
 	'text',
 	'',
-	'297853'
+	''
 );
 WPCPM_Settings_Rows::number_row(
 	'learn_cache_hours',
@@ -251,6 +285,16 @@ $this->close_section();
 ```
 
 Update `docs/sections/31-admin-settings.md` and rebuild the generated guides. Extend `bin/test-settings.php` so all five controls make a round trip, a partial write without `learn_enabled` preserves its saved value, and the URL validation covers production and local environments.
+
+`bin/test-settings-choices.php` also loads and saves the settings. If it does
+not already define the environment helper, add the same configurable stub used
+by the settings suite:
+
+```php
+function wp_get_environment_type() {
+	return $GLOBALS['environment_type'] ?? 'production';
+}
+```
 
 ### Round-trip and switch cases for `bin/test-settings.php`
 
@@ -286,7 +330,7 @@ $wpcpm_roundtrip_defaults = array(
 	'learn_enabled'     => false,
 	'learn_base_url'    => 'https://learn.wordpress.org',
 	'learn_client_id'   => 'wpcredits',
-	'learn_courses'     => '297853',
+	'learn_courses'     => '',
 	'learn_cache_hours' => 6,
 );
 $wpcpm_roundtrip_all_defaults = WPCPM_Settings::defaults();
@@ -380,8 +424,6 @@ $wpcpm_learn_invalid_courses = array(
 	'abc',
 	'297853abc',
 	'301001,abc',
-	'',
-	'   ',
 	'0',
 	'-297853',
 	'+297853',
@@ -410,6 +452,13 @@ foreach ( $wpcpm_learn_invalid_courses as $wpcpm_learn_case => $wpcpm_learn_inpu
 $wpcpm_learn_saved = WPCPM_Settings::patch( array( 'learn_cache_hours' => 12 ) );
 ck( 'omitting Learn course IDs preserves them', $wpcpm_learn_saved['learn_courses'], '301001,297853' );
 ck( 'omitting Learn course IDs does not queue a refusal', WPCPM_Flash::take( 'learn-courses-refused' ), '' );
+
+foreach ( array( '', '   ' ) as $wpcpm_learn_case => $wpcpm_learn_input ) {
+	++$GLOBALS['signed_in'];
+	$wpcpm_learn_saved = WPCPM_Settings::save( array( 'learn_courses' => $wpcpm_learn_input ), 'advanced' );
+	ck( 'blank Learn course list saves no override: ' . $wpcpm_learn_case, $wpcpm_learn_saved['learn_courses'], '' );
+	ck( 'blank Learn course list queues no refusal: ' . $wpcpm_learn_case, WPCPM_Flash::take( 'learn-courses-refused' ), '' );
+}
 
 ++$GLOBALS['signed_in'];
 WPCPM_Settings::save( array( 'learn_courses' => 'abc' ), 'advanced' );
