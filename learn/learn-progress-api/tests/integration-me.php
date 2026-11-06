@@ -14,27 +14,9 @@
 
 use WPOrg_Learn\Learn_Progress\Clients;
 
-$GLOBALS['ck_total'] = 0;
-$GLOBALS['ck_fail']  = 0;
-
-/**
- * One check: print ok or FAIL, and count it.
- *
- * The counters live in $GLOBALS because `wp eval-file` runs this file inside a function.
- */
-function ck( $label, $actual, $expected ) {
-	++$GLOBALS['ck_total'];
-
-	// phpcs:disable WordPress.Security.EscapeOutput.OutputNotEscaped -- Plain text to a terminal, not HTML.
-	if ( $actual === $expected ) {
-		echo "ok   $label\n";
-		return;
-	}
-
-	++$GLOBALS['ck_fail'];
-	echo "FAIL $label\n     expected: " . var_export( $expected, true ) . "\n     actual:   " . var_export( $actual, true ) . "\n";
-	// phpcs:enable
-}
+// The shared ck() and test_summary() (#13). Its counters live in $GLOBALS, so they work although
+// `wp eval-file` runs this file inside a function.
+require_once __DIR__ . '/lib.php';
 
 /**
  * Ask /me as one user, the way a real request would be answered.
@@ -310,5 +292,4 @@ ck( 'another route is left alone', isset( $response->get_headers()['Cache-Contro
 
 wp_set_current_user( 0 );
 
-printf( "\n%s (%d checks)\n", $GLOBALS['ck_fail'] ? sprintf( '%d FAILURE(S)', $GLOBALS['ck_fail'] ) : 'ALL PASS', $GLOBALS['ck_total'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Plain text to a terminal.
-exit( $GLOBALS['ck_fail'] ? 1 : 0 );
+test_summary();
