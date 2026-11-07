@@ -1,7 +1,8 @@
 {
   "contract": "learn-progress/1",
   "learner": {
-    "wporg_username": "adaexample"
+    "wporg_username": "adaexample",
+    "wporg_profile_slug": "adaexample"
   },
   "generated_at": "2026-10-14T09:12:33Z",
   "courses": [

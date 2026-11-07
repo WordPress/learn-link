@@ -30,7 +30,7 @@ A shortened example (the full one is [example-in-progress.json](example-in-progr
 ```json
 {
   "contract": "learn-progress/1",
-  "learner": { "wporg_username": "adaexample" },
+  "learner": { "wporg_username": "adaexample", "wporg_profile_slug": "adaexample" },
   "generated_at": "2026-10-14T09:12:33Z",
   "courses": [
     {
@@ -77,7 +77,8 @@ A shortened example (the full one is [example-in-progress.json](example-in-progr
 | Field | Type | Meaning |
 | --- | --- | --- |
 | `contract` | string | Always `learn-progress/1` in this version. The version travels in the body, so a later version can be recognized without a header. |
-| `learner.wporg_username` | string | The learner's WordPress.org username, as Learn knows it through WordPress.org single sign-on. Learn's own numeric user ID is never sent. |
+| `learner.wporg_username` | string | The learner's WordPress.org username: `user_login` in WordPress core, as Learn knows it through WordPress.org single sign-on. Unique. Learn's own numeric user ID is never sent. |
+| `learner.wporg_profile_slug` | string | The learner's profile slug: `user_nicename` in WordPress core, the slug in the profile address (`profiles.wordpress.org/<slug>/`). Unique. It differs from `wporg_username` for an older login with a dot, a space or an `@`. |
 | `generated_at` | string | When Learn built this answer. RFC 3339, UTC. |
 | `courses` | array | One entry for every whitelisted course (or every course left after `courses` narrows the list, section 1.4), including courses the learner never enrolled in. |
 | `courses[].course_id` | integer | The course's post ID on Learn. |
@@ -104,7 +105,7 @@ A shortened example (the full one is [example-in-progress.json](example-in-progr
 - **Percentages are whole numbers** from 0 to 100. Count only published lessons with status `complete`, and round with integer arithmetic (section 6).
 - **Course status and percent are independent.** `courses[].status` comes from Sensei's own course completion result (with the rule that an enrolled course with no lesson started is `not-started`, review point 2), and `progress_percent` counts the course's currently published lessons. The two can disagree in both directions: `complete` below 100 (a lesson published after the learner completed the course), or `in-progress` at 100. Neither half recomputes one from the other, and the Dashboard accepts both combinations.
 - **Times are UTC, RFC 3339** (`2026-10-14T09:12:33Z`). The Dashboard formats them in its own site's time zone. See review point 4.
-- **The learner block carries the WordPress.org username.** At connect time the Dashboard compares it with the student's known username, ignoring case (section 3, step 4), and saves the verified name. On every read after that, it compares Learn's answer with that saved, verified name. If the student's known username changes later, the Dashboard flags it for an Administrator and keeps the connection (decision 5 in [#2](https://github.com/WordPress/learn-link/issues/2)).
+- **The learner block carries the WordPress.org username and profile slug.** At connect time the Dashboard compares the student's known name with either one, ignoring case (section 3, step 4), and saves `wporg_username` as the verified name. On every read after that, it compares Learn's `wporg_username` with that saved, verified name. If the student's known username changes later, the Dashboard flags it for an Administrator and keeps the connection (decision 5 in [#2](https://github.com/WordPress/learn-link/issues/2)).
 
 ### 1.4 The `courses` parameter and the order of courses
 
@@ -171,12 +172,12 @@ The code exchange was decided by Maciej Pilarski on 5 November 2026 (decision 1 
    Learn verifies `sha256( code_verifier )` against the stored challenge, burns the code, mints the token (32 random bytes, base64url), stores only its hash, and answers:
 
    ```json
-   { "token": "<token>", "learner": { "wporg_username": "adaexample" } }
+   { "token": "<token>", "learner": { "wporg_username": "adaexample", "wporg_profile_slug": "adaexample" } }
    ```
 
    A code verifier that does not match burns the code too. If a code that was already used comes back, Learn deletes the grant, and with it the token issued from that code (RFC 6749 section 4.1.2, RFC 9700). Both answer `learn_progress_invalid_grant` (section 2.1).
 
-4. **Identity check, before anything is stored.** The Dashboard compares `learner.wporg_username` with the student's known username, ignoring case. A mismatch is refused, nothing is saved, the token is withdrawn at once (section 4), and the student sees: "The Learn account you approved belongs to @otherperson. Your Student Report Card is for @adaexample. Sign in to Learn as @adaexample and try again." This is the one place where a participant building the system could connect someone else's account to their own card, and it is closed by data, not by policy.
+4. **Identity check, before anything is stored.** The Dashboard compares the student's known name (usually the slug from the profile address it reads from Airtable) with either `learner.wporg_username` or `learner.wporg_profile_slug`, ignoring case. A match with either one passes, and the Dashboard saves `learner.wporg_username` as the verified name. A mismatch with both is refused, nothing is saved, the token is withdrawn at once (section 4), and the student sees: "The Learn account you approved belongs to @otherperson. Your Student Report Card is for @adaexample. Sign in to Learn as @adaexample and try again." This is the one place where a participant building the system could connect someone else's account to their own card, and it is closed by data, not by policy.
 
 5. **Store.** The Dashboard seals the token before it stores it, saves the verified username in its own user meta key (section 1.3), and only the token's fingerprint is ever logged.
 
@@ -276,6 +277,7 @@ Also settled in the reviews of the pull requests that build on this contract:
 - **`grade_percent`** is present exactly for `graded`, `passed` and `failed` (sections 1.2 and 1.3; review of #10).
 - **A required pass with no stored pass mark** gives `passmark_percent` 0 (section 1.2; review of #14).
 - **A complete lesson whose quiz was never submitted** keeps its quiz `not-taken`, with `grade_percent` null (section 6.1; asked in the review of #14, answered in the review of #29).
+- **The username:** `wporg_username` is `user_login`, the learner block also carries `wporg_profile_slug` (`user_nicename`), and the connect-time check accepts either one (sections 1.2 and 3; review of #29, answering the question in #16).
 - **The identity check on every read, one grant per learner and client, a used code coming back, and who sees what on the consent screen** (sections 1.3 and 3; decisions 2 and 5 in #2, and #18 and #20).
 
 ## Change log
