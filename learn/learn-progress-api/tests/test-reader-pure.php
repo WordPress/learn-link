@@ -7,7 +7,7 @@
  * Run with:
  *   php tests/test-reader-pure.php
  *
- * Expected output: ALL PASS (34 checks)
+ * Expected output: ALL PASS (37 checks)
  *
  * Architecture: all code uses bracketed-namespace form so multiple namespace
  * blocks can coexist in one file (required to stub Dates and Reader namespaces).
@@ -68,7 +68,7 @@ namespace WPOrg_Learn\Learn_Progress\Reader {
 	// -------------------------------------------------------------------------
 	// Helper: build a minimal facts array for map_lesson() tests.
 	// -------------------------------------------------------------------------
-	function make_facts( $raw, $pass_required = false, $passmark = null, $grade = 0.0, $quiz_id = 99, $changed_gmt = '2026-09-08 18:44:10' ) {
+	function make_facts( $raw, $pass_required = false, $passmark = null, $grade = 0.0, $quiz_id = 99, $changed_gmt = '2026-09-08 18:44:10', $submitted = true ) {
 		return array(
 			'lesson_id'     => 1,
 			'raw'           => $raw,
@@ -77,6 +77,7 @@ namespace WPOrg_Learn\Learn_Progress\Reader {
 			'pass_required' => $pass_required,
 			'passmark'      => $passmark,
 			'grade'         => $grade,
+			'submitted'     => $submitted,
 		);
 	}
 
@@ -156,13 +157,26 @@ namespace WPOrg_Learn\Learn_Progress\Reader {
 	$r = map_lesson( make_facts( 'ungraded', true, 70 ) );
 	ck( 'ungraded+req -> passmark_percent 70', $r['quiz']['passmark_percent'], 70 );
 
-	// When complete with a required pass (e.g. administrative completion), quiz maps to passed with passmark preserved.
+	// Complete with a submission and a required pass: quiz passed, passmark preserved.
 	$r = map_lesson( make_facts( 'complete', true, 70, 80.0 ) );
 	ck( 'complete+quiz+req -> passed, passmark 70', array( $r['quiz']['status'], $r['quiz']['passmark_percent'] ), array( 'passed', 70 ) );
 
 	// When complete without a required pass, quiz maps to graded with passmark null.
 	$r = map_lesson( make_facts( 'complete', false, null, 80.0 ) );
 	ck( 'complete+quiz+!req -> graded, passmark null', array( $r['quiz']['status'], $r['quiz']['passmark_percent'] ), array( 'graded', null ) );
+
+	// Complete with the quiz never submitted (learner's Complete Lesson button, or an Administrator): not-taken.
+	$r = map_lesson( make_facts( 'complete', false, null, 0.0, 99, '2026-09-08 18:44:10', false ) );
+	ck( 'complete+quiz+no-submission -> lesson complete', $r['status'], 'complete' );
+	ck(
+		'complete+quiz+no-submission -> not-taken, nulls',
+		array( $r['quiz']['status'], $r['quiz']['grade_percent'], $r['quiz']['passmark_percent'], $r['quiz']['graded_at'] ),
+		array( 'not-taken', null, null, null )
+	);
+
+	// Same, with a required pass (only an Administrator can do this): pass mark still travels.
+	$r = map_lesson( make_facts( 'complete', true, 70, 0.0, 99, '2026-09-08 18:44:10', false ) );
+	ck( 'complete+quiz+req+no-submission -> not-taken, passmark 70', array( $r['quiz']['status'], $r['quiz']['passmark_percent'] ), array( 'not-taken', 70 ) );
 
 	// If pass is required but passmark is 0, passmark_percent is 0 (never null).
 	$r = map_lesson( make_facts( 'passed', true, 0, 100.0 ) );
