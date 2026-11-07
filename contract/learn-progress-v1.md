@@ -254,6 +254,7 @@ These came out of testing Sensei on 16 October 2026 (section 6 of the technical 
 | Lesson `complete` | With a quiz and a submission | lesson `complete`; quiz `graded` when no pass is required, otherwise `passed` or `failed` by its grade against the pass mark |
 | Lesson `ungraded` | Quiz submitted, waiting for grading | lesson `ungraded`, quiz `ungraded` |
 | Lesson `graded` | Marked, no pass required | lesson `complete`, quiz `graded`, `passmark_percent` null |
+| Lesson `graded` | A pass is required now (the setting changed after grading) | lesson `complete` and quiz `passed` when its grade reaches the pass mark; otherwise lesson `in-progress`, quiz `failed` and lesson `completed_at` null. Integer `passmark_percent` either way |
 | Lesson `passed` | Pass required and met | lesson `complete`, quiz `passed`, integer `passmark_percent` |
 | Lesson `passed` | No pass required | lesson `complete`, quiz `graded`, `passmark_percent` null |
 | Lesson `failed` | Pass required and not met | lesson `in-progress`, quiz `failed`, integer `passmark_percent`, lesson `completed_at` null |
