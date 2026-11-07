@@ -7,7 +7,7 @@
  * Run with:
  *   php tests/test-reader-pure.php
  *
- * Expected output: ALL PASS (37 checks)
+ * Expected output: ALL PASS (43 checks)
  *
  * Architecture: all code uses bracketed-namespace form so multiple namespace
  * blocks can coexist in one file (required to stub Dates and Reader namespaces).
@@ -146,6 +146,27 @@ namespace WPOrg_Learn\Learn_Progress\Reader {
 	ck( 'U-L12: graded -> lesson complete', $r['status'], 'complete' );
 	ck( 'U-L12: graded -> quiz graded',     $r['quiz']['status'], 'graded' );
 
+	// Graded with no pass required, then a pass became required: the current setting decides (contract 6.1).
+	$r = map_lesson( make_facts( 'graded', true, 70, 85.0 ) );
+	ck(
+		'graded+req+above -> complete, passed, passmark 70, completed_at set',
+		array( $r['status'], $r['quiz']['status'], $r['quiz']['passmark_percent'], null !== $r['completed_at'] ),
+		array( 'complete', 'passed', 70, true )
+	);
+	$r = map_lesson( make_facts( 'graded', true, 70, 50.0 ) );
+	ck(
+		'graded+req+below -> in-progress, failed, passmark 70, completed_at null',
+		array( $r['status'], $r['quiz']['status'], $r['quiz']['passmark_percent'], $r['completed_at'] ),
+		array( 'in-progress', 'failed', 70, null )
+	);
+	$r = map_lesson( make_facts( 'graded', true, 70, 70.0 ) );
+	ck( 'graded+req+equal -> passed (grade >= passmark, as Sensei)', $r['quiz']['status'], 'passed' );
+	// The raw grade decides, as in Sensei: 69.6 shows as 70 but does not reach 70.
+	$r = map_lesson( make_facts( 'graded', true, 70, 69.6 ) );
+	ck( 'graded+req+69.6 vs 70 -> failed, grade_percent 70', array( $r['quiz']['status'], $r['quiz']['grade_percent'] ), array( 'failed', 70 ) );
+	$r = map_lesson( make_facts( 'graded', true, 0, 0.0 ) );
+	ck( 'graded+req+passmark 0 -> passed', array( $r['quiz']['status'], $r['quiz']['passmark_percent'] ), array( 'passed', 0 ) );
+
 	// U-L13: raw=complete without quiz -> lesson complete, quiz null.
 	$r = map_lesson( make_facts( 'complete', false, null, 0.0, 0 ) );
 	ck( 'U-L13: complete+no-quiz -> lesson complete', $r['status'], 'complete' );
@@ -160,6 +181,14 @@ namespace WPOrg_Learn\Learn_Progress\Reader {
 	// Complete with a submission and a required pass: quiz passed, passmark preserved.
 	$r = map_lesson( make_facts( 'complete', true, 70, 80.0 ) );
 	ck( 'complete+quiz+req -> passed, passmark 70', array( $r['quiz']['status'], $r['quiz']['passmark_percent'] ), array( 'passed', 70 ) );
+
+	// Complete with a submission below a required pass mark: the lesson stays complete, the quiz is failed (contract 6.1).
+	$r = map_lesson( make_facts( 'complete', true, 70, 50.0 ) );
+	ck(
+		'complete+quiz+req+below -> complete, failed, passmark 70',
+		array( $r['status'], $r['quiz']['status'], $r['quiz']['passmark_percent'] ),
+		array( 'complete', 'failed', 70 )
+	);
 
 	// When complete without a required pass, quiz maps to graded with passmark null.
 	$r = map_lesson( make_facts( 'complete', false, null, 80.0 ) );
