@@ -110,6 +110,11 @@ function map_lesson( array $facts ) {
 			if ( empty( $facts['quiz_id'] ) ) {
 				return row( $facts, 'complete', $at, null );
 			}
+			// Completed without submitting the quiz: the learner's own Complete Lesson
+			// button when no pass is required, or an Administrator (Contract §6.1).
+			if ( empty( $facts['submitted'] ) ) {
+				return row( $facts, 'complete', $at, $quiz( 'not-taken', false ) );
+			}
 			$quiz_status = ! empty( $facts['pass_required'] ) ? 'passed' : 'graded';
 			return row( $facts, 'complete', $at, $quiz( $quiz_status, true ) );
 
@@ -146,6 +151,10 @@ function lesson_facts( $lesson_id, $user_id ) {
 		$grade = (float) \Sensei_Quiz::get_user_quiz_grade( $lesson_id, $user_id );
 	}
 
+	// Submitted means Sensei graded it: saving answers alone creates a submission with no final grade.
+	$submission = $has_quiz ? \Sensei()->quiz_submission_repository->get( $quiz_id, $user_id ) : null;
+	$submitted  = $submission && null !== $submission->get_final_grade();
+
 	return array(
 		'lesson_id'     => $lesson_id,
 		'raw'           => $comment ? (string) $comment->comment_approved : '',
@@ -154,6 +163,7 @@ function lesson_facts( $lesson_id, $user_id ) {
 		'pass_required' => $required,
 		'passmark'      => $passmark,
 		'grade'         => $grade,
+		'submitted'     => $submitted,
 	);
 }
 
