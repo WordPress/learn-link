@@ -250,7 +250,7 @@ These came out of testing Sensei on 16 October 2026 (section 6 of the technical 
 | Lesson, no record | Not started | lesson `not-started`, quiz `not-taken` (if the lesson has a quiz) |
 | Lesson `in-progress` | Started, quiz not submitted | lesson `in-progress`, quiz `not-taken` |
 | Lesson `complete` | No quiz | lesson `complete`, quiz null |
-| Lesson `complete` | With a quiz and no submission (for example, completed by an Administrator) | lesson `complete`, quiz `not-taken`, `grade_percent` null, `passmark_percent` by the usual rule |
+| Lesson `complete` | With a quiz and no submission (for example, the learner's own Complete Lesson button, which Sensei shows when the quiz requires no pass, or an Administrator) | lesson `complete`, quiz `not-taken`, `grade_percent` null, `passmark_percent` by the usual rule |
 | Lesson `complete` | With a quiz and a submission | lesson `complete`; quiz `graded` when no pass is required, otherwise `passed` or `failed` by its grade against the pass mark |
 | Lesson `ungraded` | Quiz submitted, waiting for grading | lesson `ungraded`, quiz `ungraded` |
 | Lesson `graded` | Marked, no pass required | lesson `complete`, quiz `graded`, `passmark_percent` null |
@@ -274,7 +274,7 @@ Also settled in the reviews of the pull requests that build on this contract:
 - **A 401 or 403 without a Learn code** is a bad answer, and only 429 and 5xx fall back on the status (section 2; review of #10).
 - **`grade_percent`** is present exactly for `graded`, `passed` and `failed` (sections 1.2 and 1.3; review of #10).
 - **A required pass with no stored pass mark** gives `passmark_percent` 0 (section 1.2; review of #14).
-- **A complete lesson whose quiz was never submitted** (section 6.1; asked in the review of #14).
+- **A complete lesson whose quiz was never submitted** keeps its quiz `not-taken`, with `grade_percent` null (section 6.1; asked in the review of #14, answered in the review of #29).
 - **The identity check on every read, one grant per learner and client, a used code coming back, and who sees what on the consent screen** (sections 1.3 and 3; decisions 2 and 5 in #2, and #18 and #20).
 
 ## Change log
