@@ -56,6 +56,18 @@ function row( array $facts, $status, $completed_at, $quiz ) {
 }
 
 /**
+ * Whether the quiz grade reaches the pass mark, by Sensei's own rule (raw grade >= pass mark).
+ *
+ * Used where Sensei's stored verdict no longer matches the current setting (Contract §6.1).
+ *
+ * @param array $facts Lesson facts with 'grade' (raw float) and 'passmark' (integer).
+ * @return bool True when the grade meets the pass mark.
+ */
+function meets_passmark( array $facts ) {
+	return (float) $facts['grade'] >= (int) $facts['passmark'];
+}
+
+/**
  * Map raw Sensei lesson and quiz facts into contract data structures.
  *
  * Pure function: operates strictly on the facts array and does not touch the database.
@@ -96,6 +108,12 @@ function map_lesson( array $facts ) {
 			return row( $facts, 'ungraded', null, $quiz( 'ungraded', false ) );
 
 		case 'graded':
+			// Graded with no pass required, then the setting changed: the current setting decides (Contract §6.1).
+			if ( ! empty( $facts['pass_required'] ) ) {
+				return meets_passmark( $facts )
+					? row( $facts, 'complete', $at, $quiz( 'passed', true ) )
+					: row( $facts, 'in-progress', null, $quiz( 'failed', true ) );
+			}
 			return row( $facts, 'complete', $at, $quiz( 'graded', true ) );
 
 		case 'passed':
@@ -115,7 +133,8 @@ function map_lesson( array $facts ) {
 			if ( empty( $facts['submitted'] ) ) {
 				return row( $facts, 'complete', $at, $quiz( 'not-taken', false ) );
 			}
-			$quiz_status = ! empty( $facts['pass_required'] ) ? 'passed' : 'graded';
+			// The lesson stays complete; the quiz is passed or failed by its grade (Contract §6.1).
+			$quiz_status = empty( $facts['pass_required'] ) ? 'graded' : ( meets_passmark( $facts ) ? 'passed' : 'failed' );
 			return row( $facts, 'complete', $at, $quiz( $quiz_status, true ) );
 
 		default:
