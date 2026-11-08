@@ -188,7 +188,7 @@ DELETE https://learn.wordpress.org/wp-json/learn-progress/v1/token
 Authorization: Bearer <token>
 ```
 
-Learn deletes the grant and answers `204`; a later read with that token answers `401`. On the Dashboard, only an Administrator's withdrawal calls this; a student cannot disconnect. If Learn does not answer, the Dashboard stops using the token at once, keeps it sealed only to retry the DELETE nightly until Learn answers `204` or `401`, and then deletes it.
+Learn deletes the grant and answers `204`; a later read with that token answers `401`. On the Dashboard, only an Administrator's withdrawal calls this; a student cannot disconnect. The Dashboard stops using the token at once. If Learn does not answer, it keeps the token sealed only to retry the DELETE nightly until Learn answers `204`, `401 learn_progress_invalid_token` or `403 learn_progress_revoked` (a grant a Learn administrator already withdrew), and then deletes it. Any other answer, including `429` and `5xx`, keeps the retry going.
 
 An Administrator's withdrawal requires a reason, and the program emails the student in the Administrator's name with that reason. The student cannot reconnect alone: a program Administrator has to allow it again (decision 8 in [#2](https://github.com/WordPress/learn-link/issues/2)).
 
