@@ -146,7 +146,8 @@ namespace WPOrg_Learn\Learn_Progress\Reader {
 	ck( 'U-L12: graded -> lesson complete', $r['status'], 'complete' );
 	ck( 'U-L12: graded -> quiz graded',     $r['quiz']['status'], 'graded' );
 
-	// Graded with no pass required, then a pass became required: the current setting decides (contract 6.1).
+	// Graded with no pass required, then a pass became required: the lesson stays complete,
+	// and only the quiz follows the current setting (contract 6.1, review point 3).
 	$r = map_lesson( make_facts( 'graded', true, 70, 85.0 ) );
 	ck(
 		'graded+req+above -> complete, passed, passmark 70, completed_at set',
@@ -155,9 +156,9 @@ namespace WPOrg_Learn\Learn_Progress\Reader {
 	);
 	$r = map_lesson( make_facts( 'graded', true, 70, 50.0 ) );
 	ck(
-		'graded+req+below -> in-progress, failed, passmark 70, completed_at null',
-		array( $r['status'], $r['quiz']['status'], $r['quiz']['passmark_percent'], $r['completed_at'] ),
-		array( 'in-progress', 'failed', 70, null )
+		'graded+req+below -> complete, failed, passmark 70, completed_at kept',
+		array( $r['status'], $r['quiz']['status'], $r['quiz']['passmark_percent'], null !== $r['completed_at'] ),
+		array( 'complete', 'failed', 70, true )
 	);
 	$r = map_lesson( make_facts( 'graded', true, 70, 70.0 ) );
 	ck( 'graded+req+equal -> passed (grade >= passmark, as Sensei)', $r['quiz']['status'], 'passed' );
