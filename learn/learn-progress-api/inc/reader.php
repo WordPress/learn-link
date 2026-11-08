@@ -282,17 +282,6 @@ function read_course( $user_id, $course_id ) {
 				$completed_at = $utc_ended->format( 'Y-m-d\TH:i:s\Z' );
 			}
 		}
-	} else {
-		// Fallback to direct comment metadata lookup if repository is not available.
-		$progress = \Sensei_Utils::has_started_course( $course_id, $user_id );
-		if ( $progress ) {
-			$start_meta  = get_comment_meta( $progress, 'start', true );
-			$enrolled_at = Dates\from_local( $start_meta );
-			if ( $complete ) {
-				$record       = get_comment( $progress );
-				$completed_at = $record ? Dates\from_gmt( $record->comment_date_gmt ) : null;
-			}
-		}
 	}
 
 	return array(
