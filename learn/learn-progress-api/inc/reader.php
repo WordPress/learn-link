@@ -108,11 +108,10 @@ function map_lesson( array $facts ) {
 			return row( $facts, 'ungraded', null, $quiz( 'ungraded', false ) );
 
 		case 'graded':
-			// Graded with no pass required, then the setting changed: the current setting decides (Contract §6.1).
+			// Graded with no pass required, then the setting changed. Sensei has completed the lesson,
+			// so it stays complete; only the quiz follows the current setting (Contract §6.1, review point 3).
 			if ( ! empty( $facts['pass_required'] ) ) {
-				return meets_passmark( $facts )
-					? row( $facts, 'complete', $at, $quiz( 'passed', true ) )
-					: row( $facts, 'in-progress', null, $quiz( 'failed', true ) );
+				return row( $facts, 'complete', $at, $quiz( meets_passmark( $facts ) ? 'passed' : 'failed', true ) );
 			}
 			return row( $facts, 'complete', $at, $quiz( 'graded', true ) );
 
