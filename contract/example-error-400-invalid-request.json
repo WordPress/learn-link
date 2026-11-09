@@ -1,0 +1,7 @@
+{
+  "code": "learn_progress_invalid_request",
+  "message": "The request is missing a parameter or has one that is not valid.",
+  "data": {
+    "status": 400
+  }
+}
