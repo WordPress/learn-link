@@ -17,6 +17,7 @@ $GLOBALS['wpcpm_card_settings']        = array();
 $GLOBALS['wpcpm_card_current_user_id'] = 0;
 $GLOBALS['wpcpm_card_title_reads']     = 0;
 $GLOBALS['wpcpm_card_meta']            = array();
+$GLOBALS['wpcpm_card_flash']           = '';
 
 /**
  * Minimal WordPress user for the isolated panel test.
@@ -78,6 +79,25 @@ class WPCPM_Settings {
 		return array_key_exists( $key, $GLOBALS['wpcpm_card_settings'] )
 			? $GLOBALS['wpcpm_card_settings'][ $key ]
 			: $fallback;
+	}
+}
+
+class WPCPM_Flash {
+	public static function set( $channel, $value ) {
+		if ( WPCPM_Learn_Progress::FLASH === (string) $channel ) {
+			$GLOBALS['wpcpm_card_flash'] = $value;
+		}
+	}
+
+	public static function take( $channel ) {
+		if ( WPCPM_Learn_Progress::FLASH !== (string) $channel ) {
+			return '';
+		}
+
+		$value                       = $GLOBALS['wpcpm_card_flash'];
+		$GLOBALS['wpcpm_card_flash'] = '';
+
+		return $value;
 	}
 }
 
@@ -279,6 +299,18 @@ wpcpm_card_check( 'renderer returns text', is_string( $wpcpm_card_html ), true )
 wpcpm_card_check( 'card wrapper', false !== strpos( $wpcpm_card_html, 'class="wpcpm-learn"' ), true );
 wpcpm_card_check( 'state attribute', false !== strpos( $wpcpm_card_html, 'data-state="in_progress"' ), true );
 wpcpm_card_check( 'card title', false !== strpos( $wpcpm_card_html, '>Your progress on Learn</h4>' ), true );
+
+$wpcpm_card_notice = WPCPM_Learn_Progress_Card::render(
+	'not_connected',
+	array(),
+	array(),
+	array(
+		'is_owner' => false,
+		'message'  => '<script>alert(1)</script>Connection refused.',
+	)
+);
+wpcpm_card_check( 'callback notice uses a status region', false !== strpos( $wpcpm_card_notice, 'class="wpcpm-learn__notice" role="status"' ), true );
+wpcpm_card_check( 'callback notice is escaped as text', false === strpos( $wpcpm_card_notice, '<script' ), true );
 
 $wpcpm_card_unsafe = WPCPM_Learn_Progress_Card::render(
 	'"><script>alert(1)</script>',
@@ -502,6 +534,7 @@ require_once $wpcpm_card_mutation_file;
 
 $wpcpm_card_mutated_context                         = $wpcpm_card_context;
 $wpcpm_card_mutated_context['course_titles'][297853] = '<img src=x onerror=alert(1)>';
+$wpcpm_card_mutated_context['message']               = '<script>alert(1)</script>';
 $wpcpm_card_mutated_html                            = WPCPM_Learn_Progress_Card_Mutation::render(
 	'in_progress',
 	$wpcpm_card_progress_data,
@@ -511,9 +544,10 @@ $wpcpm_card_mutated_html                            = WPCPM_Learn_Progress_Card_
 $wpcpm_card_mutated_escape_checks = array(
 	false === strpos( $wpcpm_card_mutated_html, '<script' ),
 	false === strpos( $wpcpm_card_mutated_html, '<img' ),
+	false === strpos( $wpcpm_card_mutated_html, '<script>alert(1)</script>' ),
 );
 
-wpcpm_card_check( 'removing esc_html makes both escaping checks fail', $wpcpm_card_mutated_escape_checks, array( false, false ) );
+wpcpm_card_check( 'removing esc_html makes all escaping checks fail', $wpcpm_card_mutated_escape_checks, array( false, false, false ) );
 
 unlink( $wpcpm_card_mutation_file );
 rmdir( $wpcpm_card_mutation_dir );
@@ -523,10 +557,22 @@ wpcpm_card_check( 'disabled panel renders nothing', WPCPM_Learn_Progress::panel(
 
 $GLOBALS['wpcpm_card_settings']['learn_enabled'] = true;
 $GLOBALS['wpcpm_card_current_user_id']           = 42;
+$GLOBALS['wpcpm_card_flash']                     = 'learn_state';
 $wpcpm_card_owner_panel                          = WPCPM_Learn_Progress::panel( $wpcpm_card_student );
 
 wpcpm_card_check( 'owner panel without a token is not connected', false !== strpos( $wpcpm_card_owner_panel, 'data-state="not_connected"' ), true );
 wpcpm_card_check( 'owner panel without a token offers Connect', false !== strpos( $wpcpm_card_owner_panel, 'Connect your Learn account' ), true );
+wpcpm_card_check( 'owner panel shows the callback outcome', false !== strpos( $wpcpm_card_owner_panel, 'That connection request expired. Try again.' ), true );
+wpcpm_card_check( 'owner panel consumes the callback outcome', $GLOBALS['wpcpm_card_flash'], '' );
+
+$GLOBALS['wpcpm_card_flash'] = array(
+	'code'           => 'learn_identity',
+	'learn_username' => '<script>alert(1)</script>',
+	'known_username' => 'adaexample',
+);
+$wpcpm_card_identity_panel = WPCPM_Learn_Progress::panel( $wpcpm_card_student );
+wpcpm_card_check( 'identity outcome names the expected account', false !== strpos( $wpcpm_card_identity_panel, 'Student Report Card is for @adaexample.' ), true );
+wpcpm_card_check( 'identity outcome never trusts the Learn username as markup', false === strpos( $wpcpm_card_identity_panel, '<script' ), true );
 
 $GLOBALS['wpcpm_card_current_user_id'] = 7;
 $wpcpm_card_manager_panel              = WPCPM_Learn_Progress::panel( $wpcpm_card_student );

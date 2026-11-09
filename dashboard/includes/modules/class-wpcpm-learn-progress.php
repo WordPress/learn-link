@@ -45,6 +45,7 @@ class WPCPM_Learn_Progress {
 
 		add_action( 'admin_post_' . self::ACTION_CONNECT, array( __CLASS__, 'handle_connect' ) );
 		add_action( 'admin_post_' . self::ACTION_CALLBACK, array( __CLASS__, 'handle_callback' ) );
+		add_action( 'admin_post_nopriv_' . self::ACTION_CALLBACK, array( __CLASS__, 'handle_callback_nopriv' ) );
 		add_action( 'admin_post_' . self::ACTION_WITHDRAW, array( __CLASS__, 'handle_withdraw' ) );
 	}
 
@@ -168,6 +169,7 @@ class WPCPM_Learn_Progress {
 		$student_id   = (int) $student->ID;
 		$is_owner     = get_current_user_id() === $student_id;
 		$withdrawn_at = (int) get_user_meta( $student_id, self::META_WITHDRAWN_AT, true );
+		$message      = self::outcome_message( WPCPM_Flash::take( self::FLASH ) );
 
 		if ( $withdrawn_at ) {
 			return WPCPM_Learn_Progress_Card::render(
@@ -176,6 +178,7 @@ class WPCPM_Learn_Progress {
 				array(),
 				array(
 					'is_owner'     => $is_owner,
+					'message'      => $message,
 					'withdrawn_at' => $withdrawn_at,
 				)
 			);
@@ -188,12 +191,21 @@ class WPCPM_Learn_Progress {
 				array(),
 				array(
 					'is_owner' => $is_owner,
+					'message'  => $message,
 				)
 			);
 		}
 
 		if ( ! defined( 'WPCPM_LEARN_FIXTURE' ) || ! WPCPM_LEARN_FIXTURE || ! class_exists( 'WPCPM_Learn_Client' ) ) {
-			return '';
+			return WPCPM_Learn_Progress_Card::render(
+				'unavailable',
+				array(),
+				array(),
+				array(
+					'is_owner' => $is_owner,
+					'message'  => $message,
+				)
+			);
 		}
 
 		$fixture = is_string( WPCPM_LEARN_FIXTURE ) && '' !== WPCPM_LEARN_FIXTURE
@@ -202,13 +214,29 @@ class WPCPM_Learn_Progress {
 		$body    = is_readable( $fixture ) ? json_decode( (string) file_get_contents( $fixture ), true ) : null;
 
 		if ( ! is_array( $body ) ) {
-			return '';
+			return WPCPM_Learn_Progress_Card::render(
+				'unavailable',
+				array(),
+				array(),
+				array(
+					'is_owner' => $is_owner,
+					'message'  => $message,
+				)
+			);
 		}
 
 		$data = WPCPM_Learn_Client::parse( $body );
 
 		if ( is_wp_error( $data ) ) {
-			return '';
+			return WPCPM_Learn_Progress_Card::render(
+				'unavailable',
+				array(),
+				array(),
+				array(
+					'is_owner' => $is_owner,
+					'message'  => $message,
+				)
+			);
 		}
 
 		return WPCPM_Learn_Progress_Card::render(
@@ -217,6 +245,7 @@ class WPCPM_Learn_Progress {
 			array(),
 			array(
 				'is_owner' => $is_owner,
+				'message'  => $message,
 			)
 		);
 	}
@@ -267,10 +296,10 @@ class WPCPM_Learn_Progress {
 	/**
 	 * Queue one Connect outcome and return to the Student Dashboard.
 	 *
-	 * @param string $outcome Outcome code rendered after the redirect.
+	 * @param mixed $outcome Outcome code or its safe display context.
 	 */
 	private static function back( $outcome ) {
-		WPCPM_Flash::set( self::FLASH, (string) $outcome );
+		WPCPM_Flash::set( self::FLASH, $outcome );
 
 		$url = WPCPM_Students_Dashboard::page_url();
 
@@ -279,10 +308,184 @@ class WPCPM_Learn_Progress {
 	}
 
 	/**
+	 * Turn one internal callback outcome into the words shown on the card.
+	 *
+	 * The callback stores only fixed slugs and the two usernames required by the
+	 * contract. The card escapes the returned sentence as text.
+	 *
+	 * @param mixed $outcome Flash value taken for the Learn channel.
+	 * @return string
+	 */
+	private static function outcome_message( $outcome ) {
+		$context = is_array( $outcome ) ? $outcome : array();
+		$code    = isset( $context['code'] ) ? (string) $context['code'] : (string) $outcome;
+
+		switch ( $code ) {
+			case 'learn_only_student':
+				return __( 'Only the student can connect their own account.', 'wpcredits-program-manager' );
+			case 'learn_withdrawn':
+				return __( 'This connection was withdrawn. Contact a program Administrator if you think this is a mistake.', 'wpcredits-program-manager' );
+			case 'learn_already_connected':
+				return __( 'Your Learn account is already connected.', 'wpcredits-program-manager' );
+			case 'learn_state':
+				return __( 'That connection request expired. Try again.', 'wpcredits-program-manager' );
+			case 'learn_denied':
+				return __( 'You did not approve the connection on Learn.', 'wpcredits-program-manager' );
+			case 'learn_exchange':
+				return __( 'Learn did not confirm the connection. Try again in a few minutes.', 'wpcredits-program-manager' );
+			case 'learn_identity_missing':
+				return __( 'Your Student Report Card has no WordPress.org username yet. Ask an Administrator.', 'wpcredits-program-manager' );
+			case 'learn_identity':
+				return sprintf(
+					/* translators: 1: WordPress.org username returned by Learn, 2: username on the Student Report Card. */
+					__( 'The Learn account you approved belongs to @%1$s. Your Student Report Card is for @%2$s. Sign in to Learn as @%2$s and try again.', 'wpcredits-program-manager' ),
+					isset( $context['learn_username'] ) ? (string) $context['learn_username'] : '',
+					isset( $context['known_username'] ) ? (string) $context['known_username'] : ''
+				);
+			case 'learn_seal':
+				return __( 'This site cannot store the connection safely. Tell an Administrator.', 'wpcredits-program-manager' );
+			case 'learn_connected':
+				return __( 'Your Learn account is connected.', 'wpcredits-program-manager' );
+			default:
+				return '';
+		}
+	}
+
+	/**
+	 * Whether Learn confirmed the identity already known for this student.
+	 *
+	 * @param mixed $from_learn Username or usernames returned by the token exchange.
+	 * @param mixed $known      Username stored in the student's program data.
+	 * @return bool
+	 */
+	public static function identity_matches( $from_learn, $known ) {
+		if ( ! is_string( $known ) || '' === $known ) {
+			return false;
+		}
+
+		$candidates = is_array( $from_learn ) ? $from_learn : array( $from_learn );
+
+		foreach ( $candidates as $candidate ) {
+			if ( is_string( $candidate ) && '' !== $candidate && 0 === strcasecmp( $candidate, $known ) ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
 	 * Receive the learner from Learn.
 	 */
 	public static function handle_callback() {
-		// Implemented in Phase 2.
+		// OAuth state is the CSRF token on this callback, so there is no WordPress nonce.
+		$request = wp_unslash( $_GET ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$state   = isset( $request['state'] ) && is_string( $request['state'] )
+			? sanitize_text_field( $request['state'] )
+			: '';
+		$held    = false;
+
+		if ( '' !== $state ) {
+			$key  = self::STATE_PREFIX . $state;
+			$held = get_transient( $key );
+
+			// Single use: delete before checking the user, denial, code or exchange.
+			delete_transient( $key );
+		}
+
+		$user_id = get_current_user_id();
+
+		if (
+			! is_array( $held )
+			|| ! isset( $held['user'], $held['verifier'] )
+			|| (int) $held['user'] !== $user_id
+			|| ! is_string( $held['verifier'] )
+			|| '' === $held['verifier']
+		) {
+			self::back( 'learn_state' );
+		}
+
+		$error = isset( $request['error'] ) && is_string( $request['error'] )
+			? sanitize_text_field( $request['error'] )
+			: '';
+
+		if ( 'access_denied' === $error ) {
+			self::back( 'learn_denied' );
+		}
+
+		$code = isset( $request['code'] ) && is_string( $request['code'] )
+			? sanitize_text_field( $request['code'] )
+			: '';
+
+		if ( '' === $code ) {
+			self::back( 'learn_exchange' );
+		}
+
+		$connection = WPCPM_Learn_Client::exchange( $code, $held['verifier'] );
+
+		if (
+			is_wp_error( $connection )
+			|| ! is_array( $connection )
+			|| ! isset( $connection['token'], $connection['username'] )
+			|| ! is_string( $connection['token'] )
+			|| 1 !== preg_match( '/^[A-Za-z0-9_-]{43}$/', $connection['token'] )
+			|| ! is_string( $connection['username'] )
+			|| '' === $connection['username']
+			|| ( isset( $connection['profile_slug'] ) && ! is_string( $connection['profile_slug'] ) )
+		) {
+			self::back( 'learn_exchange' );
+		}
+
+		$token              = $connection['token'];
+		$learn_username     = $connection['username'];
+		$learn_profile_slug = isset( $connection['profile_slug'] ) ? $connection['profile_slug'] : '';
+		$program            = get_user_meta( $user_id, 'wpcpm_student_program', true );
+		$known_username     = is_array( $program ) && isset( $program['username'] ) && is_string( $program['username'] )
+			? $program['username']
+			: '';
+
+		if ( ! self::identity_matches( array( $learn_username, $learn_profile_slug ), $known_username ) ) {
+			WPCPM_Learn_Client::revoke( $token );
+
+			if ( '' === $known_username ) {
+				self::back( 'learn_identity_missing' );
+			}
+
+			self::back(
+				array(
+					'code'           => 'learn_identity',
+					'learn_username' => $learn_username,
+					'known_username' => $known_username,
+				)
+			);
+		}
+
+		$sealed = WPCPM_Secret::seal_for_option( $token );
+
+		if ( is_wp_error( $sealed ) ) {
+			WPCPM_Learn_Client::revoke( $token );
+			self::back( 'learn_seal' );
+		}
+
+		update_user_meta( $user_id, self::META_TOKEN, $sealed );
+		update_user_meta( $user_id, self::META_CONNECTED, time() );
+		update_user_meta( $user_id, self::META_USERNAME, $learn_username );
+		delete_user_meta( $user_id, self::META_WITHDRAWN_AT );
+		delete_user_meta( $user_id, self::META_WITHDRAWN_BY );
+
+		if ( class_exists( 'WPCPM_Learn_Progress_Sync' ) ) {
+			// A first read is best effort. Its failure must not undo a valid connection.
+			WPCPM_Learn_Progress_Sync::refresh( $user_id, true );
+		}
+
+		self::back( 'learn_connected' );
+	}
+
+	/**
+	 * Send a signed-out callback through WordPress's normal login flow.
+	 */
+	public static function handle_callback_nopriv() {
+		auth_redirect();
 	}
 
 	/**

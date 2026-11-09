@@ -34,6 +34,9 @@ class WPCPM_Learn_Progress_Card {
 		?>
 		<div class="wpcpm-learn" data-state="<?php echo esc_attr( (string) $state ); ?>">
 			<h4 class="wpcpm-learn__title"><?php echo esc_html__( 'Your progress on Learn', 'wpcredits-program-manager' ); ?></h4>
+			<?php if ( isset( $ctx['message'] ) && is_string( $ctx['message'] ) && '' !== $ctx['message'] ) : ?>
+				<p class="wpcpm-learn__notice" role="status"><?php echo esc_html( $ctx['message'] ); ?></p>
+			<?php endif; ?>
 			<?php
 			switch ( $state ) {
 				case 'not_connected':
