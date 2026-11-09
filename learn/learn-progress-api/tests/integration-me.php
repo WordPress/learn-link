@@ -13,6 +13,7 @@
  */
 
 use WPOrg_Learn\Learn_Progress\Clients;
+use WPOrg_Learn\Learn_Progress\Response;
 
 // The shared ck() and test_summary() (#13). Its counters live in $GLOBALS, so they work although
 // `wp eval-file` runs this file inside a function.
@@ -143,7 +144,31 @@ ck( 'I-L03 signed out: 401 with the contract error and no-store', array( $r['sta
 // I-L03, SEC-21: learner 07.
 $r = me( $learner_07->ID );
 ck( 'I-L03 learner 07: 200, the contract version, no-store', array( $r['status'], $r['body']['contract'], $r['no_store'] ), array( 200, 'learn-progress/1', true ) );
-ck( 'I-L03 learner 07: the learner block is only the username, never the numeric ID', $r['body']['learner'], array( 'wporg_username' => 'learnlink-learner-07' ) );
+ck(
+	'I-L03 learner 07: the learner block is only the username and the profile slug, never the numeric ID',
+	$r['body']['learner'],
+	array(
+		'wporg_username'     => 'learnlink-learner-07',
+		'wporg_profile_slug' => $learner_07->user_nicename,
+	)
+);
+
+// An older login with a dot has a different slug, so each field must come from its own column
+// (contract section 1.2). An in-memory copy of the user: nothing is saved.
+$dotted                      = new WP_User( $learner_07->ID );
+$dotted->data                = clone $learner_07->data;
+$dotted->data->user_login    = 'learnlink.learner.07';
+$dotted->data->user_nicename = 'learnlink-learner-07-slug';
+$dotted_body                 = Response\build_body( $dotted, $client, (string) $whitelist[0] );
+ck(
+	'I-L03 a login that differs from its slug: each field comes from its own column',
+	$dotted_body['learner'],
+	array(
+		'wporg_username'     => 'learnlink.learner.07',
+		'wporg_profile_slug' => 'learnlink-learner-07-slug',
+	)
+);
+
 ck( 'I-L03 learner 07: generated_at is RFC 3339 in UTC', (bool) preg_match( '/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/', $r['body']['generated_at'] ), true );
 ck( "I-L03 learner 07: every whitelisted course, in the whitelist's order", wp_list_pluck( $r['body']['courses'], 'course_id' ), $whitelist );
 ck( 'I-L03 learner 07: 50% and 33%', wp_list_pluck( $r['body']['courses'], 'progress_percent' ), array( 50, 33 ) );
@@ -170,7 +195,14 @@ $params = array(
 $other  = me( $learner_07->ID, $params, array( 'X-User' => $learner_08->ID ) )['body'];
 unset( $own['generated_at'], $other['generated_at'] );
 ck( "SEC-06 learner 07 asking for learner 08's data gets their own", $other, $own );
-ck( 'SEC-06 learner 08 gets their own username', me( $learner_08->ID )['body']['learner'], array( 'wporg_username' => 'learnlink-learner-08' ) );
+ck(
+	'SEC-06 learner 08 gets their own username and profile slug',
+	me( $learner_08->ID )['body']['learner'],
+	array(
+		'wporg_username'     => 'learnlink-learner-08',
+		'wporg_profile_slug' => $learner_08->user_nicename,
+	)
+);
 
 // The courses parameter can only narrow (SEC-08).
 $lesson = get_posts(

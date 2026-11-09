@@ -16,8 +16,9 @@ defined( 'WPINC' ) || die();
  *
  * Sensei is read only through Reader\read_course(), the one place that touches its data.
  *
- * `wporg_username` is `user_login`, assuming a Learn login is always the WordPress.org username, as
- * wporg-learn/inc/form.php does. Not yet confirmed for production accounts (to check with Meta).
+ * `wporg_username` is `user_login` and `wporg_profile_slug` is `user_nicename` (contract section
+ * 1.2). Both are unique, and they differ for an older login with a dot, a space or an `@`, so the
+ * Dashboard's identity check accepts either one (contract section 3).
  *
  * @param \WP_User $user          The learner. Always the authenticated one, never a parameter.
  * @param array    $client        The client, from Clients\get().
@@ -41,7 +42,10 @@ function build_body( \WP_User $user, array $client, $courses_param = '' ) {
 	return array(
 		'contract'     => 'learn-progress/1',
 		// On Learn the local account is the WordPress.org account, through single sign-on.
-		'learner'      => array( 'wporg_username' => $user->user_login ),
+		'learner'      => array(
+			'wporg_username'     => $user->user_login,
+			'wporg_profile_slug' => $user->user_nicename,
+		),
 		'generated_at' => gmdate( 'Y-m-d\TH:i:s\Z' ),
 		'courses'      => $courses,
 	);
