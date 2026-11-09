@@ -47,6 +47,13 @@ ck( 'hash_token(): another input gives another hash', Tokens\hash_token( $tokens
 ck( 'hash_token(): keyed with the auth salt, not a plain hash', $hash, hash_hmac( 'sha256', $secret, 'test-only-salt-auth' ) );
 ck( 'hash_token(): never the token itself', $hash === $secret, false );
 
+// U-L19, U-L20: the vector in RFC 7636, appendix B.
+$rfc_verifier  = 'dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk';
+$rfc_challenge = 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM';
+ck( 'U-L19 verify_pkce(): the RFC 7636 vector matches', Tokens\verify_pkce( $rfc_verifier, $rfc_challenge ), true );
+ck( 'U-L20 verify_pkce(): another verifier does not', Tokens\verify_pkce( $rfc_verifier . 'x', $rfc_challenge ), false );
+ck( 'verify_pkce(): the challenge itself is not a verifier', Tokens\verify_pkce( $rfc_challenge, $rfc_challenge ), false );
+
 // Malformed input never reaches the database, so these need no WordPress.
 $bad = array(
 	'42 characters'      => str_repeat( 'a', 42 ),
