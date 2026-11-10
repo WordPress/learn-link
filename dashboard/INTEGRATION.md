@@ -54,9 +54,9 @@ require_once WPCPM_PLUGIN_DIR . 'includes/modules/class-wpcpm-learn-progress.php
 
 ### Block #5: Student Report Card panel
 
-In `WPCPM_Students_Dashboard::render_links()`, keep the existing two-column course content together and preserve the existing Partners output. Render the Learn panel after Partners and at full width, immediately before closing the My course section:
+In `WPCPM_Students_Dashboard::render_links()`, keep the existing two-column course content together and preserve the existing Partners output. Render the Learn panel after Partners and at full width, immediately before closing the My course section.
 
-This is a temporary Phase 1 path for local review. `WPCPM_Learn_Progress::panel()` reads `bin/fixtures/learn-progress-in-progress.json` only when `WPCPM_LEARN_FIXTURE` is explicitly set to `true` in the local site's `wp-config.php`. The constant must not be added to this repository, the plugin or a production site. A developer may instead set it to the absolute path of another contract fixture for a local check. P16 replaces this fixture path with the student's cached Learn progress.
+`WPCPM_Learn_Progress::panel()` reads the normalized progress stored in the student's Learn cache and passes it to the card renderer. It never reads a fixture or calls Learn directly. When the student views their own card with an expired cache, the panel may ask `WPCPM_Learn_Progress_Sync` to refresh once when that optional class is available. An Administrator viewing another student's card never starts that refresh. `state_for()` gives withdrawal and connection state priority, then compares the last operational error with the cache time before choosing the visible progress state.
 
 ```php
 self::render_course_button( $course );

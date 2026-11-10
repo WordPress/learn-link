@@ -11,13 +11,13 @@ if ( 'cli' !== PHP_SAPI ) {
 
 define( 'ABSPATH', __DIR__ . '/' );
 define( 'WPCPM_PLUGIN_DIR', dirname( __DIR__ ) . '/' );
-define( 'WPCPM_LEARN_FIXTURE', true );
 
 $GLOBALS['wpcpm_card_settings']        = array();
 $GLOBALS['wpcpm_card_current_user_id'] = 0;
 $GLOBALS['wpcpm_card_title_reads']     = 0;
 $GLOBALS['wpcpm_card_meta']            = array();
 $GLOBALS['wpcpm_card_flash']           = '';
+$GLOBALS['wpcpm_card_refresh_calls']   = array();
 
 /**
  * Minimal WordPress user for the isolated panel test.
@@ -124,6 +124,24 @@ class WPCPM_Learn {
 		}
 
 		return '';
+	}
+}
+
+/**
+ * Optional progress synchronization stand-in for panel tests.
+ */
+class WPCPM_Learn_Progress_Sync {
+	/**
+	 * Record one refresh request.
+	 *
+	 * @param int  $student_id Student user ID.
+	 * @param bool $force      Whether to ignore cache freshness.
+	 * @return bool
+	 */
+	public static function refresh( $student_id, $force = false ) {
+		$GLOBALS['wpcpm_card_refresh_calls'][] = array( (int) $student_id, (bool) $force );
+
+		return true;
 	}
 }
 
@@ -286,6 +304,26 @@ function wpcpm_card_check( $label, $got, $want ) {
 	echo "FAIL: {$label}\n";
 	echo '  got:  ' . var_export( $got, true ) . "\n";
 	echo '  want: ' . var_export( $want, true ) . "\n";
+}
+
+/**
+ * Parse one contract fixture and mark it as freshly cached.
+ *
+ * @param string $filename Fixture filename.
+ * @return array
+ */
+function wpcpm_card_cached_fixture( $filename ) {
+	$path = WPCPM_PLUGIN_DIR . 'bin/fixtures/' . (string) $filename;
+	$body = json_decode( (string) file_get_contents( $path ), true );
+	$data = WPCPM_Learn_Client::parse( $body );
+
+	if ( is_wp_error( $data ) ) {
+		return array();
+	}
+
+	$data['fetched_at'] = time();
+
+	return $data;
 }
 
 $wpcpm_card_html = WPCPM_Learn_Progress_Card::render(
@@ -555,7 +593,9 @@ rmdir( $wpcpm_card_mutation_dir );
 $wpcpm_card_student = new WP_User( 42 );
 wpcpm_card_check( 'disabled panel renders nothing', WPCPM_Learn_Progress::panel( $wpcpm_card_student ), '' );
 
-$GLOBALS['wpcpm_card_settings']['learn_enabled'] = true;
+$GLOBALS['wpcpm_card_settings']['learn_enabled']     = true;
+$GLOBALS['wpcpm_card_settings']['learn_courses']     = '297853';
+$GLOBALS['wpcpm_card_settings']['learn_cache_hours'] = 6;
 $GLOBALS['wpcpm_card_current_user_id']           = 42;
 $GLOBALS['wpcpm_card_flash']                     = 'learn_state';
 $wpcpm_card_owner_panel                          = WPCPM_Learn_Progress::panel( $wpcpm_card_student );
@@ -589,11 +629,63 @@ wpcpm_card_check( 'withdrawn student panel never offers Connect', false === strp
 
 unset( $GLOBALS['wpcpm_card_meta'][42][ WPCPM_Learn_Progress::META_WITHDRAWN_AT ] );
 $GLOBALS['wpcpm_card_meta'][42][ WPCPM_Learn_Progress::META_TOKEN ] = 'sealed-token';
-$wpcpm_card_fixture_panel                        = WPCPM_Learn_Progress::panel( $wpcpm_card_student );
+$wpcpm_card_fresh_cache                                              = $wpcpm_card_progress_data;
+$wpcpm_card_fresh_cache['fetched_at']                                = time();
+$GLOBALS['wpcpm_card_meta'][42][ WPCPM_Learn_Progress::META_CACHE ]  = $wpcpm_card_fresh_cache;
+$GLOBALS['wpcpm_card_meta'][42][ WPCPM_Learn_Progress::META_CONNECTED ] = gmmktime( 9, 0, 0, 10, 16, 2026 );
+$GLOBALS['wpcpm_card_refresh_calls']                                 = array();
+$wpcpm_card_cached_panel                                             = WPCPM_Learn_Progress::panel( $wpcpm_card_student );
 
-wpcpm_card_check( 'fixture panel renders the in-progress state', false !== strpos( $wpcpm_card_fixture_panel, 'data-state="in_progress"' ), true );
-wpcpm_card_check( 'fixture panel uses normalized progress', false !== strpos( $wpcpm_card_fixture_panel, 'class="wpcpm-learn__percent">50%</p>' ), true );
-wpcpm_card_check( 'fixture panel uses the fixture username only as text', false === strpos( $wpcpm_card_fixture_panel, '<script' ), true );
+wpcpm_card_check( 'cached panel renders the in-progress state', false !== strpos( $wpcpm_card_cached_panel, 'data-state="in_progress"' ), true );
+wpcpm_card_check( 'cached panel uses stored normalized progress', false !== strpos( $wpcpm_card_cached_panel, 'class="wpcpm-learn__percent">50%</p>' ), true );
+wpcpm_card_check( 'a fresh cache triggers no refresh', $GLOBALS['wpcpm_card_refresh_calls'], array() );
+
+$wpcpm_card_cached_examples = array(
+	'learn-progress-not-started.json' => 'nothing_started',
+	'learn-progress-in-progress.json' => 'in_progress',
+	'learn-progress-complete.json'    => 'complete',
+);
+
+foreach ( $wpcpm_card_cached_examples as $wpcpm_card_fixture => $wpcpm_card_expected_state ) {
+	$GLOBALS['wpcpm_card_meta'][42][ WPCPM_Learn_Progress::META_CACHE ] = wpcpm_card_cached_fixture( $wpcpm_card_fixture );
+	$GLOBALS['wpcpm_card_refresh_calls']                                = array();
+	$wpcpm_card_example_panel                                           = WPCPM_Learn_Progress::panel( $wpcpm_card_student );
+
+	wpcpm_card_check(
+		$wpcpm_card_fixture . ' maps cached progress to ' . $wpcpm_card_expected_state,
+		false !== strpos( $wpcpm_card_example_panel, 'data-state="' . $wpcpm_card_expected_state . '"' ),
+		true
+	);
+	wpcpm_card_check(
+		$wpcpm_card_fixture . ' stays local while its cache is fresh',
+		$GLOBALS['wpcpm_card_refresh_calls'],
+		array()
+	);
+}
+
+$wpcpm_card_stale_cache                                               = $wpcpm_card_fresh_cache;
+$wpcpm_card_stale_cache['fetched_at']                                 = time() - ( 7 * 3600 );
+$GLOBALS['wpcpm_card_meta'][42][ WPCPM_Learn_Progress::META_CACHE ]   = $wpcpm_card_stale_cache;
+$GLOBALS['wpcpm_card_refresh_calls']                                  = array();
+$wpcpm_card_stale_owner_panel                                         = WPCPM_Learn_Progress::panel( $wpcpm_card_student );
+
+wpcpm_card_check( 'a stale owner cache refreshes exactly once', $GLOBALS['wpcpm_card_refresh_calls'], array( array( 42, false ) ) );
+wpcpm_card_check( 'a stale owner cache still renders stored progress', false !== strpos( $wpcpm_card_stale_owner_panel, 'class="wpcpm-learn__percent">50%</p>' ), true );
+
+$GLOBALS['wpcpm_card_current_user_id'] = 7;
+$GLOBALS['wpcpm_card_refresh_calls']   = array();
+$wpcpm_card_stale_manager_panel        = WPCPM_Learn_Progress::panel( $wpcpm_card_student );
+
+wpcpm_card_check( 'an Administrator viewing stale progress triggers no refresh', $GLOBALS['wpcpm_card_refresh_calls'], array() );
+wpcpm_card_check( 'an Administrator may see the stored progress picture', false !== strpos( $wpcpm_card_stale_manager_panel, 'class="wpcpm-learn__percent">50%</p>' ), true );
+
+$GLOBALS['wpcpm_card_current_user_id'] = 42;
+unset( $GLOBALS['wpcpm_card_meta'][42][ WPCPM_Learn_Progress::META_CACHE ] );
+$GLOBALS['wpcpm_card_refresh_calls'] = array();
+$wpcpm_card_missing_cache_panel      = WPCPM_Learn_Progress::panel( $wpcpm_card_student );
+
+wpcpm_card_check( 'an owner without cache requests one refresh', $GLOBALS['wpcpm_card_refresh_calls'], array( array( 42, false ) ) );
+wpcpm_card_check( 'an unavailable panel without cache has no percentage', 0, preg_match( '/\d+%/', $wpcpm_card_missing_cache_panel ) );
 
 if ( 0 !== $wpcpm_card_failures ) {
 	echo "\n{$wpcpm_card_failures} FAILED ({$wpcpm_card_checks} checks)\n";
