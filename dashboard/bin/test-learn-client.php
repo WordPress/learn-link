@@ -32,13 +32,20 @@ class WP_Error {
 	/** @var string */
 	private $code;
 
+	/** @var mixed */
+	private $data;
+
 	/**
-	 * Keep the error code used by the parser.
+	 * Keep the error code and optional error data.
 	 *
-	 * @param string $code Error code.
+	 * @param string $code    Error code.
+	 * @param string $message Error message (unused in unit tests).
+	 * @param mixed  $data    Optional error data.
 	 */
-	public function __construct( $code ) {
+	public function __construct( $code, $message = '', $data = '' ) {
+		unset( $message );
 		$this->code = $code;
+		$this->data = $data;
 	}
 
 	/**
@@ -48,6 +55,24 @@ class WP_Error {
 	 */
 	public function get_error_code() {
 		return $this->code;
+	}
+
+	/**
+	 * Return the error data.
+	 *
+	 * @return mixed
+	 */
+	public function get_error_data() {
+		return $this->data;
+	}
+
+	/**
+	 * Store error data.
+	 *
+	 * @param mixed $data Error data.
+	 */
+	public function add_data( $data ) {
+		$this->data = $data;
 	}
 }
 
@@ -108,6 +133,20 @@ $wpcpm_http_mock = array(
 );
 
 /**
+ * Mock wp_remote_get.
+ *
+ * @param string $url  Request URL.
+ * @param array  $args Request arguments.
+ * @return array|WP_Error
+ */
+function wp_remote_get( $url, array $args = array() ) {
+	global $wpcpm_http_mock;
+	$wpcpm_http_mock['last_url']  = $url;
+	$wpcpm_http_mock['last_args'] = $args;
+	return $wpcpm_http_mock['next_return'];
+}
+
+/**
  * Mock wp_remote_post.
  *
  * @param string $url  Request URL.
@@ -159,6 +198,25 @@ function wp_remote_retrieve_body( $response ) {
 		return '';
 	}
 	return (string) $response['body'];
+}
+
+/**
+ * Mock wp_remote_retrieve_header.
+ *
+ * @param array|WP_Error $response Response to inspect.
+ * @param string         $header   Header name.
+ * @return string
+ */
+function wp_remote_retrieve_header( $response, $header ) {
+	if ( is_wp_error( $response ) || ! is_array( $response ) || ! isset( $response['headers'] ) || ! is_array( $response['headers'] ) ) {
+		return '';
+	}
+	foreach ( $response['headers'] as $name => $value ) {
+		if ( 0 === strcasecmp( (string) $name, (string) $header ) ) {
+			return (string) $value;
+		}
+	}
+	return '';
 }
 
 require_once WPCPM_PLUGIN_DIR . 'includes/modules/class-wpcpm-learn-client.php';
@@ -864,6 +922,53 @@ $wpcpm_http_mock['next_return'] = array(
 );
 $wpcpm_res = WPCPM_Learn_Client::revoke( $wpcpm_valid_token_43 );
 wpcpm_learn_client_check( 'revoke returns learn_progress_slow_down on 429', is_wp_error( $wpcpm_res ) ? $wpcpm_res->get_error_code() : null, 'learn_progress_slow_down' );
+
+// --- Tests for WPCPM_Learn_Client::fetch() ---
+
+// 8a. Empty base URL -> wpcpm_learn_unreachable without request.
+WPCPM_Settings::$options['learn_base_url'] = '';
+$wpcpm_http_mock['last_url']               = null;
+$wpcpm_res                                 = WPCPM_Learn_Client::fetch( $wpcpm_valid_token_43 );
+wpcpm_learn_client_check( 'fetch returns wpcpm_learn_unreachable when base URL is empty', is_wp_error( $wpcpm_res ) ? $wpcpm_res->get_error_code() : null, 'wpcpm_learn_unreachable' );
+wpcpm_learn_client_check( 'fetch makes no request when base URL is empty', $wpcpm_http_mock['last_url'], null );
+
+WPCPM_Settings::$options['learn_base_url'] = 'https://learn.test/';
+
+// 8b. Network failure -> wpcpm_learn_unreachable, redirection = 0, timeout = 5.
+$wpcpm_http_mock['next_return'] = new WP_Error( 'http_request_failed' );
+$wpcpm_res                      = WPCPM_Learn_Client::fetch( $wpcpm_valid_token_43 );
+wpcpm_learn_client_check( 'fetch returns wpcpm_learn_unreachable on network failure', is_wp_error( $wpcpm_res ) ? $wpcpm_res->get_error_code() : null, 'wpcpm_learn_unreachable' );
+wpcpm_learn_client_check( 'fetch calls expected /me endpoint', $wpcpm_http_mock['last_url'], 'https://learn.test/wp-json/learn-progress/v1/me' );
+wpcpm_learn_client_check( 'fetch sets redirection to 0', $wpcpm_http_mock['last_args']['redirection'], 0 );
+wpcpm_learn_client_check( 'fetch sets timeout to 5', $wpcpm_http_mock['last_args']['timeout'], 5 );
+wpcpm_learn_client_check( 'fetch sends Bearer token header', $wpcpm_http_mock['last_args']['headers']['Authorization'], 'Bearer ' . $wpcpm_valid_token_43 );
+
+// 8c. 200 with valid fixture -> normalized parse() output.
+$wpcpm_in_progress_fixture      = wpcpm_learn_client_fixture( 'in-progress' );
+$wpcpm_http_mock['next_return'] = array(
+	'response' => array( 'code' => 200 ),
+	'body'     => json_encode( $wpcpm_in_progress_fixture ),
+);
+$wpcpm_res = WPCPM_Learn_Client::fetch( $wpcpm_valid_token_43 );
+wpcpm_learn_client_check( 'fetch returns parsed progress on valid 200 response', $wpcpm_res, WPCPM_Learn_Client::parse( $wpcpm_in_progress_fixture ) );
+
+// 8d. 200 with non-JSON or scalar JSON body -> wpcpm_learn_bad_answer.
+$wpcpm_http_mock['next_return'] = array(
+	'response' => array( 'code' => 200 ),
+	'body'     => 'not valid json',
+);
+$wpcpm_res = WPCPM_Learn_Client::fetch( $wpcpm_valid_token_43 );
+wpcpm_learn_client_check( 'fetch returns wpcpm_learn_bad_answer on non-JSON 200 body', is_wp_error( $wpcpm_res ) ? $wpcpm_res->get_error_code() : null, 'wpcpm_learn_bad_answer' );
+
+// 8e. Non-200 error fixtures (401, 403, 429 with Retry-After, 503).
+$wpcpm_http_mock['next_return'] = array(
+	'response' => array( 'code' => 429 ),
+	'headers'  => array( 'Retry-After' => '1800' ),
+	'body'     => json_encode( wpcpm_learn_client_fixture( 'error-429' ) ),
+);
+$wpcpm_res = WPCPM_Learn_Client::fetch( $wpcpm_valid_token_43 );
+wpcpm_learn_client_check( 'fetch returns learn_progress_slow_down on 429', is_wp_error( $wpcpm_res ) ? $wpcpm_res->get_error_code() : null, 'learn_progress_slow_down' );
+wpcpm_learn_client_check( 'fetch attaches retry_after from Retry-After header on 429', is_wp_error( $wpcpm_res ) ? $wpcpm_res->get_error_data() : null, array( 'retry_after' => 1800 ) );
 
 if ( 0 !== $wpcpm_learn_client_failures ) {
 	echo "\n{$wpcpm_learn_client_failures} FAILED ({$wpcpm_learn_client_checks} checks)\n";

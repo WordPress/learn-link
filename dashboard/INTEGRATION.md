@@ -36,6 +36,7 @@ From section 8.4 of the technical guide. Follow the code, not the spec, on each 
 | Block | Existing plugin file | Edit | Owner | Task |
 | --- | --- | --- | --- | --- |
 | #1a | `wpcredits-program-manager.php`, `uninstall.php` | Load `includes/modules/class-wpcpm-learn-progress.php` with `require_once` after the existing Learn and secret classes have been loaded. The uninstall loader must require the same class. This block is also reserved for the Learn client and progress card when those files are added. | Pedro | P1.1 |
+| #1b | `wpcredits-program-manager.php`, `uninstall.php` | Load `includes/modules/class-wpcpm-learn-progress-sync.php` with `require_once` alongside `class-wpcpm-learn-progress.php` in both the main plugin file and `uninstall.php`. | Rafael | R2.3 |
 | #2 | `includes/modules/class-wpcpm-students.php`, `WPCPM_Students::boot()`, `bin/test-students-screen.php` | Call `WPCPM_Learn_Progress::init()` after `WPCPM_Students_Dashboard::init()`, and add its no-op stub to the isolated students screen suite. | Pedro | P1.1 |
 | #3 | `includes/class-wpcpm-settings.php` | Add the five Learn Link keys to `defaults()`, the `advanced` scope and `write()`, including validation for each value. | Pedro | P1.1 |
 | #4 | `includes/class-wpcpm-settings-screen.php`, `WPCPM_Settings_Screen::render_tab_advanced()` | Add the Learn Link section and its five settings controls. | Pedro | P1.1 |
@@ -55,6 +56,23 @@ checks that every class loaded by the plugin is also available to uninstall:
 
 ```php
 require_once plugin_dir_path( __FILE__ ) . 'includes/modules/class-wpcpm-learn-progress.php';
+```
+
+### Block #1b: load the synchronization class in normal and uninstall requests
+
+In `wpcredits-program-manager.php`, right after `class-wpcpm-learn-progress.php`
+is loaded, add:
+
+```php
+require_once WPCPM_PLUGIN_DIR . 'includes/modules/class-wpcpm-learn-progress-sync.php';
+```
+
+In `uninstall.php`, right after its `class-wpcpm-learn-progress.php` include,
+load the synchronization class so `bin/test-roles.php` sees every loaded class
+available during uninstall:
+
+```php
+require_once plugin_dir_path( __FILE__ ) . 'includes/modules/class-wpcpm-learn-progress-sync.php';
 ```
 
 ### Block #2: boot the module and keep the isolated screen suite loadable
