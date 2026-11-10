@@ -34,7 +34,7 @@ final class WPCPM_Learn_Client {
 		'learn_progress_unavailable',
 	);
 
-	/** Error codes that Learn Link token exchange defines. */
+	/** Error codes that the token exchange endpoint defines. */
 	const TOKEN_ERRORS = array(
 		'learn_progress_invalid_grant',
 		'learn_progress_invalid_client',
@@ -86,9 +86,28 @@ final class WPCPM_Learn_Client {
 	}
 
 	/**
+	 * Whether Learn returned the WordPress.org username expected for a student.
+	 *
+	 * @param mixed $received Username returned by Learn.
+	 * @param mixed $expected Username already known by the Dashboard.
+	 * @return bool
+	 */
+	public static function same_username( $received, $expected ) {
+		if ( ! is_string( $received ) || ! is_string( $expected ) ) {
+			return false;
+		}
+
+		$received = trim( $received );
+		$expected = trim( $expected );
+
+		return '' !== $received && '' !== $expected && 0 === strcasecmp( $received, $expected );
+	}
+
+	/**
 	 * Identify a failed response, preferring the contract's code over HTTP status.
 	 *
-	 * The HTTP fallback follows the P07 guide for missing or unknown JSON codes.
+	 * Contract section 2 says to decide Learn errors by code alone. The HTTP
+	 * fallback covers only rate limiting and server failures without a known code.
 	 * Learn's message is never returned: the Dashboard supplies its own words.
 	 *
 	 * @param int   $status HTTP response status.
@@ -105,8 +124,6 @@ final class WPCPM_Learn_Client {
 		}
 
 		$codes = array(
-			401 => 'learn_progress_invalid_token',
-			403 => 'learn_progress_revoked',
 			429 => 'learn_progress_slow_down',
 		);
 
@@ -273,6 +290,12 @@ final class WPCPM_Learn_Client {
 			return self::bad_answer();
 		}
 
+		$has_grade = in_array( $item['status'], array( 'graded', 'passed', 'failed' ), true );
+
+		if ( ( $has_grade && null === $grade ) || ( ! $has_grade && null !== $grade ) ) {
+			return self::bad_answer();
+		}
+
 		// Updated contract review points 1 and 3: graded has no pass requirement.
 		if ( 'graded' === $item['status'] && null !== $passmark ) {
 			return self::bad_answer();
@@ -344,15 +367,15 @@ final class WPCPM_Learn_Client {
 	}
 
 	/**
-	 * Retrieve the configured Learn base URL, ensuring no trailing slash.
+	 * Retrieve the configured Learn base URL without a trailing slash.
 	 *
-	 * @return string|\WP_Error Base URL or WP_Error if unconfigured.
+	 * @return string|WP_Error Base URL or WP_Error when unconfigured.
 	 */
 	private static function base() {
-		$url = untrailingslashit( WPCPM_Settings::get_value( 'learn_base_url', '' ) );
+		$url = untrailingslashit( (string) WPCPM_Settings::get_value( 'learn_base_url', '' ) );
 
 		if ( '' === $url ) {
-			return new \WP_Error(
+			return new WP_Error(
 				'wpcpm_learn_unreachable',
 				__( 'Learn WordPress URL is not configured.', 'wpcredits-program-manager' )
 			);
@@ -362,11 +385,11 @@ final class WPCPM_Learn_Client {
 	}
 
 	/**
-	 * Exchange an authorization code for an access token and learner username.
+	 * Exchange an authorization code for an access token and confirmed learner identity.
 	 *
-	 * @param string $code     Single-use authorization code from Learn callback.
+	 * @param string $code     Single-use authorization code from the Learn callback.
 	 * @param string $verifier PKCE code verifier matching the challenge sent on connect.
-	 * @return array{token: string, username: string}|\WP_Error Array with token and username on success, WP_Error on failure.
+	 * @return array|WP_Error Normalized token and learner identity on success, or WP_Error on failure.
 	 */
 	public static function exchange( $code, $verifier ) {
 		$base = self::base();
@@ -375,7 +398,7 @@ final class WPCPM_Learn_Client {
 			return $base;
 		}
 
-		$client_id = WPCPM_Settings::get_value( 'learn_client_id', '' );
+		$client_id = (string) WPCPM_Settings::get_value( 'learn_client_id', '' );
 
 		$response = wp_remote_post(
 			$base . '/wp-json/learn-progress/v1/token',
@@ -390,15 +413,15 @@ final class WPCPM_Learn_Client {
 					array(
 						'grant_type'    => 'authorization_code',
 						'client_id'     => $client_id,
-						'code'          => $code,
-						'code_verifier' => $verifier,
+						'code'          => (string) $code,
+						'code_verifier' => (string) $verifier,
 					)
 				),
 			)
 		);
 
 		if ( is_wp_error( $response ) ) {
-			return new \WP_Error(
+			return new WP_Error(
 				'wpcpm_learn_unreachable',
 				__( 'Could not connect to Learn WordPress.', 'wpcredits-program-manager' )
 			);
@@ -425,19 +448,40 @@ final class WPCPM_Learn_Client {
 				return self::bad_answer();
 			}
 
-			return array(
+			$result = array(
 				'token'    => $body['token'],
 				'username' => $username,
 			);
+
+			if ( array_key_exists( 'wporg_profile_slug', $learner ) ) {
+				if ( ! is_string( $learner['wporg_profile_slug'] ) ) {
+					return self::bad_answer();
+				}
+
+				$profile_slug = trim( $learner['wporg_profile_slug'] );
+
+				if ( '' !== $profile_slug ) {
+					$result['profile_slug'] = $profile_slug;
+				}
+			}
+
+			return $result;
 		}
 
 		if ( is_array( $body ) && isset( $body['code'] ) && in_array( $body['code'], self::TOKEN_ERRORS, true ) ) {
 			$message = isset( $body['message'] ) && is_string( $body['message'] ) ? $body['message'] : '';
-			return new \WP_Error( $body['code'], $message );
+			return new WP_Error( $body['code'], $message );
+		}
+
+		if ( 429 === $status ) {
+			return new WP_Error(
+				'learn_progress_slow_down',
+				__( 'Too many requests to Learn WordPress.', 'wpcredits-program-manager' )
+			);
 		}
 
 		if ( $status >= 500 && $status <= 599 ) {
-			return new \WP_Error(
+			return new WP_Error(
 				'learn_progress_unavailable',
 				__( 'Learn WordPress is temporarily unavailable.', 'wpcredits-program-manager' )
 			);
@@ -449,8 +493,12 @@ final class WPCPM_Learn_Client {
 	/**
 	 * Revoke an access token on Learn WordPress.
 	 *
+	 * Contract section 4: 204, 401 learn_progress_invalid_token and 403 learn_progress_revoked
+	 * confirm Learn no longer accepts the token. Any other answer returns a WP_Error so a
+	 * withdrawal can retry later.
+	 *
 	 * @param string $token Stored access token to revoke.
-	 * @return true|\WP_Error True if revoked or already invalid (204/401), WP_Error on failure.
+	 * @return true|WP_Error True when revoked or already inactive, WP_Error on failure.
 	 */
 	public static function revoke( $token ) {
 		$base = self::base();
@@ -473,7 +521,7 @@ final class WPCPM_Learn_Client {
 		);
 
 		if ( is_wp_error( $response ) ) {
-			return new \WP_Error(
+			return new WP_Error(
 				'wpcpm_learn_unreachable',
 				__( 'Could not connect to Learn WordPress.', 'wpcredits-program-manager' )
 			);
@@ -481,25 +529,21 @@ final class WPCPM_Learn_Client {
 
 		$status = (int) wp_remote_retrieve_response_code( $response );
 
-		if ( 204 === $status || 401 === $status ) {
+		if ( 204 === $status ) {
 			return true;
 		}
 
 		$body = json_decode( wp_remote_retrieve_body( $response ), true );
+		$code = self::error_code( $status, $body );
 
-		if ( is_array( $body ) && isset( $body['code'] ) && is_string( $body['code'] ) ) {
-			$message = isset( $body['message'] ) && is_string( $body['message'] ) ? $body['message'] : '';
-			return new \WP_Error( $body['code'], $message );
+		if ( in_array( $code, array( 'learn_progress_invalid_token', 'learn_progress_revoked' ), true ) ) {
+			return true;
 		}
 
-		if ( $status >= 500 && $status <= 599 ) {
-			return new \WP_Error(
-				'learn_progress_unavailable',
-				__( 'Learn WordPress is temporarily unavailable.', 'wpcredits-program-manager' )
-			);
-		}
-
-		return self::bad_answer();
+		return new WP_Error(
+			$code,
+			__( 'Learn WordPress could not complete the token withdrawal.', 'wpcredits-program-manager' )
+		);
 	}
 
 	/**

@@ -27,18 +27,19 @@ class WPCPM_Learn_Progress {
 	const ACTION_CALLBACK = 'wpcpm_learn_callback';
 	const ACTION_WITHDRAW = 'wpcpm_learn_withdraw';
 
-	const STATE_PREFIX = 'wpcpm_learnlink_state_';
+	// Keep state values and timeouts within uninstall.php's Learn transient sweep.
+	const STATE_PREFIX = 'wpcpm_learn_state_';
 
 	/**
 	 * Start the Learn Link hooks.
 	 */
 	public static function init() {
-		if ( class_exists( 'WPCPM_Learn_Progress_Sync' ) ) {
-			WPCPM_Learn_Progress_Sync::init();
-		}
-
 		if ( ! self::enabled() ) {
 			return;
+		}
+
+		if ( class_exists( 'WPCPM_Learn_Progress_Sync' ) ) {
+			WPCPM_Learn_Progress_Sync::init();
 		}
 
 		add_action( 'admin_post_' . self::ACTION_CONNECT, array( __CLASS__, 'handle_connect' ) );
@@ -65,7 +66,7 @@ class WPCPM_Learn_Progress {
 			'learn_enabled'     => self::enabled(),
 			'learn_base_url'    => (string) WPCPM_Settings::get_value( 'learn_base_url', 'https://learn.wordpress.org' ),
 			'learn_client_id'   => (string) WPCPM_Settings::get_value( 'learn_client_id', 'wpcredits' ),
-			'learn_courses'     => (string) WPCPM_Settings::get_value( 'learn_courses', '297853' ),
+			'learn_courses'     => (string) WPCPM_Settings::get_value( 'learn_courses', '' ),
 			'learn_cache_hours' => (int) WPCPM_Settings::get_value( 'learn_cache_hours', 6 ),
 		);
 	}
