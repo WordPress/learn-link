@@ -283,6 +283,8 @@ class WPCPM_Learn_Progress {
 			array(),
 			array(
 				'is_owner'     => $is_owner,
+				'can_manage'   => current_user_can( WPCPM_Roles::CAP_MANAGE ),
+				'student_id'   => $student_id,
 				'message'      => self::outcome_message( WPCPM_Flash::take( self::FLASH ) ),
 				'connected_at' => (int) get_user_meta( $student_id, self::META_CONNECTED, true ),
 				'withdrawn_at' => (int) get_user_meta( $student_id, self::META_WITHDRAWN_AT, true ),
@@ -352,14 +354,20 @@ class WPCPM_Learn_Progress {
 	/**
 	 * Queue one Connect outcome and return to the Student Dashboard.
 	 *
-	 * @param mixed $outcome Outcome code or its safe display context.
+	 * @param mixed $outcome    Outcome code or its safe display context.
+	 * @param int   $student_id Student an Administrator was viewing, if any.
 	 */
-	private static function back( $outcome ) {
+	private static function back( $outcome, $student_id = 0 ) {
 		WPCPM_Flash::set( self::FLASH, $outcome );
 
 		$url = WPCPM_Students_Dashboard::page_url();
+		$url = $url ? $url : home_url( '/' );
 
-		wp_safe_redirect( $url ? $url : home_url( '/' ) );
+		if ( 0 < (int) $student_id ) {
+			$url = add_query_arg( array( 'wpcpm_student_view' => (int) $student_id ), $url );
+		}
+
+		wp_safe_redirect( $url );
 		exit;
 	}
 
@@ -402,6 +410,14 @@ class WPCPM_Learn_Progress {
 				return __( 'This site cannot store the connection safely. Tell an Administrator.', 'wpcredits-program-manager' );
 			case 'learn_connected':
 				return __( 'Your Learn account is connected.', 'wpcredits-program-manager' );
+			case 'learn_withdraw_student':
+				return __( 'Choose a valid student connection to withdraw.', 'wpcredits-program-manager' );
+			case 'learn_withdraw_reason':
+				return __( 'Enter a withdrawal reason of no more than 500 characters.', 'wpcredits-program-manager' );
+			case 'learn_withdraw_connection':
+				return __( 'That student does not have a Learn connection to withdraw.', 'wpcredits-program-manager' );
+			case 'learn_withdraw_complete':
+				return __( 'The Learn connection was withdrawn.', 'wpcredits-program-manager' );
 			default:
 				return '';
 		}
@@ -548,6 +564,87 @@ class WPCPM_Learn_Progress {
 	 * Withdraw a connection.
 	 */
 	public static function handle_withdraw() {
-		// Implemented in Phase 2.
+		if ( ! current_user_can( WPCPM_Roles::CAP_MANAGE ) ) {
+			wp_die( esc_html__( 'You are not allowed to withdraw Learn connections.', 'wpcredits-program-manager' ), 403 );
+		}
+
+		$request    = wp_unslash( $_POST ); // phpcs:ignore WordPress.Security.NonceVerification.Missing -- The student ID is needed to select the per-student nonce action.
+		$student_id = isset( $request['student'] ) ? absint( $request['student'] ) : 0;
+
+		check_admin_referer( self::ACTION_WITHDRAW . '_' . $student_id );
+
+		$student = get_userdata( $student_id );
+
+		if ( ! $student instanceof WP_User || ! WPCPM_Students_Dashboard::is_student( $student ) ) {
+			self::back( 'learn_withdraw_student' );
+		}
+
+		$reason        = isset( $request['reason'] ) && is_string( $request['reason'] )
+			? sanitize_textarea_field( $request['reason'] )
+			: '';
+		$reason_length = function_exists( 'mb_strlen' ) ? mb_strlen( $reason ) : strlen( $reason );
+
+		if ( '' === $reason || 500 < $reason_length ) {
+			self::back( 'learn_withdraw_reason', $student_id );
+		}
+
+		$sealed = get_user_meta( $student_id, self::META_TOKEN, true );
+
+		if ( ! is_string( $sealed ) || '' === $sealed ) {
+			self::back( 'learn_withdraw_connection', $student_id );
+		}
+
+		$token = WPCPM_Secret::unseal_from_option( $sealed );
+
+		// The active local connection is gone even when Learn cannot be reached.
+		delete_user_meta( $student_id, self::META_TOKEN );
+		delete_user_meta( $student_id, self::META_CACHE );
+
+		if ( is_wp_error( $token ) ) {
+			update_user_meta( $student_id, self::META_REVOKE_PENDING, $sealed );
+		} else {
+			$revoked = WPCPM_Learn_Client::revoke( $token );
+
+			if ( is_wp_error( $revoked ) ) {
+				update_user_meta( $student_id, self::META_REVOKE_PENDING, $sealed );
+			} else {
+				delete_user_meta( $student_id, self::META_REVOKE_PENDING );
+			}
+		}
+
+		update_user_meta( $student_id, self::META_WITHDRAWN_AT, time() );
+		update_user_meta( $student_id, self::META_WITHDRAWN_BY, get_current_user_id() );
+
+		$administrator      = wp_get_current_user();
+		$administrator_name = $administrator instanceof WP_User && isset( $administrator->display_name )
+			? trim( (string) $administrator->display_name )
+			: '';
+
+		if ( '' === $administrator_name ) {
+			$administrator_name = __( 'A program Administrator', 'wpcredits-program-manager' );
+		}
+
+		WPCPM_Mail::send(
+			$student,
+			'learn-connection-withdrawn',
+			static function ( $recipient ) use ( $administrator_name, $reason ) {
+				$student_name = isset( $recipient->display_name ) ? trim( (string) $recipient->display_name ) : '';
+
+				if ( '' === $student_name ) {
+					$student_name = __( 'Student', 'wpcredits-program-manager' );
+				}
+
+				return WPCPM_Mail_Templates::render(
+					'learn-connection-withdrawn',
+					array(
+						'student_name'       => $student_name,
+						'administrator_name' => $administrator_name,
+						'reason'             => $reason,
+					)
+				);
+			}
+		);
+
+		self::back( 'learn_withdraw_complete', $student_id );
 	}
 }

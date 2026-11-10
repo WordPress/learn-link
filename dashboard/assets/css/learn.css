@@ -23,6 +23,30 @@
 	margin-bottom: 0;
 }
 
+.wpcpm-learn__withdraw {
+	border-top: 1px solid var( --wpcpm-border );
+	margin-top: 1em;
+	padding-top: 1em;
+}
+
+.wpcpm-learn__withdraw label,
+.wpcpm-learn__withdraw textarea {
+	display: block;
+}
+
+.wpcpm-learn__withdraw label {
+	font-weight: 600;
+	margin-bottom: 0.35em;
+}
+
+.wpcpm-learn__withdraw textarea {
+	box-sizing: border-box;
+	margin-bottom: 0.75em;
+	max-width: 40em;
+	min-height: 6em;
+	width: 100%;
+}
+
 .wpcpm-learn__course {
 	border: 1px solid var( --wpcpm-border );
 	border-radius: var( --wpcpm-radius );

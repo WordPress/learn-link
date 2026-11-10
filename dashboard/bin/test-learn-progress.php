@@ -29,21 +29,71 @@ $GLOBALS['wpcpm_learn_test_nonce']      = '';
 $GLOBALS['wpcpm_learn_test_exchange']   = null;
 $GLOBALS['wpcpm_learn_exchange_calls']  = array();
 $GLOBALS['wpcpm_learn_revoke_calls']    = array();
+$GLOBALS['wpcpm_learn_revoke_result']   = true;
 $GLOBALS['wpcpm_learn_refresh_calls']   = array();
 $GLOBALS['wpcpm_learn_refresh_result']  = true;
 $GLOBALS['wpcpm_learn_seal_result']     = null;
+$GLOBALS['wpcpm_learn_unseal_result']   = null;
 $GLOBALS['wpcpm_learn_auth_redirects']  = 0;
+$GLOBALS['wpcpm_learn_test_can_manage'] = false;
+$GLOBALS['wpcpm_learn_test_nonce_valid'] = true;
+$GLOBALS['wpcpm_learn_test_users']       = array();
+$GLOBALS['wpcpm_learn_test_mail']        = array();
+$GLOBALS['wpcpm_learn_template_calls']   = array();
 
 class WP_User {
 	public $ID;
+	public $display_name;
+	public $user_email;
 
-	public function __construct( $user_id ) {
-		$this->ID = (int) $user_id;
+	public function __construct( $user_id, $display_name = '', $user_email = '' ) {
+		$this->ID           = (int) $user_id;
+		$this->display_name = '' !== (string) $display_name ? (string) $display_name : 'User ' . (int) $user_id;
+		$this->user_email   = '' !== (string) $user_email ? (string) $user_email : 'user' . (int) $user_id . '@example.test';
 	}
 }
 
 class WPCPM_Learn_Test_Redirect extends Exception {}
 class WPCPM_Learn_Test_Auth_Redirect extends Exception {}
+class WPCPM_Learn_Test_Denied extends Exception {}
+
+class WPCPM_Roles {
+	const CAP_MANAGE = 'wpcpm_manage_program';
+}
+
+class WPCPM_Mail {
+	public static function send( $recipient, $context, $build ) {
+		$mail = call_user_func( $build, $recipient );
+
+		$GLOBALS['wpcpm_learn_test_mail'][] = array(
+			'recipient' => $recipient instanceof WP_User ? (int) $recipient->ID : 0,
+			'context'   => (string) $context,
+			'subject'   => isset( $mail['subject'] ) ? (string) $mail['subject'] : '',
+			'body'      => isset( $mail['body'] ) ? (string) $mail['body'] : '',
+		);
+
+		return true;
+	}
+}
+
+class WPCPM_Mail_Templates {
+	public static function render( $id, array $values ) {
+		$GLOBALS['wpcpm_learn_template_calls'][] = array(
+			'id'     => (string) $id,
+			'values' => $values,
+		);
+
+		return array(
+			'subject' => 'Your Learn connection was withdrawn',
+			'body'    => sprintf(
+				"Hello %1\$s,\n\n%2\$s withdrew your Learn connection from the WordPress Credits Program.\n\nReason:\n%3\$s\n\nYou cannot reconnect your Learn account yourself. Contact a program Administrator, who can allow it again.",
+				isset( $values['student_name'] ) ? $values['student_name'] : '',
+				isset( $values['administrator_name'] ) ? $values['administrator_name'] : '',
+				isset( $values['reason'] ) ? $values['reason'] : ''
+			),
+		);
+	}
+}
 
 class WP_Error {
 	private $code;
@@ -136,7 +186,7 @@ class WPCPM_Learn_Client {
 	public static function revoke( $token ) {
 		$GLOBALS['wpcpm_learn_revoke_calls'][] = (string) $token;
 
-		return true;
+		return $GLOBALS['wpcpm_learn_revoke_result'];
 	}
 }
 
@@ -147,6 +197,16 @@ class WPCPM_Secret {
 		}
 
 		return 'sealed:' . (string) $token;
+	}
+
+	public static function unseal_from_option( $stored ) {
+		if ( null !== $GLOBALS['wpcpm_learn_unseal_result'] ) {
+			return $GLOBALS['wpcpm_learn_unseal_result'];
+		}
+
+		return 0 === strpos( (string) $stored, 'sealed:' )
+			? substr( (string) $stored, 7 )
+			: new WP_Error( 'wpcpm_private_format' );
 	}
 }
 
@@ -196,6 +256,14 @@ function get_user_meta( $user_id, $key, $single = false ) {
 		: '';
 }
 
+function get_userdata( $user_id ) {
+	$user_id = (int) $user_id;
+
+	return isset( $GLOBALS['wpcpm_learn_test_users'][ $user_id ] )
+		? $GLOBALS['wpcpm_learn_test_users'][ $user_id ]
+		: false;
+}
+
 function update_user_meta( $user_id, $key, $value ) {
 	$GLOBALS['wpcpm_learn_test_meta'][ (int) $user_id ][ (string) $key ] = $value;
 
@@ -211,6 +279,38 @@ function delete_user_meta( $user_id, $key ) {
 function check_admin_referer( $action ) {
 	$GLOBALS['wpcpm_learn_test_events'][] = 'nonce';
 	$GLOBALS['wpcpm_learn_test_nonce']    = (string) $action;
+
+	if ( ! $GLOBALS['wpcpm_learn_test_nonce_valid'] ) {
+		throw new WPCPM_Learn_Test_Denied( 'nonce' );
+	}
+}
+
+function current_user_can( $capability ) {
+	$GLOBALS['wpcpm_learn_test_events'][] = 'capability';
+
+	return WPCPM_Roles::CAP_MANAGE === (string) $capability && $GLOBALS['wpcpm_learn_test_can_manage'];
+}
+
+function wp_die( $message, $response = 500 ) {
+	unset( $message );
+
+	throw new WPCPM_Learn_Test_Denied( 'capability', (int) $response );
+}
+
+function esc_html__( $text, $domain ) {
+	unset( $domain );
+
+	return (string) $text;
+}
+
+function __( $text, $domain ) {
+	unset( $domain );
+
+	return (string) $text;
+}
+
+function esc_html( $text ) {
+	return htmlspecialchars( (string) $text, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8' );
 }
 
 function wp_get_current_user() {
@@ -255,6 +355,14 @@ function wp_unslash( $value ) {
 
 function sanitize_text_field( $value ) {
 	return trim( strip_tags( (string) $value ) );
+}
+
+function sanitize_textarea_field( $value ) {
+	return trim( strip_tags( (string) $value ) );
+}
+
+function absint( $value ) {
+	return abs( (int) $value );
 }
 
 function wp_parse_url( $url, $component = -1 ) {
@@ -382,6 +490,52 @@ function wpcpm_learn_callback_attempt( $user_id, array $request, $held = false, 
 		'revoke_calls'   => $GLOBALS['wpcpm_learn_revoke_calls'],
 		'refresh_calls'  => $GLOBALS['wpcpm_learn_refresh_calls'],
 		'redirects'      => $GLOBALS['wpcpm_learn_test_redirects'],
+	);
+}
+
+function wpcpm_learn_withdraw_attempt( $can_manage, $nonce_valid, $student_id, $is_student, $reason, array $meta = array(), $unseal = null, $revoke = true ) {
+	$_POST = array(
+		'student' => $student_id,
+		'reason'  => $reason,
+	);
+
+	$GLOBALS['wpcpm_learn_test_meta']        = array( (int) $student_id => $meta );
+	$GLOBALS['wpcpm_learn_test_events']      = array();
+	$GLOBALS['wpcpm_learn_test_flash']       = array();
+	$GLOBALS['wpcpm_learn_test_redirects']   = array();
+	$GLOBALS['wpcpm_learn_test_user']        = new WP_User( 900, 'Ada Administrator', 'administrator@example.test' );
+	$GLOBALS['wpcpm_learn_test_can_manage']  = (bool) $can_manage;
+	$GLOBALS['wpcpm_learn_test_nonce_valid'] = (bool) $nonce_valid;
+	$GLOBALS['wpcpm_learn_test_is_student']  = (bool) $is_student;
+	$GLOBALS['wpcpm_learn_test_nonce']       = '';
+	$GLOBALS['wpcpm_learn_test_users']       = 0 < (int) $student_id
+		? array( (int) $student_id => new WP_User( $student_id, 'Sam Student', 'student@example.test' ) )
+		: array();
+	$GLOBALS['wpcpm_learn_unseal_result']    = $unseal;
+	$GLOBALS['wpcpm_learn_revoke_result']    = $revoke;
+	$GLOBALS['wpcpm_learn_revoke_calls']     = array();
+	$GLOBALS['wpcpm_learn_test_mail']        = array();
+	$GLOBALS['wpcpm_learn_template_calls']   = array();
+
+	try {
+		WPCPM_Learn_Progress::handle_withdraw();
+	} catch ( WPCPM_Learn_Test_Redirect $redirect ) {
+		unset( $redirect );
+	} catch ( WPCPM_Learn_Test_Denied $denied ) {
+		unset( $denied );
+	}
+
+	return array(
+		'events'    => $GLOBALS['wpcpm_learn_test_events'],
+		'flash'     => $GLOBALS['wpcpm_learn_test_flash'],
+		'meta'      => isset( $GLOBALS['wpcpm_learn_test_meta'][ (int) $student_id ] )
+			? $GLOBALS['wpcpm_learn_test_meta'][ (int) $student_id ]
+			: array(),
+		'nonce'     => $GLOBALS['wpcpm_learn_test_nonce'],
+		'revoke'    => $GLOBALS['wpcpm_learn_revoke_calls'],
+		'mail'      => $GLOBALS['wpcpm_learn_test_mail'],
+		'templates' => $GLOBALS['wpcpm_learn_template_calls'],
+		'redirects' => $GLOBALS['wpcpm_learn_test_redirects'],
 	);
 }
 
@@ -785,6 +939,126 @@ $wpcpm_learn_refresh_error = wpcpm_learn_callback_attempt(
 );
 wpcpm_learn_check( 'refresh failure keeps the sealed connection', $wpcpm_learn_refresh_error['meta'][ WPCPM_Learn_Progress::META_TOKEN ], 'sealed:' . $wpcpm_learn_token );
 wpcpm_learn_check( 'refresh failure still reports a connected account', $wpcpm_learn_refresh_error['flash'], array( 'learn' => 'learn_connected' ) );
+
+$wpcpm_learn_withdraw_meta = array(
+	WPCPM_Learn_Progress::META_TOKEN => 'sealed-token',
+	WPCPM_Learn_Progress::META_CACHE => array( 'fetched_at' => time(), 'courses' => array( 297853 => array( 'status' => 'in-progress' ) ) ),
+);
+$wpcpm_learn_withdraw_mentor = wpcpm_learn_withdraw_attempt( false, true, 71, true, 'Program decision.', $wpcpm_learn_withdraw_meta );
+wpcpm_learn_check( 'withdrawal checks the management capability first', $wpcpm_learn_withdraw_mentor['events'], array( 'capability' ) );
+wpcpm_learn_check( 'a mentor withdrawal never checks a nonce', $wpcpm_learn_withdraw_mentor['nonce'], '' );
+wpcpm_learn_check( 'a mentor withdrawal changes no student data', $wpcpm_learn_withdraw_mentor['meta'], $wpcpm_learn_withdraw_meta );
+
+$wpcpm_learn_withdraw_no_nonce = wpcpm_learn_withdraw_attempt( true, false, 72, true, 'Program decision.', $wpcpm_learn_withdraw_meta );
+wpcpm_learn_check( 'withdrawal checks capability before its nonce', $wpcpm_learn_withdraw_no_nonce['events'], array( 'capability', 'nonce' ) );
+wpcpm_learn_check( 'withdrawal uses the per-student nonce action', $wpcpm_learn_withdraw_no_nonce['nonce'], 'wpcpm_learn_withdraw_72' );
+wpcpm_learn_check( 'a missing nonce changes no student data', $wpcpm_learn_withdraw_no_nonce['meta'], $wpcpm_learn_withdraw_meta );
+
+$wpcpm_learn_withdraw_nonstudent = wpcpm_learn_withdraw_attempt( true, true, 73, false, 'Program decision.', $wpcpm_learn_withdraw_meta );
+wpcpm_learn_check( 'withdrawal confirms the target after the nonce', $wpcpm_learn_withdraw_nonstudent['events'], array( 'capability', 'nonce', 'student' ) );
+wpcpm_learn_check( 'a non-student target gets a safe message', $wpcpm_learn_withdraw_nonstudent['flash'], array( 'learn' => 'learn_withdraw_student' ) );
+wpcpm_learn_check( 'a non-student target changes no data', $wpcpm_learn_withdraw_nonstudent['meta'], $wpcpm_learn_withdraw_meta );
+
+$wpcpm_learn_withdraw_empty_reason = wpcpm_learn_withdraw_attempt( true, true, 74, true, "  \n", $wpcpm_learn_withdraw_meta );
+wpcpm_learn_check( 'an empty withdrawal reason gets a safe message', $wpcpm_learn_withdraw_empty_reason['flash'], array( 'learn' => 'learn_withdraw_reason' ) );
+wpcpm_learn_check( 'an empty withdrawal reason changes no data', $wpcpm_learn_withdraw_empty_reason['meta'], $wpcpm_learn_withdraw_meta );
+wpcpm_learn_check( 'an empty reason returns to the selected student', $wpcpm_learn_withdraw_empty_reason['redirects'], array( 'https://dashboard.test/student-dashboard/?wpcpm_student_view=74' ) );
+
+$wpcpm_learn_withdraw_long_reason = wpcpm_learn_withdraw_attempt( true, true, 75, true, str_repeat( 'r', 501 ), $wpcpm_learn_withdraw_meta );
+wpcpm_learn_check( 'a 501-character withdrawal reason gets a safe message', $wpcpm_learn_withdraw_long_reason['flash'], array( 'learn' => 'learn_withdraw_reason' ) );
+wpcpm_learn_check( 'a 501-character withdrawal reason changes no data', $wpcpm_learn_withdraw_long_reason['meta'], $wpcpm_learn_withdraw_meta );
+
+$wpcpm_learn_no_connection_meta = array( WPCPM_Learn_Progress::META_CACHE => array( 'old-cache' ) );
+$wpcpm_learn_withdraw_no_connection = wpcpm_learn_withdraw_attempt( true, true, 76, true, 'Program decision.', $wpcpm_learn_no_connection_meta );
+wpcpm_learn_check( 'a student without a connection gets a safe message', $wpcpm_learn_withdraw_no_connection['flash'], array( 'learn' => 'learn_withdraw_connection' ) );
+wpcpm_learn_check( 'a student without a connection changes no data', $wpcpm_learn_withdraw_no_connection['meta'], $wpcpm_learn_no_connection_meta );
+wpcpm_learn_check( 'a student without a connection makes no revoke request', $wpcpm_learn_withdraw_no_connection['revoke'], array() );
+wpcpm_learn_check( 'a student without a connection receives no mail', $wpcpm_learn_withdraw_no_connection['mail'], array() );
+wpcpm_learn_check( 'a missing connection returns to the selected student', $wpcpm_learn_withdraw_no_connection['redirects'], array( 'https://dashboard.test/student-dashboard/?wpcpm_student_view=76' ) );
+
+$wpcpm_learn_active_meta = array(
+	WPCPM_Learn_Progress::META_TOKEN          => 'sealed:plain-token',
+	WPCPM_Learn_Progress::META_CACHE          => array( 'old-cache' ),
+	WPCPM_Learn_Progress::META_CONNECTED      => 100,
+	WPCPM_Learn_Progress::META_USERNAME       => 'adaexample',
+	WPCPM_Learn_Progress::META_REVOKE_PENDING => 'sealed:older-token',
+);
+$wpcpm_learn_withdraw_success = wpcpm_learn_withdraw_attempt( true, true, 77, true, 'Program decision.', $wpcpm_learn_active_meta );
+wpcpm_learn_check( 'a valid withdrawal revokes the unsealed token', $wpcpm_learn_withdraw_success['revoke'], array( 'plain-token' ) );
+wpcpm_learn_check( 'a valid withdrawal deletes the active token immediately', isset( $wpcpm_learn_withdraw_success['meta'][ WPCPM_Learn_Progress::META_TOKEN ] ), false );
+wpcpm_learn_check( 'a valid withdrawal deletes cached progress immediately', isset( $wpcpm_learn_withdraw_success['meta'][ WPCPM_Learn_Progress::META_CACHE ] ), false );
+wpcpm_learn_check( 'a confirmed revoke clears an older pending value', isset( $wpcpm_learn_withdraw_success['meta'][ WPCPM_Learn_Progress::META_REVOKE_PENDING ] ), false );
+wpcpm_learn_check( 'a valid withdrawal records its time', abs( time() - $wpcpm_learn_withdraw_success['meta'][ WPCPM_Learn_Progress::META_WITHDRAWN_AT ] ) <= 2, true );
+wpcpm_learn_check( 'a valid withdrawal records the Administrator', $wpcpm_learn_withdraw_success['meta'][ WPCPM_Learn_Progress::META_WITHDRAWN_BY ], 900 );
+wpcpm_learn_check( 'a valid withdrawal gets the completed outcome', $wpcpm_learn_withdraw_success['flash'], array( 'learn' => 'learn_withdraw_complete' ) );
+wpcpm_learn_check( 'a completed withdrawal returns to the selected student', $wpcpm_learn_withdraw_success['redirects'], array( 'https://dashboard.test/student-dashboard/?wpcpm_student_view=77' ) );
+wpcpm_learn_check( 'a valid withdrawal sends one message', count( $wpcpm_learn_withdraw_success['mail'] ), 1 );
+wpcpm_learn_check( 'the withdrawal message goes to the student', $wpcpm_learn_withdraw_success['mail'][0]['recipient'], 77 );
+wpcpm_learn_check( 'the withdrawal message uses its catalog context', $wpcpm_learn_withdraw_success['mail'][0]['context'], 'learn-connection-withdrawn' );
+wpcpm_learn_check( 'the withdrawal message uses its editable template', $wpcpm_learn_withdraw_success['templates'][0]['id'], 'learn-connection-withdrawn' );
+wpcpm_learn_check(
+	'the editable template receives only its three values',
+	$wpcpm_learn_withdraw_success['templates'][0]['values'],
+	array(
+		'student_name'       => 'Sam Student',
+		'administrator_name' => 'Ada Administrator',
+		'reason'             => 'Program decision.',
+	)
+);
+wpcpm_learn_check( 'the withdrawal message uses the required subject', $wpcpm_learn_withdraw_success['mail'][0]['subject'], 'Your Learn connection was withdrawn' );
+wpcpm_learn_check( 'the withdrawal message names the Administrator', false !== strpos( $wpcpm_learn_withdraw_success['mail'][0]['body'], 'Ada Administrator' ), true );
+wpcpm_learn_check( 'the withdrawal message includes the reason', false !== strpos( $wpcpm_learn_withdraw_success['mail'][0]['body'], 'Program decision.' ), true );
+wpcpm_learn_check( 'the withdrawal message explains that the student cannot reconnect alone', false !== strpos( $wpcpm_learn_withdraw_success['mail'][0]['body'], 'cannot reconnect' ), true );
+wpcpm_learn_check( 'the withdrawal message tells the student to contact an Administrator', false !== strpos( $wpcpm_learn_withdraw_success['mail'][0]['body'], 'Contact a program Administrator' ), true );
+
+$wpcpm_learn_withdraw_revoke_error = wpcpm_learn_withdraw_attempt(
+	true,
+	true,
+	78,
+	true,
+	'Program decision.',
+	array(
+		WPCPM_Learn_Progress::META_TOKEN => 'sealed:retry-token',
+		WPCPM_Learn_Progress::META_CACHE => array( 'old-cache' ),
+	),
+	null,
+	new WP_Error( 'wpcpm_learn_unreachable' )
+);
+wpcpm_learn_check( 'a failed revoke receives only the unsealed token', $wpcpm_learn_withdraw_revoke_error['revoke'], array( 'retry-token' ) );
+wpcpm_learn_check( 'a failed revoke removes the active token', isset( $wpcpm_learn_withdraw_revoke_error['meta'][ WPCPM_Learn_Progress::META_TOKEN ] ), false );
+wpcpm_learn_check( 'a failed revoke removes cached progress', isset( $wpcpm_learn_withdraw_revoke_error['meta'][ WPCPM_Learn_Progress::META_CACHE ] ), false );
+wpcpm_learn_check( 'a failed revoke keeps only the sealed token for retry', $wpcpm_learn_withdraw_revoke_error['meta'][ WPCPM_Learn_Progress::META_REVOKE_PENDING ], 'sealed:retry-token' );
+wpcpm_learn_check( 'a failed remote revoke still tells the student', count( $wpcpm_learn_withdraw_revoke_error['mail'] ), 1 );
+
+$wpcpm_learn_withdraw_unseal_error = wpcpm_learn_withdraw_attempt(
+	true,
+	true,
+	79,
+	true,
+	'Program decision.',
+	array(
+		WPCPM_Learn_Progress::META_TOKEN => 'sealed:unreadable-token',
+		WPCPM_Learn_Progress::META_CACHE => array( 'old-cache' ),
+	),
+	new WP_Error( 'wpcpm_private_tampered' )
+);
+wpcpm_learn_check( 'an unseal failure makes no revoke request', $wpcpm_learn_withdraw_unseal_error['revoke'], array() );
+wpcpm_learn_check( 'an unseal failure removes the active token', isset( $wpcpm_learn_withdraw_unseal_error['meta'][ WPCPM_Learn_Progress::META_TOKEN ] ), false );
+wpcpm_learn_check( 'an unseal failure removes cached progress', isset( $wpcpm_learn_withdraw_unseal_error['meta'][ WPCPM_Learn_Progress::META_CACHE ] ), false );
+wpcpm_learn_check( 'an unseal failure preserves the sealed token for retry', $wpcpm_learn_withdraw_unseal_error['meta'][ WPCPM_Learn_Progress::META_REVOKE_PENDING ], 'sealed:unreadable-token' );
+wpcpm_learn_check( 'an unseal failure still tells the student', count( $wpcpm_learn_withdraw_unseal_error['mail'] ), 1 );
+
+$wpcpm_learn_withdraw_script_reason = wpcpm_learn_withdraw_attempt(
+	true,
+	true,
+	80,
+	true,
+	'<script>alert("withdraw")</script> Required follow-up.',
+	array( WPCPM_Learn_Progress::META_TOKEN => 'sealed:script-token' )
+);
+$wpcpm_learn_script_mail_body = $wpcpm_learn_withdraw_script_reason['mail'][0]['body'];
+wpcpm_learn_check( 'a script reason is never executable in mail', false === strpos( $wpcpm_learn_script_mail_body, '<script>' ), true );
+wpcpm_learn_check( 'safe reason text remains visible in mail', false !== strpos( $wpcpm_learn_script_mail_body, 'alert("withdraw") Required follow-up.' ), true );
 
 $GLOBALS['wpcpm_learn_auth_redirects'] = 0;
 try {
