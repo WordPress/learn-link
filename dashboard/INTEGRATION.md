@@ -35,14 +35,15 @@ From section 8.4 of the technical guide. Follow the code, not the spec, on each 
 
 | Block | Existing plugin file | Edit | Owner | Task |
 | --- | --- | --- | --- | --- |
-| #1a | `wpcredits-program-manager.php`, `uninstall.php` | Load `class-wpcpm-learn-client.php`, `class-wpcpm-learn-progress-card.php` and `class-wpcpm-learn-progress.php` after the existing Learn and secret classes. The uninstall loader must also require `class-wpcpm-learn-progress.php`. | Pedro | P1.1/P1.3 |
+| #1a | `wpcredits-program-manager.php`, `uninstall.php` | Load `includes/modules/class-wpcpm-learn-client.php`, `includes/modules/class-wpcpm-learn-progress-card.php` and `includes/modules/class-wpcpm-learn-progress.php` with `require_once` after the existing Learn and secret classes have been loaded. The uninstall loader must also require `class-wpcpm-learn-progress.php`. | Pedro | P1.1/P1.3 |
+| #1b | `wpcredits-program-manager.php`, `uninstall.php` | Load `includes/modules/class-wpcpm-learn-progress-sync.php` with `require_once` alongside `class-wpcpm-learn-progress.php` in both the main plugin file and `uninstall.php`. | Rafael | R2.3 |
 | #2 | `includes/modules/class-wpcpm-students.php`, `WPCPM_Students::boot()`, `bin/test-students-screen.php` | Call `WPCPM_Learn_Progress::init()` after `WPCPM_Students_Dashboard::init()`, and add its no-op stub to the isolated students screen suite. | Pedro | P1.1 |
 | #3 | `includes/class-wpcpm-settings.php` | Add the five Learn Link keys to `defaults()`, the `advanced` scope and `write()`, including validation for each value. | Pedro | P1.1 |
 | #4 | `includes/class-wpcpm-settings-screen.php`, `WPCPM_Settings_Screen::render_tab_advanced()` | Add the Learn Link section and its five settings controls. | Pedro | P1.1 |
 | #5 | `includes/modules/class-wpcpm-students-dashboard.php`, `render_links()` | Render `WPCPM_Learn_Progress::panel( $student )` below the course button and hours inside the My course section. | Pedro | P1.3 |
 | #6 | `includes/modules/class-wpcpm-students-dashboard.php`, `register()` and `render()` | Register `assets/css/learn.css` after `student.css`, then enqueue it with the Student Report Card only while Learn Link is enabled. | Pedro | P1.3 |
 
-### Block #1a: Learn Link classes
+### Block #1a: load the Learn Link classes in normal and uninstall requests
 
 After the existing Learn and secret classes are loaded in `wpcredits-program-manager.php`, load the three Phase 1 classes in dependency order:
 
@@ -50,6 +51,14 @@ After the existing Learn and secret classes are loaded in `wpcredits-program-man
 require_once WPCPM_PLUGIN_DIR . 'includes/modules/class-wpcpm-learn-client.php';
 require_once WPCPM_PLUGIN_DIR . 'includes/modules/class-wpcpm-learn-progress-card.php';
 require_once WPCPM_PLUGIN_DIR . 'includes/modules/class-wpcpm-learn-progress.php';
+```
+
+In `uninstall.php`, beside its existing `class-wpcpm-learn.php` include, load
+the progress module with the uninstall file's path convention. `bin/test-roles.php`
+checks that every class loaded by the plugin is also available to uninstall:
+
+```php
+require_once plugin_dir_path( __FILE__ ) . 'includes/modules/class-wpcpm-learn-progress.php';
 ```
 
 ### Block #5: Student Report Card panel
@@ -96,21 +105,21 @@ if ( class_exists( 'WPCPM_Learn_Progress_Card' ) && class_exists( 'WPCPM_Learn_P
 }
 ```
 
-### Block #1a: load the module in normal and uninstall requests
+### Block #1b: load the synchronization class in normal and uninstall requests
 
-In `wpcredits-program-manager.php`, after the existing Learn and secret classes
-are loaded, add:
+In `wpcredits-program-manager.php`, right after `class-wpcpm-learn-progress.php`
+is loaded, add:
 
 ```php
-require_once WPCPM_PLUGIN_DIR . 'includes/modules/class-wpcpm-learn-progress.php';
+require_once WPCPM_PLUGIN_DIR . 'includes/modules/class-wpcpm-learn-progress-sync.php';
 ```
 
-In `uninstall.php`, beside its existing `class-wpcpm-learn.php` include, load
-the same module with the uninstall file's path convention. `bin/test-roles.php`
-checks that every class loaded by the plugin is also available to uninstall:
+In `uninstall.php`, right after its `class-wpcpm-learn-progress.php` include,
+load the synchronization class so `bin/test-roles.php` sees every loaded class
+available during uninstall:
 
 ```php
-require_once plugin_dir_path( __FILE__ ) . 'includes/modules/class-wpcpm-learn-progress.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/modules/class-wpcpm-learn-progress-sync.php';
 ```
 
 ### Block #2: boot the module and keep the isolated screen suite loadable

@@ -547,6 +547,63 @@ final class WPCPM_Learn_Client {
 	}
 
 	/**
+	 * Fetch and normalize the authenticated learner's progress from Learn WordPress.
+	 *
+	 * Never follows redirects so the Bearer token cannot be sent to another host.
+	 *
+	 * @param string $token Unsealed Bearer access token.
+	 * @return array|WP_Error Normalized progress from parse() on 200, or WP_Error on failure.
+	 */
+	public static function fetch( $token ) {
+		$base = self::base();
+
+		if ( is_wp_error( $base ) ) {
+			return $base;
+		}
+
+		$response = wp_remote_get(
+			$base . '/wp-json/learn-progress/v1/me',
+			array(
+				'timeout'     => 5,
+				'redirection' => 0,
+				'headers'     => array(
+					'Authorization' => 'Bearer ' . $token,
+					'Accept'        => 'application/json',
+				),
+			)
+		);
+
+		if ( is_wp_error( $response ) ) {
+			return new WP_Error(
+				'wpcpm_learn_unreachable',
+				__( 'Could not connect to Learn WordPress.', 'wpcredits-program-manager' )
+			);
+		}
+
+		$status = (int) wp_remote_retrieve_response_code( $response );
+		$body   = json_decode( (string) wp_remote_retrieve_body( $response ), true );
+
+		if ( 200 !== $status ) {
+			$code        = self::error_code( $status, $body );
+			$retry_after = (int) wp_remote_retrieve_header( $response, 'retry-after' );
+
+			if ( $retry_after <= 0 && is_array( $body ) && isset( $body['data']['retry_after'] ) && is_numeric( $body['data']['retry_after'] ) ) {
+				$retry_after = max( 0, (int) $body['data']['retry_after'] );
+			}
+
+			$error = new WP_Error(
+				$code,
+				'',
+				array( 'retry_after' => max( 0, $retry_after ) )
+			);
+
+			return $error;
+		}
+
+		return is_array( $body ) ? self::parse( $body ) : self::bad_answer();
+	}
+
+	/**
 	 * Return the one public error used for an unreadable Learn response.
 	 *
 	 * @return WP_Error
