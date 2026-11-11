@@ -22,14 +22,14 @@ function ck( $label, $actual, $expected ) {
 
 	if ( $actual === $expected ) {
 		$GLOBALS['test_passes']++;
-		echo "[PASS] {$label}\n";
+		echo "[PASS] {$label}\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Command-line test output, not HTML.
 		return true;
 	}
 
 	$GLOBALS['test_fails']++;
 	$actual_str   = var_export( $actual, true );
 	$expected_str = var_export( $expected, true );
-	echo "[FAIL] {$label}\n  Expected: {$expected_str}\n  Actual:   {$actual_str}\n";
+	echo "[FAIL] {$label}\n  Expected: {$expected_str}\n  Actual:   {$actual_str}\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Command-line test output, not HTML.
 	return false;
 }
 
@@ -45,9 +45,9 @@ function test_summary() {
 
 	echo "\n";
 	if ( 0 === $fails ) {
-		echo "ALL PASS ({$total} checks)\n";
+		echo "ALL PASS ({$total} checks)\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Command-line test output, not HTML.
 	} else {
-		echo "FAILED ({$fails} of {$total} checks failed)\n";
+		echo "FAILED ({$fails} of {$total} checks failed)\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Command-line test output, not HTML.
 	}
 
 	exit( $fails ? 1 : 0 );
