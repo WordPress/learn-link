@@ -370,4 +370,3 @@ ck(
 wp_set_current_user( 0 );
 
 test_summary();
-
