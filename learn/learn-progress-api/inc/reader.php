@@ -216,10 +216,17 @@ function read_course( $user_id, $course_id ) {
 	$has_term     = false;
 
 	if ( ! $has_progress && class_exists( 'Sensei_Learner' ) && class_exists( 'Sensei_PostTypes' ) ) {
-		$term = \Sensei_Learner::get_learner_term( $user_id );
-		if ( $term && ! is_wp_error( $term ) ) {
-			$object_ids = get_objects_in_term( $term->term_id, \Sensei_PostTypes::LEARNER_TAXONOMY_NAME );
-			$has_term   = in_array( (string) $course_id, $object_ids, true ) || in_array( (int) $course_id, $object_ids, true );
+		$term = get_term_by(
+			'slug',
+			\Sensei_Learner::get_learner_term_slug( $user_id ),
+			\Sensei_PostTypes::LEARNER_TAXONOMY_NAME
+		);
+		if ( $term instanceof \WP_Term ) {
+			$has_term = ( true === is_object_in_term(
+				$course_id,
+				\Sensei_PostTypes::LEARNER_TAXONOMY_NAME,
+				$term->term_id
+			) );
 		}
 	}
 
