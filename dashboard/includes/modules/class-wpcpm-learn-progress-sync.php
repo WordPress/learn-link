@@ -169,4 +169,3 @@ final class WPCPM_Learn_Progress_Sync {
 		);
 	}
 }
-
