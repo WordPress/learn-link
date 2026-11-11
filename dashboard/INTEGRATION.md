@@ -42,6 +42,7 @@ From section 8.4 of the technical guide. Follow the code, not the spec, on each 
 | #4 | `includes/class-wpcpm-settings-screen.php`, `WPCPM_Settings_Screen::render_tab_advanced()` | Add the Learn Link section and its five settings controls. | Pedro | P1.1 |
 | #5 | `includes/modules/class-wpcpm-students-dashboard.php`, `render_links()` | Render `WPCPM_Learn_Progress::panel( $student )` below the course button and hours inside the My course section. | Pedro | P1.3 |
 | #6 | `includes/modules/class-wpcpm-students-dashboard.php`, `register()` and `render()` | Register `assets/css/learn.css` after `student.css`, then enqueue it with the Student Report Card only while Learn Link is enabled. | Pedro | P1.3 |
+| #13 | `includes/mail/class-wpcpm-mail-catalog.php`, `includes/mail/class-wpcpm-mail-templates.php`, `includes/mail/templates/other.php`, `bin/test-mail-catalog.php`, `bin/test-mail-templates.php` | Register `learn-connection-withdrawn` as an editable student template in the Emails tool's Other area, and update the catalog, registry and source-context tests. | Pedro | P2.4 / issue #25 |
 
 ### Block #1a: load the Learn Link classes in normal and uninstall requests
 
@@ -104,6 +105,99 @@ if ( class_exists( 'WPCPM_Learn_Progress_Card' ) && class_exists( 'WPCPM_Learn_P
 	wp_enqueue_style( WPCPM_Learn_Progress_Card::STYLE );
 }
 ```
+
+### Block #13: register the editable withdrawal email
+
+`WPCPM_Learn_Progress::handle_withdraw()` sends the student one message with
+the context `learn-connection-withdrawn` and builds it through
+`WPCPM_Mail_Templates::render()`. Decision 8 requires Administrators to be able
+to change its wording without changing code.
+
+First, add this entry to the `$list` in `WPCPM_Mail_Catalog::emails()`:
+
+```php
+'learn-connection-withdrawn' => array( __( 'Learn connection withdrawn, to the student', 'wpcredits-program-manager' ), self::MODULE_OTHER, self::TYPE_STUDENT ),
+```
+
+Then add the existing Other module to `WPCPM_Mail_Templates::AREAS`:
+
+```php
+WPCPM_Mail_Catalog::MODULE_OTHER => 'other',
+```
+
+Create `includes/mail/templates/other.php` with the
+`learn-connection-withdrawn` template. Its shipped subject must be exactly
+`Your Learn connection was withdrawn`. Its body uses the required
+`{student_name}`, `{administrator_name}` and `{reason}` placeholders, and says
+that the student cannot reconnect alone and must contact a program
+Administrator, who can allow it again:
+
+```php
+<?php
+/**
+ * The Other area's editable emails, as the template registry ships them.
+ *
+ * @package WPCreditsProgramManager
+ */
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+return array(
+	'learn-connection-withdrawn' => array(
+		'trigger'      => __( 'When an Administrator withdraws a student\'s Learn connection.', 'wpcredits-program-manager' ),
+		'subject'      => __( 'Your Learn connection was withdrawn', 'wpcredits-program-manager' ),
+		'body'         => implode(
+			"\n\n",
+			array(
+				sprintf(
+					/* translators: %s: student display name. */
+					__( 'Hello %s,', 'wpcredits-program-manager' ),
+					'{student_name}'
+				),
+				sprintf(
+					/* translators: %s: Administrator display name. */
+					__( '%s withdrew your Learn connection from the WordPress Credits Program.', 'wpcredits-program-manager' ),
+					'{administrator_name}'
+				),
+				__( 'Reason:', 'wpcredits-program-manager' ) . "\n{reason}",
+				__( 'You cannot reconnect your Learn account yourself. Contact a program Administrator, who can allow it again.', 'wpcredits-program-manager' ),
+			)
+		) . "\n",
+		'placeholders' => array(
+			'student_name'       => array(
+				'means'    => __( 'The student\'s display name.', 'wpcredits-program-manager' ),
+				'example'  => 'Sam Student',
+				'required' => true,
+			),
+			'administrator_name' => array(
+				'means'    => __( 'The display name of the Administrator who withdrew the connection.', 'wpcredits-program-manager' ),
+				'example'  => 'Ada Administrator',
+				'required' => true,
+			),
+			'reason'             => array(
+				'means'     => __( 'The required withdrawal reason the Administrator typed. It goes in the body, never in the subject, which the mail log keeps.', 'wpcredits-program-manager' ),
+				'example'   => 'The student left the program.',
+				'required'  => true,
+				'body_only' => true,
+			),
+		),
+	),
+);
+```
+
+In `bin/test-mail-catalog.php`, update the number of non-WordPress and
+non-Two-Factor messages from `110` to `111`. Once the Learn progress module is
+present in the plugin, the source scan also finds this literal context, so
+update that assertion from `37` to `38`. Keep the existing assertions that
+every source context is cataloged and every catalog entry is sent; they
+must pass without a special-case exclusion.
+
+Finally, update `bin/test-mail-templates.php` so its complete expected registry
+includes this template and its three required body placeholders. Verify that a
+rendered example includes the Administrator, the sanitized reason, the no-self-
+reconnect instruction and the instruction to contact a program Administrator.
 
 ### Block #1b: load the synchronization class in normal and uninstall requests
 
