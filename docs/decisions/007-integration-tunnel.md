@@ -1,0 +1,31 @@
+# 007. The temporary tunnel for the integration day
+
+- **Status:** Proposed
+- **Date:** 2026-11-09
+- **Decided by:** the team
+- **Issue:** #26
+
+## Context
+
+Handbook section 10 plans one integration day against staging, around 12 November, and Phase 2 is done when a test student connects on staging and sees their local Learn grades. The staging Dashboard (`https://learnlinktest.wpcomstaging.com`) is on the internet, but the Learn half runs only on a team member's computer, at `http://localhost:8882`. The staging site and the student's browser both have to reach it.
+
+Section 7.6 of the technical guide says: "Use a temporary tunnel (for example Cloudflare Tunnel or ngrok), only while you test and only with invented data. Record the choice in a decision record." The team has not used either tool on this computer yet, so the first real check is the tunnel test on 10 November.
+
+## Decision
+
+Use a Cloudflare quick tunnel, started by hand with `cloudflared tunnel --url http://localhost:8882`, only during the test sessions and only with invented data. Rafael runs it on the computer that hosts the local Learn, and stops it as soon as each session ends.
+
+## Alternatives considered
+
+- **ngrok:** it does the same job, but it needs an account and an auth token on the computer that runs it. A quick tunnel needs neither, so there is one less credential to look after for a few days of testing. It remains the fallback if the quick tunnel fails on 10 November.
+- **A named Cloudflare Tunnel:** it gives a stable address, but it needs a Cloudflare account and a domain, which is more setup than a few test sessions justify, and it invites leaving the tunnel in place.
+- **No tunnel, only the two local sites:** this cannot meet the Phase 2 criterion, because the Dashboard under test is on staging. It stays as the rehearsal on 11 November and as the fallback if staging or the tunnel is not ready.
+
+## Consequences
+
+- The address is random and changes each time the tunnel restarts, so `learn_base_url` on staging has to be set again after every restart. Keep the tunnel running for the whole session.
+- The OAuth `redirect_uri` belongs to staging, not to the tunnel, so the client entry in the local Learn does not change when the tunnel address does.
+- Learn builds its links from `siteurl`, so the consent screen may need `WP_HOME` and `WP_SITEURL` set temporarily to the tunnel address in the local site's `wp-config.php`. The test on 10 November confirms whether it does.
+- While the tunnel is up, the local Learn is reachable from the internet. It must hold invented data only, and no token or code may appear in a screenshot or a log that we share.
+- Quick tunnels are meant for testing and come with no uptime guarantee. If one drops during the day, restart it and set `learn_base_url` again, and note the interruption in `docs/integration-day.md`.
+- After the last session, the tunnel is off, `WP_HOME` and `WP_SITEURL` are reverted, and this is confirmed in #26.
