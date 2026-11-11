@@ -86,7 +86,7 @@ for ( $n = 1; $n <= 20; $n++ ) {
 	$user  = get_user_by( 'login', $login );
 
 	if ( ! $user ) {
-		echo "[FAIL] User {$login} not found in database.\n";
+		echo "[FAIL] User {$login} not found in database.\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Command-line test output, not HTML.
 		continue;
 	}
 
