@@ -97,6 +97,10 @@ function bearer( \WP_REST_Request $request ): string {
  * Never calls wp_set_current_user() and never hooks determine_current_user (technical guide
  * section 6), so a Learn Link token grants no capability on any other route.
  *
+ * This permission callback must stay free of side effects: WordPress may run it more than once for
+ * one request. Core's rest_send_allow_header(), on rest_post_dispatch, calls it again to build the
+ * Allow header. The hourly read limit is therefore counted in get_me(), which runs once.
+ *
  * @param \WP_REST_Request $request The request.
  *
  * @return true|\WP_Error
@@ -112,12 +116,6 @@ function authenticate( \WP_REST_Request $request ) {
 
 	if ( (int) get_post_meta( $grant, '_revoked_at', true ) > 0 ) {
 		return error( 'learn_progress_revoked', 403 );
-	}
-
-	$wait = Rate\hit( $grant );
-
-	if ( $wait > 0 ) {
-		return error( 'learn_progress_slow_down', 429, array( 'retry_after' => $wait ) );
 	}
 
 	Context\set( $grant );
@@ -143,6 +141,13 @@ function get_me( \WP_REST_Request $request ) {
 
 	if ( ! $grant ) {
 		return error( 'learn_progress_invalid_token', 401 );
+	}
+
+	// Count the read here, once per request, and before anything is read (see authenticate()).
+	$wait = Rate\hit( (int) $grant );
+
+	if ( $wait > 0 ) {
+		return error( 'learn_progress_slow_down', 429, array( 'retry_after' => $wait ) );
 	}
 
 	$user = get_userdata( (int) get_post_field( 'post_author', $grant ) );
