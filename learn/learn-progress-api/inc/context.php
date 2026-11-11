@@ -45,4 +45,3 @@ function &slot(): ?int {
 
 	return $grant_id;
 }
-

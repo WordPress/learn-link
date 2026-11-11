@@ -61,4 +61,3 @@ function hit( int $grant ): int {
 function reset( int $grant ): void {
 	delete_transient( TRANSIENT_PREFIX . $grant );
 }
-
