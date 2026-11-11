@@ -475,6 +475,107 @@ wpcpm_learn_check( 'a student without a token is not connected', WPCPM_Learn_Pro
 $GLOBALS['wpcpm_learn_test_meta'][41][ WPCPM_Learn_Progress::META_TOKEN ] = 'sealed-token';
 wpcpm_learn_check( 'a student with a sealed token is connected', WPCPM_Learn_Progress::is_connected( 41 ), true );
 
+$GLOBALS['wpcpm_learn_test_settings']['learn_courses'] = '297853,301001';
+$wpcpm_learn_not_started_cache                         = array(
+	'fetched_at' => 200,
+	'courses'    => array(
+		297853 => array( 'status' => 'not-started' ),
+		301001 => array( 'status' => 'not-started' ),
+	),
+);
+$wpcpm_learn_in_progress_cache                         = array(
+	'fetched_at' => 200,
+	'courses'    => array(
+		297853 => array( 'status' => 'in-progress' ),
+		301001 => array( 'status' => 'complete' ),
+	),
+);
+$wpcpm_learn_complete_cache                            = array(
+	'fetched_at' => 200,
+	'courses'    => array(
+		297853 => array( 'status' => 'complete' ),
+		301001 => array( 'status' => 'in-progress' ),
+	),
+);
+
+$GLOBALS['wpcpm_learn_test_meta'][81] = array(
+	WPCPM_Learn_Progress::META_WITHDRAWN_AT => 100,
+	WPCPM_Learn_Progress::META_TOKEN        => 'sealed-token',
+	WPCPM_Learn_Progress::META_CACHE        => $wpcpm_learn_complete_cache,
+);
+wpcpm_learn_check( 'withdrawal takes priority over connected progress', WPCPM_Learn_Progress::state_for( 81 ), 'withdrawn' );
+
+$GLOBALS['wpcpm_learn_test_meta'][82] = array(
+	WPCPM_Learn_Progress::META_CACHE => $wpcpm_learn_complete_cache,
+);
+wpcpm_learn_check( 'a student without a token has the not-connected state', WPCPM_Learn_Progress::state_for( 82 ), 'not_connected' );
+
+$GLOBALS['wpcpm_learn_test_meta'][83] = array(
+	WPCPM_Learn_Progress::META_TOKEN => 'sealed-token',
+);
+wpcpm_learn_check( 'a connected student without cached progress is unavailable', WPCPM_Learn_Progress::state_for( 83 ), 'unavailable' );
+
+$wpcpm_learn_unavailable_codes = array(
+	'learn_progress_unavailable',
+	'wpcpm_learn_unreachable',
+	'wpcpm_learn_bad_answer',
+	'wpcpm_learn_identity',
+	'wpcpm_learn_seal',
+);
+
+foreach ( $wpcpm_learn_unavailable_codes as $wpcpm_learn_error_index => $wpcpm_learn_error_code ) {
+	$wpcpm_learn_error_student = 84 + $wpcpm_learn_error_index;
+	$GLOBALS['wpcpm_learn_test_meta'][ $wpcpm_learn_error_student ] = array(
+		WPCPM_Learn_Progress::META_TOKEN => 'sealed-token',
+		WPCPM_Learn_Progress::META_CACHE => $wpcpm_learn_in_progress_cache,
+		WPCPM_Learn_Progress::META_ERROR => array(
+			'code' => $wpcpm_learn_error_code,
+			'at'   => 201,
+		),
+	);
+	wpcpm_learn_check(
+		'a newer ' . $wpcpm_learn_error_code . ' error makes progress unavailable',
+		WPCPM_Learn_Progress::state_for( $wpcpm_learn_error_student ),
+		'unavailable'
+	);
+}
+
+$GLOBALS['wpcpm_learn_test_meta'][89] = array(
+	WPCPM_Learn_Progress::META_TOKEN => 'sealed-token',
+	WPCPM_Learn_Progress::META_CACHE => $wpcpm_learn_in_progress_cache,
+	WPCPM_Learn_Progress::META_ERROR => array(
+		'code' => 'wpcpm_learn_unreachable',
+		'at'   => 199,
+	),
+);
+wpcpm_learn_check( 'an older operational error does not hide newer cached progress', WPCPM_Learn_Progress::state_for( 89 ), 'in_progress' );
+
+$GLOBALS['wpcpm_learn_test_meta'][90] = array(
+	WPCPM_Learn_Progress::META_TOKEN => 'sealed-token',
+	WPCPM_Learn_Progress::META_CACHE => $wpcpm_learn_not_started_cache,
+);
+wpcpm_learn_check( 'all cached courses not started produce nothing-started', WPCPM_Learn_Progress::state_for( 90 ), 'nothing_started' );
+
+$GLOBALS['wpcpm_learn_test_meta'][91] = array(
+	WPCPM_Learn_Progress::META_TOKEN => 'sealed-token',
+	WPCPM_Learn_Progress::META_CACHE => $wpcpm_learn_complete_cache,
+);
+wpcpm_learn_check( 'a complete first configured course produces complete', WPCPM_Learn_Progress::state_for( 91 ), 'complete' );
+
+$GLOBALS['wpcpm_learn_test_meta'][92] = array(
+	WPCPM_Learn_Progress::META_TOKEN => 'sealed-token',
+	WPCPM_Learn_Progress::META_CACHE => $wpcpm_learn_in_progress_cache,
+);
+wpcpm_learn_check( 'a later complete course does not replace the first configured track', WPCPM_Learn_Progress::state_for( 92 ), 'in_progress' );
+
+$GLOBALS['wpcpm_learn_test_settings']['learn_courses'] = '';
+$GLOBALS['wpcpm_learn_test_meta'][93]                  = array(
+	WPCPM_Learn_Progress::META_TOKEN => 'sealed-token',
+	WPCPM_Learn_Progress::META_CACHE => $wpcpm_learn_complete_cache,
+);
+wpcpm_learn_check( 'an empty override uses the first cached track course', WPCPM_Learn_Progress::state_for( 93 ), 'complete' );
+$GLOBALS['wpcpm_learn_test_settings']['learn_courses'] = '297853,301001';
+
 $wpcpm_learn_manager = wpcpm_learn_connect_attempt( 51, false );
 wpcpm_learn_check( 'Connect checks the nonce before student authorization', $wpcpm_learn_manager['events'], array( 'nonce', 'student' ) );
 wpcpm_learn_check( 'an Administrator gets the only-student outcome', $wpcpm_learn_manager['flash'], array( 'learn' => 'learn_only_student' ) );
