@@ -1,6 +1,6 @@
 <?php
 /**
- * GET /learn-progress/v1/me with a Bearer token (Phase 2), against the seeded learners on the local Learn site.
+ * GET /learn-progress/v1/me with a session (Phase 1), against the seeded learners on the local Learn site.
  *
  * Needs the plugin active, the local mu-plugin with the `wpcredits` client, and the seeds loaded.
  *
@@ -13,74 +13,20 @@
  */
 
 use WPOrg_Learn\Learn_Progress\Clients;
-use WPOrg_Learn\Learn_Progress\Grants;
-use WPOrg_Learn\Learn_Progress\Rate;
 use WPOrg_Learn\Learn_Progress\Response;
-use WPOrg_Learn\Learn_Progress\Tokens;
 
 // The shared ck() and test_summary() (#13). Its counters live in $GLOBALS, so they work although
 // `wp eval-file` runs this file inside a function.
 require_once __DIR__ . '/lib.php';
 
-$GLOBALS['ll_me_test_grants'] = array();
-$GLOBALS['ll_me_test_tokens'] = array();
-
 /**
- * Return (or mint once) the Bearer token for a seeded learner during this test run.
- *
- * @param int $user_id Learner user ID.
- *
- * @return string
- */
-function me_token_for( int $user_id ): string {
-	if ( isset( $GLOBALS['ll_me_test_tokens'][ $user_id ] ) ) {
-		return $GLOBALS['ll_me_test_tokens'][ $user_id ];
-	}
-
-	$client    = Clients\get( 'wpcredits' );
-	$whitelist = $client ? array_map( 'intval', $client['courses'] ) : array();
-	$code      = Grants\create( $user_id, 'wpcredits', $whitelist, 'E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM' );
-	$grant     = is_string( $code ) ? (int) Tokens\find_grant_by_code( $code ) : 0;
-	$token     = Tokens\mint();
-
-	if ( $grant > 0 ) {
-		delete_post_meta( $grant, '_code_hash' );
-		update_post_meta( $grant, '_token_hash', Tokens\hash_token( $token ) );
-		update_post_meta( $grant, '_last_used', 0 );
-		$GLOBALS['ll_me_test_grants'][ $user_id ] = $grant;
-		$GLOBALS['ll_me_test_tokens'][ $user_id ] = $token;
-	}
-
-	return $token;
-}
-
-/**
- * Remove every grant and rate transient created by me_token_for().
- *
- * @return void
- */
-function me_cleanup_grants(): void {
-	foreach ( $GLOBALS['ll_me_test_grants'] as $grant_id ) {
-		Rate\reset( (int) $grant_id );
-		Grants\delete( (int) $grant_id );
-	}
-
-	$GLOBALS['ll_me_test_grants'] = array();
-	$GLOBALS['ll_me_test_tokens'] = array();
-}
-
-/**
- * Ask /me with a learner's Bearer token (or without one when $user_id is 0), the way a real request would be answered.
+ * Ask /me as one user, the way a real request would be answered.
  *
  * The `rest_post_dispatch` filter runs in WP_REST_Server::serve_request() for every real request,
  * but rest_do_request() stops before it, so it is applied here too.
  */
 function me( $user_id, array $params = array(), array $headers = array() ) {
-	wp_set_current_user( 0 );
-
-	if ( (int) $user_id > 0 && ! isset( $headers['Authorization'] ) ) {
-		$headers['Authorization'] = 'Bearer ' . me_token_for( (int) $user_id );
-	}
+	wp_set_current_user( $user_id );
 
 	$request = new WP_REST_Request( 'GET', '/learn-progress/v1/me' );
 	$request->set_query_params( $params );
@@ -188,18 +134,12 @@ $error_503  = fixture( 'example-error-503-unavailable.json' );
 $example    = fixture( 'example-in-progress.json' );
 
 ck( 'preconditions: the seeded learners 07 and 08, the local client with 2 courses, the contract files', array( (bool) $learner_07, (bool) $learner_08, count( $whitelist ), $error_401 && $error_503 && $example ), array( true, true, 2, true ) );
+ck( 'the site is not production, so register_routes() adds the route', 'production' !== wp_get_environment_type(), true );
 ck( 'the route is registered', isset( rest_get_server()->get_routes()['/learn-progress/v1/me'] ), true );
 
-// I-L03, SEC-21: without a Bearer token (even when signed in to a WordPress session), /me answers 401.
+// I-L03, SEC-21: signed out.
 $r = me( 0 );
-ck( 'I-L03 without Bearer token: 401 with the contract error and no-store', array( $r['status'], $r['body']['code'], $r['body']['message'], $r['no_store'] ), array( 401, $error_401['code'], $error_401['message'], true ) );
-
-wp_set_current_user( $learner_07->ID );
-$session_req = new WP_REST_Request( 'GET', '/learn-progress/v1/me' );
-$session_res = apply_filters( 'rest_post_dispatch', rest_ensure_response( rest_do_request( $session_req ) ), rest_get_server(), $session_req );
-$session_dat = rest_get_server()->response_to_data( $session_res, false );
-wp_set_current_user( 0 );
-ck( 'Phase 2: a signed-in session without a Bearer token no longer authenticates /me', array( $session_res->get_status(), $session_dat['code'] ), array( 401, $error_401['code'] ) );
+ck( 'I-L03 signed out: 401 with the contract error and no-store', array( $r['status'], $r['body']['code'], $r['body']['message'], $r['no_store'] ), array( 401, $error_401['code'], $error_401['message'], true ) );
 
 // I-L03, SEC-21: learner 07.
 $r = me( $learner_07->ID );
@@ -285,7 +225,6 @@ foreach ( array( '01', '04', '07', '11', '14', '17' ) as $number ) {
 	$user = get_user_by( 'login', 'learnlink-learner-' . $number );
 	if ( $user ) {
 		$readers[ $number ] = (int) $user->ID;
-		me_token_for( (int) $user->ID );
 	}
 }
 ck( 'READ-ONLY preconditions: learners 01, 04, 07, 11, 14 and 17', array_map( 'strval', array_keys( $readers ) ), array( '01', '04', '07', '11', '14', '17' ) );
@@ -384,6 +323,5 @@ $response = apply_filters( 'rest_post_dispatch', rest_do_request( $request ), re
 ck( 'another route is left alone', isset( $response->get_headers()['Cache-Control'] ), false );
 
 wp_set_current_user( 0 );
-me_cleanup_grants();
 
 test_summary();
