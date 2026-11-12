@@ -27,8 +27,8 @@ function from_gmt( $mysql ) {
  * Convert a MySQL datetime string stored in the site's local time zone
  * (e.g., Sensei 'start' meta or current_time( 'mysql' )) into an RFC 3339 UTC string ('Y-m-d\TH:i:s\Z').
  *
- * @param string|null             $mysql     MySQL datetime string in local time (e.g., '2026-09-08 12:44:10').
- * @param \DateTimeZone|null      $site_zone Site time zone. If null, falls back to wp_timezone().
+ * @param string|null        $mysql     MySQL datetime string in local time (e.g., '2026-09-08 12:44:10').
+ * @param \DateTimeZone|null $site_zone Site time zone. If null, falls back to wp_timezone().
  * @return string|null RFC 3339 UTC string with 'Z' suffix, or null on empty/invalid input.
  */
 function from_local( $mysql, ?\DateTimeZone $site_zone = null ) {
