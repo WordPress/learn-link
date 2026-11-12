@@ -23,9 +23,10 @@ Use a Cloudflare quick tunnel, started by hand with `cloudflared tunnel --url ht
 
 ## Consequences
 
-- The address is random and changes each time the tunnel restarts, so `learn_base_url` on staging has to be set again after every restart. Keep the tunnel running for the whole session.
+- The address is random and changes each time the tunnel restarts, so `learn_base_url` on staging, and the address in the local Learn (see below), have to be set again after every restart. Keep the tunnel running for the whole session.
 - The OAuth `redirect_uri` belongs to staging, not to the tunnel, so the client entry in the local Learn does not change when the tunnel address does.
-- Learn builds its links from `siteurl`, so the consent screen may need `WP_HOME` and `WP_SITEURL` set temporarily to the tunnel address in the local site's `wp-config.php`. The test on 10 November confirms whether it does.
+- Learn builds its links from `siteurl`, so the consent screen and the sign-in screen need the tunnel address. The test, planned for 10 November and run on 12 November, confirmed that it is needed: through the tunnel, the sign-in form posted to `https://localhost:8882/wp-login.php`, which only exists on Rafael's computer.
+- Setting `WP_HOME` and `WP_SITEURL` in the local site's `wp-config.php` was not enough on WordPress Studio. Its web server defines both as `http://localhost:8882` before `wp-config.php` runs, so the new values applied to `studio wp` but not to browser requests. A temporary must-use plugin, `wp-content/mu-plugins/learn-link-tunnel.php`, rewrites `http://localhost:8882` to the tunnel address in `site_url`, `home_url` and `admin_url`, only for requests that arrive through the tunnel (those with `X-Forwarded-Proto`), so the local address keeps working. `wp-config.php` also sets `$_SERVER['HTTPS']` from `X-Forwarded-Proto`, so WordPress builds `https` links behind the tunnel. With both, the sign-in form and the `wp-admin` redirect stay on the tunnel.
 - While the tunnel is up, the local Learn is reachable from the internet. It must hold invented data only, and no token or code may appear in a screenshot or a log that we share.
 - Quick tunnels are meant for testing and come with no uptime guarantee. If one drops during the day, restart it and set `learn_base_url` again, and note the interruption in `docs/integration-day.md`.
-- After the last session, the tunnel is off, `WP_HOME` and `WP_SITEURL` are reverted, and this is confirmed in #26.
+- After the last session, the tunnel is off, `WP_HOME` and `WP_SITEURL` are reverted, the must-use plugin is deleted, and this is confirmed in #26.

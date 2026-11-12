@@ -35,8 +35,8 @@ Rafael and Pedro post their results as comments in #26, and Wilberth copies them
 
 | Date | Step | Time | Result |
 | --- | --- | --- | --- |
-| 10 November | The tunnel starts, and the consent screen works through it | | Not run |
-| 10 November | `WP_HOME` and `WP_SITEURL`: needed or not | | Not run |
+| 10 November | The tunnel starts, and the consent screen works through it | 12 November | Pass, run on 12 November instead of 10 November. Through the tunnel, `/learn-link/authorize/` answers 400 ("This connection request is not valid.") and `/wp-json/learn-progress/v1/me` answers 401, with no redirect to `localhost`. Evidence: `F2-E2E-00-tunnel-start.txt` and `F2-E2E-00-consent-through-tunnel.png` |
+| 10 November | `WP_HOME` and `WP_SITEURL`: needed or not | 12 November, 13:44 | Needed, run on 12 November instead of 10 November. The sign-in form posted to `localhost`. On Studio, `wp-config.php` alone was not enough, and a temporary must-use plugin keeps the links on the tunnel ([decision record 007](decisions/007-integration-tunnel.md), Consequences). Evidence: `F2-E2E-00-wp-home-needed.txt` |
 | 11 November | Full rehearsal with both local sites | | Not run |
 | 12 November | The cases below | | Not run |
 
@@ -80,6 +80,6 @@ Every case runs locally. Those marked "Yes" are repeated on staging, as #26 requ
 ## Closing checks
 
 - [ ] The tunnel is off.
-- [ ] `WP_HOME` and `WP_SITEURL` are reverted.
+- [ ] `WP_HOME` and `WP_SITEURL` are reverted, and `wp-content/mu-plugins/learn-link-tunnel.php` is deleted.
 - [ ] Both are confirmed in #26.
 - [ ] The closing summary is posted in #17.
