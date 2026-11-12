@@ -1,4 +1,4 @@
-﻿====================================================================
+====================================================================
 LEARN LINK - INTEGRATION SUITE: 20 LEARNERS & IMMUTABILITY
 ====================================================================
 
@@ -95,9 +95,14 @@ LEARN LINK - INTEGRATION SUITE: 20 LEARNERS & IMMUTABILITY
 [PASS] Immutability: wp_comments rows unchanged
 [PASS] Immutability: wp_commentmeta rows unchanged
 [PASS] Immutability: wp_usermeta rows unchanged
+[PASS] Immutability: wp_terms rows unchanged
+[PASS] Immutability: wp_term_taxonomy rows unchanged
 [PASS] Immutability: wp_term_relationships rows unchanged
 [PASS] Stale enrolment read: status remains not-started
 [PASS] Stale enrolment read: no course progress comment created
+[PASS] Never-enrolled learner read: wp_terms rows unchanged
+[PASS] Never-enrolled learner read: wp_term_taxonomy rows unchanged
+[PASS] Never-enrolled learner read: no learner term created
 [PASS] C-16: course with added 9th lesson has 89 percent
 [PASS] C-16: completed status preserved despite new lesson
 
@@ -1920,4 +1925,4 @@ LEARN LINK - INTEGRATION SUITE: 20 LEARNERS & IMMUTABILITY
 --- END JSON OUTPUT ---
 
 
-ALL PASS (98 checks)
+ALL PASS (103 checks)

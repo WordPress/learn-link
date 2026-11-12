@@ -28,7 +28,7 @@ $repository = $settings['experimental_progress_storage_repository'] ?? 'comments
 
 echo 'Current Sensei Engine: ' . ( $has_hpps ? 'HPPS (Experimental Tables)' : 'Traditional (wp_comments)' ) . "\n";
 echo 'Synchronization:      ' . ( $sync_on ? 'Enabled' : 'Disabled' ) . "\n";
-echo 'Repository Setting:   ' . $repository . "\n\n";
+echo 'Repository Setting:   ' . $repository . "\n\n"; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Command-line test output, not HTML.
 
 // 2. Technical Limitation Notice for Phase 1.
 echo "LIMITATION NOTICE:\n";
