@@ -19,6 +19,11 @@ use function WPOrg_Learn\Learn_Progress\Dates\from_local;
 
 // Mock wp_timezone() if not running inside WordPress.
 if ( ! function_exists( 'wp_timezone' ) ) {
+	/**
+	 * Test double for WordPress's wp_timezone(): the site's time zone, UTC here.
+	 *
+	 * @return \DateTimeZone
+	 */
 	function wp_timezone() {
 		return new \DateTimeZone( 'UTC' );
 	}
@@ -85,13 +90,13 @@ ck(
 
 // U-L18: Null, empty, zero, or invalid inputs must return null.
 ck( "U-L18: from_gmt('') -> null", from_gmt( '' ), null );
-ck( "U-L18: from_gmt(null) -> null", from_gmt( null ), null );
+ck( 'U-L18: from_gmt(null) -> null', from_gmt( null ), null );
 ck( "U-L18: from_gmt('0000-00-00 00:00:00') -> null", from_gmt( '0000-00-00 00:00:00' ), null );
 ck( "U-L18: from_gmt('not-a-date') -> null", from_gmt( 'not-a-date' ), null );
 ck( "U-L18: from_gmt('2026-02-31 10:00:00') -> null", from_gmt( '2026-02-31 10:00:00' ), null );
 
 ck( "U-L18: from_local('') -> null", from_local( '' ), null );
-ck( "U-L18: from_local(null) -> null", from_local( null ), null );
+ck( 'U-L18: from_local(null) -> null', from_local( null ), null );
 ck( "U-L18: from_local('0000-00-00 00:00:00') -> null", from_local( '0000-00-00 00:00:00' ), null );
 ck( "U-L18: from_local('invalid-date') -> null", from_local( 'invalid-date' ), null );
 ck( "U-L18: from_local('2026-02-31 10:00:00') -> null", from_local( '2026-02-31 10:00:00' ), null );
