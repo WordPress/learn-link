@@ -1,6 +1,6 @@
 <?php
 /**
- * Learn Link cached progress reads and error handling (P16 / ISS-LL-16).
+ * Learn Link cached progress reads and error handling (#24).
  *
  * Run from the plugin root: php bin/test-learn-progress-sync.php
  *
@@ -132,6 +132,54 @@ class WPCPM_Settings {
 	 */
 	public static function get_value( $key, $default = '' ) {
 		return array_key_exists( $key, self::$options ) ? self::$options[ $key ] : $default;
+	}
+}
+
+/**
+ * Students sync stand-in: the cached program row of each student.
+ */
+class WPCPM_Students_Sync {
+	/** @var array<int, array> */
+	public static $programs = array();
+
+	/**
+	 * A student's cached program row.
+	 *
+	 * @param int $user_id User ID.
+	 * @return array
+	 */
+	public static function get_program( $user_id ) {
+		return isset( self::$programs[ (int) $user_id ] ) ? self::$programs[ (int) $user_id ] : array();
+	}
+}
+
+/**
+ * Program stand-in: the track status to Learn course map.
+ */
+class WPCPM_Program {
+	/** @var array<string, int> */
+	public static $course_ids = array();
+
+	/**
+	 * The status whose course a student is on, or '' for none.
+	 *
+	 * @param string $status  Airtable status.
+	 * @param int    $user_id User ID.
+	 * @return string
+	 */
+	public static function course_status( $status, $user_id = 0 ) {
+		unset( $user_id );
+		return isset( self::$course_ids[ (string) $status ] ) ? (string) $status : '';
+	}
+
+	/**
+	 * The Learn course post ID for a status.
+	 *
+	 * @param string $status Airtable status.
+	 * @return int
+	 */
+	public static function course_id( $status ) {
+		return isset( self::$course_ids[ (string) $status ] ) ? (int) self::$course_ids[ (string) $status ] : 0;
 	}
 }
 
@@ -363,6 +411,43 @@ wpcpm_sync_check( 'disabled switch makes no HTTP call', count( $GLOBALS['wpcpm_s
 
 // Enable Learn Link for remaining tests.
 WPCPM_Settings::$options['learn_enabled'] = true;
+
+// 0b. courses= on every read (contract section 1.4, decision 4 in #2).
+WPCPM_Program::$course_ids     = array( '150 Hour' => 297853 );
+WPCPM_Students_Sync::$programs = array(
+	20 => array( 'status' => '150 Hour' ),
+	21 => array( 'status' => 'Paused' ),
+);
+foreach ( array( 20, 21 ) as $wpcpm_courses_user ) {
+	$GLOBALS['wpcpm_sync_test_meta'][ $wpcpm_courses_user ] = array(
+		WPCPM_Learn_Progress::META_TOKEN    => $wpcpm_sync_sealed_token,
+		WPCPM_Learn_Progress::META_USERNAME => 'AdaExample',
+	);
+}
+$wpcpm_courses_200 = array(
+	'response' => array( 'code' => 200 ),
+	'body'     => wp_json_encode( $wpcpm_sync_in_progress ),
+);
+
+$GLOBALS['wpcpm_sync_http_calls'] = array();
+$GLOBALS['wpcpm_sync_http_queue'] = array( $wpcpm_courses_200 );
+WPCPM_Learn_Progress_Sync::refresh( 20, true );
+wpcpm_sync_check( 'courses= sends the student\'s track course', $GLOBALS['wpcpm_sync_http_calls'][0]['url'], 'https://learn.test/wp-json/learn-progress/v1/me?courses=297853' );
+
+$GLOBALS['wpcpm_sync_http_calls'] = array();
+$GLOBALS['wpcpm_sync_http_queue'] = array( $wpcpm_courses_200 );
+WPCPM_Learn_Progress_Sync::refresh( 21, true );
+wpcpm_sync_check( 'courses= is left out for a student on no course', $GLOBALS['wpcpm_sync_http_calls'][0]['url'], 'https://learn.test/wp-json/learn-progress/v1/me' );
+
+WPCPM_Settings::$options['learn_courses'] = '57, 59';
+$GLOBALS['wpcpm_sync_http_calls']         = array();
+$GLOBALS['wpcpm_sync_http_queue']         = array( $wpcpm_courses_200 );
+WPCPM_Learn_Progress_Sync::refresh( 20, true );
+wpcpm_sync_check( 'courses= uses the learn_courses override when it is set', $GLOBALS['wpcpm_sync_http_calls'][0]['url'], 'https://learn.test/wp-json/learn-progress/v1/me?courses=57,59' );
+
+unset( WPCPM_Settings::$options['learn_courses'] );
+WPCPM_Program::$course_ids     = array();
+WPCPM_Students_Sync::$programs = array();
 
 // 1. I-D05: 200 valid response stores cache with fetched_at and clears any previous error.
 $GLOBALS['wpcpm_sync_test_meta']  = array(

@@ -17,7 +17,7 @@ final class WPCPM_Learn_Progress_Sync {
 	/**
 	 * Register synchronization hooks.
 	 *
-	 * Nightly cron scheduling is added in Phase 3 (P20).
+	 * Nightly cron scheduling is added in Phase 3.
 	 */
 	public static function init() {
 	}
@@ -98,7 +98,7 @@ final class WPCPM_Learn_Progress_Sync {
 			);
 		}
 
-		$result = WPCPM_Learn_Client::fetch( $token );
+		$result = WPCPM_Learn_Client::fetch( $token, self::courses_for( $student_id ) );
 		unset( $token );
 
 		if ( is_wp_error( $result ) ) {
@@ -147,6 +147,42 @@ final class WPCPM_Learn_Progress_Sync {
 		delete_user_meta( $student_id, WPCPM_Learn_Progress::META_ERROR );
 
 		return true;
+	}
+
+	/**
+	 * The Learn courses to read for a student: `courses=` on every read (decision 4 in #2).
+	 *
+	 * The `learn_courses` setting wins when it is set, as the local or staging override.
+	 * Otherwise it is the student's track course, the one "Open your course" links to:
+	 * `WPCPM_Program::course_status()` keeps the course of a student waiting to graduate.
+	 * An empty list sends no `courses` parameter, and Learn reads its whole fixed list.
+	 *
+	 * @param int $student_id Student user ID.
+	 * @return int[] Course post IDs.
+	 */
+	private static function courses_for( $student_id ) {
+		$override = trim( (string) WPCPM_Settings::get_value( 'learn_courses', '' ) );
+
+		if ( '' !== $override ) {
+			return array_values( array_filter( array_map( 'intval', explode( ',', $override ) ) ) );
+		}
+
+		if ( ! class_exists( 'WPCPM_Students_Sync' ) || ! class_exists( 'WPCPM_Program' ) ) {
+			return array();
+		}
+
+		$program = WPCPM_Students_Sync::get_program( $student_id );
+		$status  = '';
+
+		if ( ! empty( $program['status'] ) ) {
+			$status = (string) $program['status'];
+		} elseif ( isset( $program['program'] ) ) {
+			$status = (string) $program['program'];
+		}
+
+		$course = (int) WPCPM_Program::course_id( WPCPM_Program::course_status( $status, $student_id ) );
+
+		return $course > 0 ? array( $course ) : array();
 	}
 
 	/**
