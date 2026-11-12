@@ -1,7 +1,7 @@
 <?php
 /**
  * Bearer authentication on GET /learn-progress/v1/me, DELETE /learn-progress/v1/token,
- * and the 60-reads-per-hour rate limit (P13 / ISS-LL-13).
+ * and the 60-reads-per-hour rate limit (#21).
  *
  * Needs the plugin active, the local `wpcredits` client, and the seeded learners loaded.
  * Creates its own test grants with Grants\create() and Tokens\mint(), deletes every grant
