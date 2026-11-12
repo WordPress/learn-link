@@ -626,7 +626,7 @@ wpcpm_sync_check( 'unseal failure preserves previous cache', get_user_meta( 13, 
 wpcpm_sync_check( 'unseal failure records wpcpm_learn_seal in META_ERROR', $wpcpm_err['code'], 'wpcpm_learn_seal' );
 
 // ---------------------------------------------------------------------------
-// 10. P17 / ISS-LL-17: retry_revocations()
+// 10. #25: retry_revocations()
 // ---------------------------------------------------------------------------
 
 // 10a. 204 clears META_REVOKE_PENDING and increments cleared.
