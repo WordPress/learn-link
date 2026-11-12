@@ -23,7 +23,7 @@ Learn Link connects two WordPress sites that do not trust each other by default:
 - **Connect.** The student presses "Connect your Learn account" on their own Student Report Card. The Dashboard sends them to Learn's consent screen. They approve, Learn redirects back with a one-time code, and the Dashboard exchanges it for a token, server to server ([ADR 002](decisions/002-code-exchange-pkce.md)). The Dashboard checks that the WordPress.org username Learn reports is the student's own before it stores anything ([ADR 005](decisions/005-identity-key.md)).
 - **Read.** When the student opens their Student Report Card and the cache is older than the cache window, the Dashboard calls `GET /learn-progress/v1/me` with the token and stores the answer.
 - **Warm.** Once a night, a scheduled job reads every connected student, so the Mentor Report Card renders from the cache alone and never calls Learn while a page loads ([ADR 004](decisions/004-cached-pull.md)).
-- **Withdraw.** An Administrator withdraws a connection on the Dashboard. The Dashboard deletes its copy of the token at once and asks Learn to delete the grant, retrying nightly until Learn confirms. A student cannot disconnect: the connection lasts for the program.
+- **Withdraw.** An Administrator withdraws a connection on the Dashboard. The Dashboard stops using the token at once and asks Learn to delete the grant. If Learn does not answer, it keeps the token sealed only to retry nightly until Learn confirms, and then deletes it ([contract section 4](../contract/learn-progress-v1.md#4-withdrawing-access)). A student cannot disconnect: the connection lasts for the program.
 
 ## Where the safety comes from
 

@@ -5,7 +5,7 @@ title: "Contract: "
 labels: ["contract"]
 ---
 
-<!-- Before the freeze (Friday 30 October), the draft changes by pull request with both product owners' approval. After the freeze, a change means a new version (learn-progress-v2.md), never an edit in place. -->
+<!-- Before the freeze (Monday 9 November 2026), the draft changes by pull request with Maciej Pilarski's approval, and Isotta Peira is kept informed. After the freeze, a change means a new version (learn-progress-v2.md), never an edit in place. -->
 
 ## The change
 
