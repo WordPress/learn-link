@@ -435,7 +435,7 @@ final class WPCPM_Learn_Client {
 				return self::bad_answer();
 			}
 
-			if ( 1 !== preg_match( '/^[A-Za-z0-9_-]{43}$/', $body['token'] ) ) {
+			if ( 1 !== preg_match( '/^[A-Za-z0-9_-]{43}$/D', $body['token'] ) ) {
 				return self::bad_answer();
 			}
 
