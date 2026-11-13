@@ -469,8 +469,10 @@ final class WPCPM_Learn_Client {
 		}
 
 		if ( is_array( $body ) && isset( $body['code'] ) && in_array( $body['code'], self::TOKEN_ERRORS, true ) ) {
-			$message = isset( $body['message'] ) && is_string( $body['message'] ) ? $body['message'] : '';
-			return new WP_Error( $body['code'], $message );
+			return new WP_Error(
+				$body['code'],
+				__( 'Learn WordPress refused the code exchange.', 'wpcredits-program-manager' )
+			);
 		}
 
 		if ( 429 === $status ) {
