@@ -133,6 +133,94 @@ class WPCPM_Learn_Progress {
 	}
 
 	/**
+	 * Determine the Learn card state from stored student data.
+	 *
+	 * This method never performs a remote read. It uses only the connection,
+	 * withdrawal, cached progress and last operational error stored locally.
+	 *
+	 * @param int $student_id Student user ID.
+	 * @return string Learn progress card state.
+	 */
+	public static function state_for( $student_id ) {
+		$student_id = (int) $student_id;
+
+		if ( get_user_meta( $student_id, self::META_WITHDRAWN_AT, true ) ) {
+			return 'withdrawn';
+		}
+
+		if ( ! self::is_connected( $student_id ) ) {
+			return 'not_connected';
+		}
+
+		$cache = get_user_meta( $student_id, self::META_CACHE, true );
+
+		if (
+			! is_array( $cache ) ||
+			! isset( $cache['fetched_at'], $cache['courses'] ) ||
+			! is_array( $cache['courses'] ) ||
+			empty( $cache['courses'] )
+		) {
+			return 'unavailable';
+		}
+
+		$error             = get_user_meta( $student_id, self::META_ERROR, true );
+		$unavailable_codes = array(
+			'learn_progress_unavailable',
+			'wpcpm_learn_unreachable',
+			'wpcpm_learn_bad_answer',
+			'wpcpm_learn_identity',
+			'wpcpm_learn_seal',
+		);
+
+		if (
+			is_array( $error ) &&
+			isset( $error['code'], $error['at'] ) &&
+			in_array( $error['code'], $unavailable_codes, true ) &&
+			(int) $error['at'] > (int) $cache['fetched_at']
+		) {
+			return 'unavailable';
+		}
+
+		$nothing_started = true;
+
+		foreach ( $cache['courses'] as $course ) {
+			if ( ! is_array( $course ) || 'not-started' !== ( $course['status'] ?? '' ) ) {
+				$nothing_started = false;
+				break;
+			}
+		}
+
+		if ( $nothing_started ) {
+			return 'nothing_started';
+		}
+
+		$configured_courses = trim( self::settings()['learn_courses'] );
+		$track_course       = null;
+
+		if ( '' === $configured_courses ) {
+			$courses      = $cache['courses'];
+			$track_course = reset( $courses );
+		} else {
+			foreach ( explode( ',', $configured_courses ) as $course_id ) {
+				$course_id = (int) trim( $course_id );
+
+				if ( 0 >= $course_id ) {
+					continue;
+				}
+
+				$track_course = $cache['courses'][ $course_id ] ?? null;
+				break;
+			}
+		}
+
+		if ( is_array( $track_course ) && 'complete' === ( $track_course['status'] ?? '' ) ) {
+			return 'complete';
+		}
+
+		return 'in_progress';
+	}
+
+	/**
 	 * Add the configured Learn host to this request's safe redirect allowlist.
 	 *
 	 * The callback is attached only around the Connect redirect.
@@ -154,9 +242,8 @@ class WPCPM_Learn_Progress {
 	/**
 	 * Render the Learn panel on the Student Report Card.
 	 *
-	 * A student without a token gets the real not-connected state. Connected
-	 * progress still uses the Phase 1 fixture behind its explicit local safety
-	 * gate; the cached read replaces that remaining branch later in Phase 2.
+	 * The panel reads only local user meta. A stale cache may ask the optional
+	 * sync module to refresh when the student views their own report card.
 	 *
 	 * @param WP_User $student Student whose Student Report Card is being rendered.
 	 * @return string
@@ -166,88 +253,57 @@ class WPCPM_Learn_Progress {
 			return '';
 		}
 
-		$student_id   = (int) $student->ID;
-		$is_owner     = get_current_user_id() === $student_id;
-		$withdrawn_at = (int) get_user_meta( $student_id, self::META_WITHDRAWN_AT, true );
-		$message      = self::outcome_message( WPCPM_Flash::take( self::FLASH ) );
+		$student_id = (int) $student->ID;
+		$is_owner   = get_current_user_id() === $student_id;
+		$cache      = get_user_meta( $student_id, self::META_CACHE, true );
 
-		if ( $withdrawn_at ) {
-			return WPCPM_Learn_Progress_Card::render(
-				'withdrawn',
-				array(),
-				array(),
-				array(
-					'is_owner'     => $is_owner,
-					'message'      => $message,
-					'withdrawn_at' => $withdrawn_at,
-				)
-			);
+		if (
+			$is_owner &&
+			self::is_connected( $student_id ) &&
+			! get_user_meta( $student_id, self::META_WITHDRAWN_AT, true ) &&
+			self::cache_is_stale( $cache ) &&
+			class_exists( 'WPCPM_Learn_Progress_Sync' )
+		) {
+			WPCPM_Learn_Progress_Sync::refresh( $student_id );
+			$cache = get_user_meta( $student_id, self::META_CACHE, true );
 		}
 
-		if ( ! self::is_connected( $student_id ) ) {
-			return WPCPM_Learn_Progress_Card::render(
-				'not_connected',
-				array(),
-				array(),
-				array(
-					'is_owner' => $is_owner,
-					'message'  => $message,
-				)
-			);
-		}
+		$state = self::state_for( $student_id );
+		$data  = is_array( $cache ) && isset( $cache['courses'] ) && is_array( $cache['courses'] )
+			? $cache
+			: array();
 
-		if ( ! defined( 'WPCPM_LEARN_FIXTURE' ) || ! WPCPM_LEARN_FIXTURE || ! class_exists( 'WPCPM_Learn_Client' ) ) {
-			return WPCPM_Learn_Progress_Card::render(
-				'unavailable',
-				array(),
-				array(),
-				array(
-					'is_owner' => $is_owner,
-					'message'  => $message,
-				)
-			);
-		}
-
-		$fixture = is_string( WPCPM_LEARN_FIXTURE ) && '' !== WPCPM_LEARN_FIXTURE
-			? WPCPM_LEARN_FIXTURE
-			: WPCPM_PLUGIN_DIR . 'bin/fixtures/learn-progress-in-progress.json';
-		$body    = is_readable( $fixture ) ? json_decode( (string) file_get_contents( $fixture ), true ) : null;
-
-		if ( ! is_array( $body ) ) {
-			return WPCPM_Learn_Progress_Card::render(
-				'unavailable',
-				array(),
-				array(),
-				array(
-					'is_owner' => $is_owner,
-					'message'  => $message,
-				)
-			);
-		}
-
-		$data = WPCPM_Learn_Client::parse( $body );
-
-		if ( is_wp_error( $data ) ) {
-			return WPCPM_Learn_Progress_Card::render(
-				'unavailable',
-				array(),
-				array(),
-				array(
-					'is_owner' => $is_owner,
-					'message'  => $message,
-				)
-			);
+		if ( in_array( $state, array( 'withdrawn', 'not_connected' ), true ) ) {
+			$data = array();
 		}
 
 		return WPCPM_Learn_Progress_Card::render(
-			'in_progress',
+			$state,
 			$data,
 			array(),
 			array(
-				'is_owner' => $is_owner,
-				'message'  => $message,
+				'is_owner'     => $is_owner,
+				'message'      => self::outcome_message( WPCPM_Flash::take( self::FLASH ) ),
+				'connected_at' => (int) get_user_meta( $student_id, self::META_CONNECTED, true ),
+				'withdrawn_at' => (int) get_user_meta( $student_id, self::META_WITHDRAWN_AT, true ),
 			)
 		);
+	}
+
+	/**
+	 * Whether cached progress is absent or older than its configured lifetime.
+	 *
+	 * @param mixed $cache Stored progress cache.
+	 * @return bool
+	 */
+	private static function cache_is_stale( $cache ) {
+		if ( ! is_array( $cache ) || empty( $cache['fetched_at'] ) ) {
+			return true;
+		}
+
+		$maximum_age = max( 0, self::settings()['learn_cache_hours'] ) * 3600;
+
+		return (int) $cache['fetched_at'] < time() - $maximum_age;
 	}
 
 	/**
