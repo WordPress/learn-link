@@ -1,0 +1,7 @@
+{
+  "code": "learn_progress_invalid_grant",
+  "message": "The code is not valid.",
+  "data": {
+    "status": 400
+  }
+}

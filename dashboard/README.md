@@ -15,7 +15,7 @@ From section 4.1 of the design spec, with the corrections in section 8.4 of the 
 | `includes/modules/class-wpcpm-learn-progress-card.php` | Renders the six states into the "My course" section of the Student Report Card, and the one-line summary on the Mentor Report Card. Touches no network. |
 | `includes/modules/class-wpcpm-learn-progress-sync.php` | The nightly warmer. Follow `WPCPM_Outcome_Figures`, not `WPCPM_Sync_Module` (an Airtable class). Also retries withdrawals that did not reach Learn. |
 | `assets/css/learn.css` | Base rules for the panel: progress bar, modules, lessons table. |
-| `bin/fixtures/learn-progress-*.json` | Copies of the [contract's example files](../contract/). Use the `learn-progress-` prefix: the plugin already has `learn-course-*.json` and `learn-structure-*.json` fixtures for `WPCPM_Learn`. |
+| `bin/fixtures/learn-progress-*.json` | Based on the [contract's example files](../contract/), with adaptations documented in [the fixture notes](bin/fixtures/README.md). Use the `learn-progress-` prefix: the plugin already has `learn-course-*.json` and `learn-structure-*.json` fixtures for `WPCPM_Learn`. |
 | `bin/test-learn-client.php`, `bin/test-learn-progress.php`, `bin/test-learn-card.php` | The three suites: parsing every fixture; the state machine, identity check and withdrawals; each state's words and escaping. |
 
 There is no `class-wpcpm-learn-structure.php`, although the design spec plans one: the plugin's existing `WPCPM_Learn` already reads and caches the public course structure, so reuse it for lesson titles and modules.
