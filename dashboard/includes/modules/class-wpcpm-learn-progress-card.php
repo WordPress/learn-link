@@ -63,6 +63,10 @@ class WPCPM_Learn_Progress_Card {
 					self::render_unavailable( array(), array(), array() );
 					break;
 			}
+
+			if ( in_array( $state, array( 'nothing_started', 'in_progress', 'complete', 'unavailable' ), true ) ) {
+				self::render_withdraw_form( $ctx );
+			}
 			?>
 		</div>
 		<?php
@@ -404,6 +408,33 @@ class WPCPM_Learn_Progress_Card {
 	private static function render_connected_footer() {
 		?>
 		<p class="wpcpm-learn__footer"><?php echo esc_html__( 'This connection lasts for the program. Only a program Administrator can withdraw it.', 'wpcredits-program-manager' ); ?></p>
+		<?php
+	}
+
+	/**
+	 * Render the Administrator-only connection withdrawal form.
+	 *
+	 * @param array $ctx Display context for the current viewer and student.
+	 */
+	private static function render_withdraw_form( array $ctx ) {
+		$student_id = isset( $ctx['student_id'] ) ? absint( $ctx['student_id'] ) : 0;
+
+		if ( empty( $ctx['can_manage'] ) || 1 > $student_id ) {
+			return;
+		}
+
+		$reason = isset( $ctx['withdraw_reason'] ) && is_string( $ctx['withdraw_reason'] )
+			? $ctx['withdraw_reason']
+			: '';
+		?>
+		<form class="wpcpm-learn__withdraw" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" method="post">
+			<input type="hidden" name="action" value="wpcpm_learn_withdraw">
+			<input type="hidden" name="student" value="<?php echo esc_attr( $student_id ); ?>">
+			<label for="wpcpm-learn-withdraw-reason-<?php echo esc_attr( $student_id ); ?>"><?php echo esc_html__( 'Reason for withdrawal', 'wpcredits-program-manager' ); ?></label>
+			<textarea id="wpcpm-learn-withdraw-reason-<?php echo esc_attr( $student_id ); ?>" name="reason" maxlength="500" required><?php echo esc_textarea( $reason ); ?></textarea>
+			<?php wp_nonce_field( 'wpcpm_learn_withdraw_' . $student_id ); ?>
+			<button class="wpcpm-button" type="submit"><?php echo esc_html__( 'Withdraw Learn connection', 'wpcredits-program-manager' ); ?></button>
+		</form>
 		<?php
 	}
 

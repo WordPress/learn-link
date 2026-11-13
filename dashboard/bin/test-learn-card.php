@@ -18,6 +18,7 @@ $GLOBALS['wpcpm_card_title_reads']     = 0;
 $GLOBALS['wpcpm_card_meta']            = array();
 $GLOBALS['wpcpm_card_flash']           = '';
 $GLOBALS['wpcpm_card_refresh_calls']   = array();
+$GLOBALS['wpcpm_card_can_manage']      = false;
 
 /**
  * Minimal WordPress user for the isolated panel test.
@@ -80,6 +81,10 @@ class WPCPM_Settings {
 			? $GLOBALS['wpcpm_card_settings'][ $key ]
 			: $fallback;
 	}
+}
+
+class WPCPM_Roles {
+	const CAP_MANAGE = 'wpcpm_manage_program';
 }
 
 class WPCPM_Flash {
@@ -154,6 +159,10 @@ function get_current_user_id() {
 	return (int) $GLOBALS['wpcpm_card_current_user_id'];
 }
 
+function current_user_can( $capability ) {
+	return WPCPM_Roles::CAP_MANAGE === (string) $capability && $GLOBALS['wpcpm_card_can_manage'];
+}
+
 function get_user_meta( $user_id, $key, $single = false ) {
 	unset( $single );
 
@@ -209,6 +218,16 @@ function esc_html__( $text ) {
  * @return string
  */
 function esc_attr( $text ) {
+	return htmlspecialchars( (string) $text, ENT_QUOTES, 'UTF-8' );
+}
+
+/**
+ * Escape text for a textarea.
+ *
+ * @param mixed $text Source value.
+ * @return string
+ */
+function esc_textarea( $text ) {
 	return htmlspecialchars( (string) $text, ENT_QUOTES, 'UTF-8' );
 }
 
@@ -443,6 +462,29 @@ $wpcpm_card_withdrawn_dateless = WPCPM_Learn_Progress_Card::render( 'withdrawn',
 wpcpm_card_check( 'withdrawn without a date uses a complete dateless sentence', false !== strpos( $wpcpm_card_withdrawn_dateless, 'This connection was withdrawn. Contact a program Administrator if you think this is a mistake.' ), true );
 wpcpm_card_check( 'a missing withdrawal date never prints the Unix epoch', false === strpos( $wpcpm_card_withdrawn_dateless, '1970' ), true );
 
+$wpcpm_card_withdraw_context = array(
+	'can_manage'     => true,
+	'student_id'     => 42,
+	'withdraw_reason' => '<script>alert(1)</script>Program ended.',
+);
+$wpcpm_card_withdraw_form = WPCPM_Learn_Progress_Card::render(
+	'in_progress',
+	$wpcpm_card_progress_data,
+	array(),
+	$wpcpm_card_withdraw_context
+);
+
+wpcpm_card_check( 'Administrator withdrawal form posts to admin-post', false !== strpos( $wpcpm_card_withdraw_form, 'action="https://dashboard.test/wp-admin/admin-post.php" method="post"' ), true );
+wpcpm_card_check( 'withdrawal form names the handler action', false !== strpos( $wpcpm_card_withdraw_form, 'name="action" value="wpcpm_learn_withdraw"' ), true );
+wpcpm_card_check( 'withdrawal form identifies the student', false !== strpos( $wpcpm_card_withdraw_form, 'name="student" value="42"' ), true );
+wpcpm_card_check( 'withdrawal reason is required and limited to 500 characters', false !== strpos( $wpcpm_card_withdraw_form, 'name="reason" maxlength="500" required' ), true );
+wpcpm_card_check( 'withdrawal form uses the student-specific nonce', false !== strpos( $wpcpm_card_withdraw_form, 'value="nonce-wpcpm_learn_withdraw_42"' ), true );
+wpcpm_card_check( 'withdrawal form has its own submit button', false !== strpos( $wpcpm_card_withdraw_form, '>Withdraw Learn connection</button>' ), true );
+wpcpm_card_check( 'withdrawal reason is escaped on the form', false === strpos( $wpcpm_card_withdraw_form, '<script' ), true );
+wpcpm_card_check( 'a viewer without CAP_MANAGE sees no withdrawal form', false === strpos( WPCPM_Learn_Progress_Card::render( 'in_progress', $wpcpm_card_progress_data, array(), array( 'student_id' => 42 ) ), 'wpcpm-learn__withdraw' ), true );
+wpcpm_card_check( 'not-connected state never shows the withdrawal form', false === strpos( WPCPM_Learn_Progress_Card::render( 'not_connected', array(), array(), $wpcpm_card_withdraw_context ), 'wpcpm-learn__withdraw' ), true );
+wpcpm_card_check( 'withdrawn state never shows the withdrawal form', false === strpos( WPCPM_Learn_Progress_Card::render( 'withdrawn', array(), array(), $wpcpm_card_withdraw_context ), 'wpcpm-learn__withdraw' ), true );
+
 $wpcpm_card_structure     = array(
 	array(
 		'id'      => 101,
@@ -615,12 +657,14 @@ wpcpm_card_check( 'identity outcome names the expected account', false !== strpo
 wpcpm_card_check( 'identity outcome never trusts the Learn username as markup', false === strpos( $wpcpm_card_identity_panel, '<script' ), true );
 
 $GLOBALS['wpcpm_card_current_user_id'] = 7;
+$GLOBALS['wpcpm_card_can_manage']      = true;
 $wpcpm_card_manager_panel              = WPCPM_Learn_Progress::panel( $wpcpm_card_student );
 
 wpcpm_card_check( 'Administrator panel without a token says Not connected', false !== strpos( $wpcpm_card_manager_panel, '>Not connected</p>' ), true );
 wpcpm_card_check( 'Administrator panel cannot connect for the student', false === strpos( $wpcpm_card_manager_panel, '<form' ), true );
 
 $GLOBALS['wpcpm_card_current_user_id'] = 42;
+$GLOBALS['wpcpm_card_can_manage']      = false;
 $GLOBALS['wpcpm_card_meta'][42][ WPCPM_Learn_Progress::META_WITHDRAWN_AT ] = gmmktime( 9, 0, 0, 11, 4, 2026 );
 $wpcpm_card_withdrawn_panel = WPCPM_Learn_Progress::panel( $wpcpm_card_student );
 
@@ -673,13 +717,16 @@ wpcpm_card_check( 'a stale owner cache refreshes exactly once', $GLOBALS['wpcpm_
 wpcpm_card_check( 'a stale owner cache still renders stored progress', false !== strpos( $wpcpm_card_stale_owner_panel, 'class="wpcpm-learn__percent">50%</p>' ), true );
 
 $GLOBALS['wpcpm_card_current_user_id'] = 7;
+$GLOBALS['wpcpm_card_can_manage']      = true;
 $GLOBALS['wpcpm_card_refresh_calls']   = array();
 $wpcpm_card_stale_manager_panel        = WPCPM_Learn_Progress::panel( $wpcpm_card_student );
 
 wpcpm_card_check( 'an Administrator viewing stale progress triggers no refresh', $GLOBALS['wpcpm_card_refresh_calls'], array() );
 wpcpm_card_check( 'an Administrator may see the stored progress picture', false !== strpos( $wpcpm_card_stale_manager_panel, 'class="wpcpm-learn__percent">50%</p>' ), true );
+wpcpm_card_check( 'an Administrator viewing connected progress sees withdrawal controls', false !== strpos( $wpcpm_card_stale_manager_panel, 'wpcpm-learn__withdraw' ), true );
 
 $GLOBALS['wpcpm_card_current_user_id'] = 42;
+$GLOBALS['wpcpm_card_can_manage']      = false;
 unset( $GLOBALS['wpcpm_card_meta'][42][ WPCPM_Learn_Progress::META_CACHE ] );
 $GLOBALS['wpcpm_card_refresh_calls'] = array();
 $wpcpm_card_missing_cache_panel      = WPCPM_Learn_Progress::panel( $wpcpm_card_student );
