@@ -37,6 +37,20 @@ function hash_token( $secret ) {
 }
 
 /**
+ * Whether a code verifier matches the stored S256 challenge (RFC 7636, section 4.6).
+ *
+ * @param string $verifier  The code verifier as received.
+ * @param string $challenge The challenge stored in the grant.
+ *
+ * @return bool
+ */
+function verify_pkce( $verifier, $challenge ) {
+	$computed = rtrim( strtr( base64_encode( hash( 'sha256', $verifier, true ) ), '+/', '-_' ), '=' );
+
+	return hash_equals( $challenge, $computed );
+}
+
+/**
  * The grant that holds this token.
  *
  * @param mixed $token The token as received.
