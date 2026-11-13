@@ -405,6 +405,10 @@ class WPCPM_Learn_Progress {
 			self::back( 'learn_state' );
 		}
 
+		if ( get_user_meta( $user_id, self::META_WITHDRAWN_AT, true ) ) {
+			self::back( 'learn_withdrawn' );
+		}
+
 		$error = isset( $request['error'] ) && is_string( $request['error'] )
 			? sanitize_text_field( $request['error'] )
 			: '';
@@ -470,8 +474,6 @@ class WPCPM_Learn_Progress {
 		update_user_meta( $user_id, self::META_TOKEN, $sealed );
 		update_user_meta( $user_id, self::META_CONNECTED, time() );
 		update_user_meta( $user_id, self::META_USERNAME, $learn_username );
-		delete_user_meta( $user_id, self::META_WITHDRAWN_AT );
-		delete_user_meta( $user_id, self::META_WITHDRAWN_BY );
 
 		if ( class_exists( 'WPCPM_Learn_Progress_Sync' ) ) {
 			// A first read is best effort. Its failure must not undo a valid connection.
