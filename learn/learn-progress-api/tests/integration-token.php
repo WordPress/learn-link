@@ -284,15 +284,32 @@ wp_update_post(
 ck( 'a grant with no user: invalid_grant', outcome( exchange( $code ) ), $invalid_grant );
 Grants\delete( $grant );
 
-// SEC-16: eleven attempts in a minute from one address.
+// SEC-16: a class connecting at once shares the Dashboard's address, so good exchanges never count.
 reset_attempts();
+$statuses = array();
+for ( $i = 0; $i < 12; $i++ ) {
+	list( $code, $grant ) = new_grant();
+	$statuses[]           = post_raw( wp_json_encode( exchange_fields( $code ) ) )['status'];
+	Grants\delete( $grant );
+}
+ck( 'SEC-16 twelve good exchanges from one address in a minute: twelve 200s, no 429', $statuses, array_fill( 0, 12, 200 ) );
+
+// A 503 is Learn's failure, not the client's, so it does not count either.
+list( $code, $grant ) = new_grant();
+add_filter( 'add_post_metadata', $refuse_token, 10, 3 );
+$r = post_raw( wp_json_encode( exchange_fields( $code ) ) );
+remove_filter( 'add_post_metadata', $refuse_token, 10 );
+Grants\delete( $grant );
+ck( 'SEC-16 a 503 is answered and leaves the budget alone', array( $r['status'], (int) ( get_transient( 'learn_progress_tok_' . md5( LL_TEST_ADDRESS ) )['count'] ?? 0 ) ), array( 503, 0 ) );
+
+// SEC-16: eleven failed exchanges in a minute from one address, after the good ones above.
 $body  = wp_json_encode( exchange_fields( Tokens\mint() ) );
 $codes = array();
 for ( $i = 0; $i < 10; $i++ ) {
 	$codes[] = post_raw( $body )['code'];
 }
 $r = post_raw( $body );
-ck( 'SEC-16 ten attempts are answered', array_unique( $codes ), array( 'learn_progress_invalid_grant' ) );
+ck( 'SEC-16 ten failed exchanges are answered, after twelve good ones', array_unique( $codes ), array( 'learn_progress_invalid_grant' ) );
 ck( 'SEC-16 the eleventh: 429 with no-store', array( $r['status'], $r['code'], $r['no_store'] ), array( 429, 'learn_progress_slow_down', true ) );
 ck( 'SEC-16 the eleventh says how long to wait', $r['data']['data']['retry_after'] > 0, true );
 $_SERVER['REMOTE_ADDR'] = '203.0.113.8';

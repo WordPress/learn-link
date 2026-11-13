@@ -68,7 +68,11 @@ function contract_error_for_bad_json( $response, $handler, $request ) {
 }
 
 /**
- * Exchange a code for a token.
+ * Exchange a code for a token, limiting failed exchanges by address.
+ *
+ * Only a failure counts. Every exchange comes from the Dashboard's server, so all of a class shares
+ * one address, and a good exchange must never use up the budget. Brute force cannot win against a
+ * 43-character code anyway. A 503 is Learn's failure, not the client's, so it does not count either.
  *
  * @param \WP_REST_Request $request The request.
  *
@@ -81,6 +85,23 @@ function post_token( \WP_REST_Request $request ) {
 		return Rest\error( 'learn_progress_slow_down', 429, array( 'retry_after' => $wait ) );
 	}
 
+	$response = answer( $request );
+
+	if ( is_wp_error( $response ) && in_array( $response->get_error_data()['status'], array( 400, 401 ), true ) ) {
+		count_failure();
+	}
+
+	return $response;
+}
+
+/**
+ * Exchange a code for a token, without the rate limit.
+ *
+ * @param \WP_REST_Request $request The request.
+ *
+ * @return \WP_REST_Response|\WP_Error
+ */
+function answer( \WP_REST_Request $request ) {
 	$params = read_params( $request );
 
 	if ( ! $params ) {
@@ -184,33 +205,65 @@ function read_params( \WP_REST_Request $request ) {
 }
 
 /**
- * Count an attempt from this address.
+ * How long this address must wait after too many failed exchanges. Counts nothing.
  *
- * @return int Seconds to wait, or 0 when the attempt may go on.
+ * @return int Seconds to wait, or 0 when the exchange may go on.
  */
 function attempt_wait() {
-	$ip    = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : '';
-	$key   = 'learn_progress_tok_' . md5( $ip );
-	$now   = time();
-	$entry = get_transient( $key );
+	$entry = failures();
 
-	if ( ! is_array( $entry ) || $now - $entry['start'] >= WINDOW ) {
+	return $entry['count'] >= MAX_ATTEMPTS ? seconds_left( $entry ) : 0;
+}
+
+/**
+ * Count a failed exchange from this address.
+ *
+ * @return void
+ */
+function count_failure() {
+	$entry = failures();
+	++$entry['count'];
+	set_transient( failure_key(), $entry, seconds_left( $entry ) );
+}
+
+/**
+ * This address's failures in the current window.
+ *
+ * @return array `start` and `count`; a fresh window when the last one has ended.
+ */
+function failures() {
+	$entry = get_transient( failure_key() );
+
+	if ( ! is_array( $entry ) || time() - $entry['start'] >= WINDOW ) {
 		$entry = array(
-			'start' => $now,
+			'start' => time(),
 			'count' => 0,
 		);
 	}
 
-	$left = max( 1, WINDOW - ( $now - $entry['start'] ) );
+	return $entry;
+}
 
-	if ( $entry['count'] >= MAX_ATTEMPTS ) {
-		return $left;
-	}
+/**
+ * The transient key of this address's failures.
+ *
+ * @return string
+ */
+function failure_key() {
+	$ip = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : '';
 
-	$entry['count']++;
-	set_transient( $key, $entry, $left );
+	return 'learn_progress_tok_' . md5( $ip );
+}
 
-	return 0;
+/**
+ * Seconds until a window ends, at least one.
+ *
+ * @param array $entry The window.
+ *
+ * @return int
+ */
+function seconds_left( array $entry ) {
+	return max( 1, WINDOW - ( time() - $entry['start'] ) );
 }
 
 /**
