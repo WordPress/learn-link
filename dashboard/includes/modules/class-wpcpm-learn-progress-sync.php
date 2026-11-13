@@ -150,6 +150,83 @@ final class WPCPM_Learn_Progress_Sync {
 	}
 
 	/**
+	 * Retry pending remote token revocations queued during offline disconnects.
+	 *
+	 * Clears `META_REVOKE_PENDING` when Learn confirms the token is gone (`204`,
+	 * `401 learn_progress_invalid_token`, or `403 learn_progress_revoked`), and
+	 * retains the sealed token on transient failures (`429`, `5xx`, network error,
+	 * or unseal failure) for the next scheduled run.
+	 *
+	 * @return array{retried: int, cleared: int, failed: int} Summary counts.
+	 */
+	public static function retry_revocations() {
+		$summary = array(
+			'retried' => 0,
+			'cleared' => 0,
+			'failed'  => 0,
+		);
+
+		if ( ! WPCPM_Learn_Progress::enabled() ) {
+			return $summary;
+		}
+
+		$user_ids = get_users(
+			array(
+				'meta_key' => WPCPM_Learn_Progress::META_REVOKE_PENDING,
+				'fields'   => 'ID',
+			)
+		);
+
+		if ( ! is_array( $user_ids ) ) {
+			return $summary;
+		}
+
+		foreach ( $user_ids as $raw_id ) {
+			$user_id = (int) $raw_id;
+			if ( $user_id <= 0 ) {
+				continue;
+			}
+
+			++$summary['retried'];
+
+			$sealed = get_user_meta( $user_id, WPCPM_Learn_Progress::META_REVOKE_PENDING, true );
+			if ( ! is_string( $sealed ) || '' === $sealed ) {
+				++$summary['failed'];
+				continue;
+			}
+
+			$token = WPCPM_Secret::unseal_from_option( $sealed );
+			if ( is_wp_error( $token ) || ! is_string( $token ) || '' === $token ) {
+				++$summary['failed'];
+				continue;
+			}
+
+			$res = WPCPM_Learn_Client::revoke( $token );
+			unset( $token );
+
+			if (
+				true === $res
+				|| (
+					is_wp_error( $res )
+					&& in_array(
+						$res->get_error_code(),
+						array( 'learn_progress_invalid_token', 'learn_progress_revoked' ),
+						true
+					)
+				)
+			) {
+				delete_user_meta( $user_id, WPCPM_Learn_Progress::META_REVOKE_PENDING );
+				++$summary['cleared'];
+				continue;
+			}
+
+			++$summary['failed'];
+		}
+
+		return $summary;
+	}
+
+	/**
 	 * The Learn courses to read for a student: `courses=` on every read (decision 4 in #2).
 	 *
 	 * The `learn_courses` setting wins when it is set, as the local or staging override.

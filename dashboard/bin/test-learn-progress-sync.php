@@ -260,6 +260,28 @@ function delete_user_meta( $user_id, $key ) {
 }
 
 /**
+ * Query in-memory user IDs matching a meta_key.
+ *
+ * @param array $args Query arguments.
+ * @return int[]
+ */
+function get_users( array $args = array() ) {
+	$meta_key = isset( $args['meta_key'] ) ? (string) $args['meta_key'] : '';
+	if ( '' === $meta_key ) {
+		return array_keys( $GLOBALS['wpcpm_sync_test_meta'] );
+	}
+
+	$ids = array();
+	foreach ( $GLOBALS['wpcpm_sync_test_meta'] as $user_id => $meta ) {
+		if ( is_array( $meta ) && array_key_exists( $meta_key, $meta ) && '' !== $meta[ $meta_key ] ) {
+			$ids[] = (int) $user_id;
+		}
+	}
+
+	return $ids;
+}
+
+/**
  * Mock wp_remote_get from a queued response table.
  *
  * @param string $url  Request URL.
@@ -602,6 +624,142 @@ wpcpm_sync_check( 'unseal failure returns wpcpm_learn_seal', is_wp_error( $wpcpm
 wpcpm_sync_check( 'unseal failure makes no HTTP request', count( $GLOBALS['wpcpm_sync_http_calls'] ), 0 );
 wpcpm_sync_check( 'unseal failure preserves previous cache', get_user_meta( 13, WPCPM_Learn_Progress::META_CACHE, true ), $wpcpm_previous_cache );
 wpcpm_sync_check( 'unseal failure records wpcpm_learn_seal in META_ERROR', $wpcpm_err['code'], 'wpcpm_learn_seal' );
+
+// ---------------------------------------------------------------------------
+// 10. #25: retry_revocations()
+// ---------------------------------------------------------------------------
+
+// 10a. 204 clears META_REVOKE_PENDING and increments cleared.
+$GLOBALS['wpcpm_sync_test_meta']  = array(
+	21 => array(
+		WPCPM_Learn_Progress::META_REVOKE_PENDING => $wpcpm_sync_sealed_token,
+	),
+);
+$GLOBALS['wpcpm_sync_http_calls'] = array();
+$GLOBALS['wpcpm_sync_http_queue'] = array(
+	array(
+		'response' => array( 'code' => 204 ),
+		'body'     => '',
+	),
+);
+$wpcpm_summary                    = WPCPM_Learn_Progress_Sync::retry_revocations();
+wpcpm_sync_check( 'retry_revocations 204 returns retried=1 cleared=1 failed=0', $wpcpm_summary, array( 'retried' => 1, 'cleared' => 1, 'failed' => 0 ) );
+wpcpm_sync_check( 'retry_revocations 204 deletes META_REVOKE_PENDING', get_user_meta( 21, WPCPM_Learn_Progress::META_REVOKE_PENDING, true ), '' );
+wpcpm_sync_check( 'retry_revocations 204 sends DELETE request', $GLOBALS['wpcpm_sync_http_calls'][0]['method'], 'DELETE' );
+
+// 10b. 401 learn_progress_invalid_token clears META_REVOKE_PENDING.
+$GLOBALS['wpcpm_sync_test_meta']  = array(
+	22 => array(
+		WPCPM_Learn_Progress::META_REVOKE_PENDING => $wpcpm_sync_sealed_token,
+	),
+);
+$GLOBALS['wpcpm_sync_http_queue'] = array(
+	array(
+		'response' => array( 'code' => 401 ),
+		'body'     => wp_json_encode( wpcpm_sync_fixture( 'error-401' ) ),
+	),
+);
+$wpcpm_summary                    = WPCPM_Learn_Progress_Sync::retry_revocations();
+wpcpm_sync_check( 'retry_revocations 401 invalid_token returns cleared=1', $wpcpm_summary, array( 'retried' => 1, 'cleared' => 1, 'failed' => 0 ) );
+wpcpm_sync_check( 'retry_revocations 401 invalid_token deletes META_REVOKE_PENDING', get_user_meta( 22, WPCPM_Learn_Progress::META_REVOKE_PENDING, true ), '' );
+
+// 10c. 403 learn_progress_revoked clears META_REVOKE_PENDING.
+$GLOBALS['wpcpm_sync_test_meta']  = array(
+	23 => array(
+		WPCPM_Learn_Progress::META_REVOKE_PENDING => $wpcpm_sync_sealed_token,
+	),
+);
+$GLOBALS['wpcpm_sync_http_queue'] = array(
+	array(
+		'response' => array( 'code' => 403 ),
+		'body'     => wp_json_encode( wpcpm_sync_fixture( 'error-403' ) ),
+	),
+);
+$wpcpm_summary                    = WPCPM_Learn_Progress_Sync::retry_revocations();
+wpcpm_sync_check( 'retry_revocations 403 revoked returns cleared=1', $wpcpm_summary, array( 'retried' => 1, 'cleared' => 1, 'failed' => 0 ) );
+wpcpm_sync_check( 'retry_revocations 403 revoked deletes META_REVOKE_PENDING', get_user_meta( 23, WPCPM_Learn_Progress::META_REVOKE_PENDING, true ), '' );
+
+// 10d. 503, 429, and network error retain META_REVOKE_PENDING and increment failed.
+$GLOBALS['wpcpm_sync_test_meta']  = array(
+	24 => array(
+		WPCPM_Learn_Progress::META_REVOKE_PENDING => $wpcpm_sync_sealed_token,
+	),
+);
+$GLOBALS['wpcpm_sync_http_queue'] = array(
+	array(
+		'response' => array( 'code' => 503 ),
+		'body'     => wp_json_encode( wpcpm_sync_fixture( 'error-503' ) ),
+	),
+);
+$wpcpm_summary                    = WPCPM_Learn_Progress_Sync::retry_revocations();
+wpcpm_sync_check( 'retry_revocations 503 returns failed=1', $wpcpm_summary, array( 'retried' => 1, 'cleared' => 0, 'failed' => 1 ) );
+wpcpm_sync_check( 'retry_revocations 503 preserves META_REVOKE_PENDING', get_user_meta( 24, WPCPM_Learn_Progress::META_REVOKE_PENDING, true ), $wpcpm_sync_sealed_token );
+
+$GLOBALS['wpcpm_sync_http_queue'] = array(
+	array(
+		'response' => array( 'code' => 429 ),
+		'body'     => wp_json_encode( wpcpm_sync_fixture( 'error-429' ) ),
+	),
+);
+$wpcpm_summary                    = WPCPM_Learn_Progress_Sync::retry_revocations();
+wpcpm_sync_check( 'retry_revocations 429 returns failed=1', $wpcpm_summary, array( 'retried' => 1, 'cleared' => 0, 'failed' => 1 ) );
+wpcpm_sync_check( 'retry_revocations 429 preserves META_REVOKE_PENDING', get_user_meta( 24, WPCPM_Learn_Progress::META_REVOKE_PENDING, true ), $wpcpm_sync_sealed_token );
+
+$GLOBALS['wpcpm_sync_http_queue'] = array(
+	new WP_Error( 'http_request_failed', 'Connection timed out' ),
+);
+$wpcpm_summary                    = WPCPM_Learn_Progress_Sync::retry_revocations();
+wpcpm_sync_check( 'retry_revocations network error returns failed=1', $wpcpm_summary, array( 'retried' => 1, 'cleared' => 0, 'failed' => 1 ) );
+wpcpm_sync_check( 'retry_revocations network error preserves META_REVOKE_PENDING', get_user_meta( 24, WPCPM_Learn_Progress::META_REVOKE_PENDING, true ), $wpcpm_sync_sealed_token );
+
+// 10e. Two pending users: first fails (503), second succeeds (204) -> processes both.
+$GLOBALS['wpcpm_sync_test_meta']  = array(
+	25 => array(
+		WPCPM_Learn_Progress::META_REVOKE_PENDING => $wpcpm_sync_sealed_token,
+	),
+	26 => array(
+		WPCPM_Learn_Progress::META_REVOKE_PENDING => $wpcpm_sync_sealed_token,
+	),
+);
+$GLOBALS['wpcpm_sync_http_queue'] = array(
+	array(
+		'response' => array( 'code' => 503 ),
+		'body'     => wp_json_encode( wpcpm_sync_fixture( 'error-503' ) ),
+	),
+	array(
+		'response' => array( 'code' => 204 ),
+		'body'     => '',
+	),
+);
+$wpcpm_summary                    = WPCPM_Learn_Progress_Sync::retry_revocations();
+wpcpm_sync_check( 'retry_revocations with two users returns retried=2 cleared=1 failed=1', $wpcpm_summary, array( 'retried' => 2, 'cleared' => 1, 'failed' => 1 ) );
+wpcpm_sync_check( 'retry_revocations keeps first failed user meta', get_user_meta( 25, WPCPM_Learn_Progress::META_REVOKE_PENDING, true ), $wpcpm_sync_sealed_token );
+wpcpm_sync_check( 'retry_revocations deletes second succeeded user meta', get_user_meta( 26, WPCPM_Learn_Progress::META_REVOKE_PENDING, true ), '' );
+
+// 10f. Corrupted sealed value fails unseal, keeps meta, makes no HTTP request, increments failed.
+$GLOBALS['wpcpm_sync_test_meta']  = array(
+	27 => array(
+		WPCPM_Learn_Progress::META_REVOKE_PENDING => 'corrupted-ciphertext',
+	),
+);
+$GLOBALS['wpcpm_sync_http_calls'] = array();
+$wpcpm_summary                    = WPCPM_Learn_Progress_Sync::retry_revocations();
+wpcpm_sync_check( 'retry_revocations unseal failure returns retried=1 cleared=0 failed=1', $wpcpm_summary, array( 'retried' => 1, 'cleared' => 0, 'failed' => 1 ) );
+wpcpm_sync_check( 'retry_revocations unseal failure makes no HTTP request', count( $GLOBALS['wpcpm_sync_http_calls'] ), 0 );
+wpcpm_sync_check( 'retry_revocations unseal failure preserves META_REVOKE_PENDING', get_user_meta( 27, WPCPM_Learn_Progress::META_REVOKE_PENDING, true ), 'corrupted-ciphertext' );
+
+// 10g. SEC-20: learn_enabled = false returns zeros and makes no HTTP calls.
+WPCPM_Settings::$options['learn_enabled'] = false;
+$GLOBALS['wpcpm_sync_test_meta']          = array(
+	28 => array(
+		WPCPM_Learn_Progress::META_REVOKE_PENDING => $wpcpm_sync_sealed_token,
+	),
+);
+$GLOBALS['wpcpm_sync_http_calls']         = array();
+$wpcpm_summary                            = WPCPM_Learn_Progress_Sync::retry_revocations();
+wpcpm_sync_check( 'SEC-20 disabled switch returns all zero counts', $wpcpm_summary, array( 'retried' => 0, 'cleared' => 0, 'failed' => 0 ) );
+wpcpm_sync_check( 'SEC-20 disabled switch makes no HTTP call', count( $GLOBALS['wpcpm_sync_http_calls'] ), 0 );
+wpcpm_sync_check( 'SEC-20 disabled switch leaves META_REVOKE_PENDING untouched', get_user_meta( 28, WPCPM_Learn_Progress::META_REVOKE_PENDING, true ), $wpcpm_sync_sealed_token );
 
 if ( 0 !== $wpcpm_sync_failures ) {
 	echo "\n{$wpcpm_sync_failures} FAILED ({$wpcpm_sync_checks} checks)\n";
