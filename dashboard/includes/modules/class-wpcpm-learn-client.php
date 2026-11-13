@@ -367,6 +367,28 @@ final class WPCPM_Learn_Client {
 	}
 
 	/**
+	 * The `courses` query value: positive course IDs, without duplicates, comma-separated.
+	 *
+	 * @param array $courses Course IDs, as given.
+	 * @return string Comma-separated IDs, or an empty string when none is valid.
+	 */
+	private static function course_list( array $courses ) {
+		$ids = array();
+
+		foreach ( $courses as $course ) {
+			if ( is_int( $course ) || ( is_string( $course ) && ctype_digit( $course ) ) ) {
+				$id = (int) $course;
+
+				if ( $id > 0 && ! in_array( $id, $ids, true ) ) {
+					$ids[] = $id;
+				}
+			}
+		}
+
+		return implode( ',', $ids );
+	}
+
+	/**
 	 * Retrieve the configured Learn base URL without a trailing slash.
 	 *
 	 * @return string|WP_Error Base URL or WP_Error when unconfigured.
@@ -546,6 +568,74 @@ final class WPCPM_Learn_Client {
 			$code,
 			__( 'Learn WordPress could not complete the token withdrawal.', 'wpcredits-program-manager' )
 		);
+	}
+
+	/**
+	 * Fetch and normalize the authenticated learner's progress from Learn WordPress.
+	 *
+	 * Never follows redirects so the Bearer token cannot be sent to another host.
+	 *
+	 * Sends `courses=<ids>` when course IDs are given (contract section 1.4, decision 4 in #2).
+	 * Learn only narrows its fixed list with them, so an empty list reads every course.
+	 *
+	 * @param string $token   Unsealed Bearer access token.
+	 * @param int[]  $courses Learn course post IDs to read. Empty reads the whole list.
+	 * @return array|WP_Error Normalized progress from parse() on 200, or WP_Error on failure.
+	 */
+	public static function fetch( $token, array $courses = array() ) {
+		$base = self::base();
+
+		if ( is_wp_error( $base ) ) {
+			return $base;
+		}
+
+		$url = $base . '/wp-json/learn-progress/v1/me';
+		$ids = self::course_list( $courses );
+
+		if ( '' !== $ids ) {
+			$url .= '?courses=' . $ids;
+		}
+
+		$response = wp_remote_get(
+			$url,
+			array(
+				'timeout'     => 5,
+				'redirection' => 0,
+				'headers'     => array(
+					'Authorization' => 'Bearer ' . $token,
+					'Accept'        => 'application/json',
+				),
+			)
+		);
+
+		if ( is_wp_error( $response ) ) {
+			return new WP_Error(
+				'wpcpm_learn_unreachable',
+				__( 'Could not connect to Learn WordPress.', 'wpcredits-program-manager' )
+			);
+		}
+
+		$status = (int) wp_remote_retrieve_response_code( $response );
+		$body   = json_decode( (string) wp_remote_retrieve_body( $response ), true );
+
+		if ( 200 !== $status ) {
+			$code        = self::error_code( $status, $body );
+			$retry_after = (int) wp_remote_retrieve_header( $response, 'retry-after' );
+
+			if ( $retry_after <= 0 && is_array( $body ) && isset( $body['data']['retry_after'] ) && is_numeric( $body['data']['retry_after'] ) ) {
+				$retry_after = max( 0, (int) $body['data']['retry_after'] );
+			}
+
+			$error = new WP_Error(
+				$code,
+				'',
+				array( 'retry_after' => max( 0, $retry_after ) )
+			);
+
+			return $error;
+		}
+
+		return is_array( $body ) ? self::parse( $body ) : self::bad_answer();
 	}
 
 	/**
