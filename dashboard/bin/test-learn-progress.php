@@ -652,6 +652,24 @@ wpcpm_learn_check( 'another user gets the same expired outcome', $wpcpm_learn_ot
 wpcpm_learn_check( 'another user state is consumed', $wpcpm_learn_other_user['transient'], array() );
 wpcpm_learn_check( 'another user state makes no exchange', $wpcpm_learn_other_user['exchange_calls'], array() );
 
+$wpcpm_learn_withdrawn_callback = wpcpm_learn_callback_attempt(
+	610,
+	array( 'state' => 'withdrawn-callback', 'code' => 'withdrawn-code' ),
+	array( 'user' => 610, 'verifier' => str_repeat( 'w', 64 ), 'at' => time() ),
+	array(
+		'wpcpm_student_program'                   => array( 'username' => 'adaexample' ),
+		WPCPM_Learn_Progress::META_WITHDRAWN_AT => 123,
+		WPCPM_Learn_Progress::META_WITHDRAWN_BY => 7,
+	),
+	array( 'token' => str_repeat( 'T', 43 ), 'username' => 'AdaExample' )
+);
+wpcpm_learn_check( 'a withdrawn callback consumes the state', $wpcpm_learn_withdrawn_callback['transient'], array() );
+wpcpm_learn_check( 'a withdrawn callback gets the withdrawn outcome', $wpcpm_learn_withdrawn_callback['flash'], array( 'learn' => 'learn_withdrawn' ) );
+wpcpm_learn_check( 'a withdrawn callback makes no exchange', $wpcpm_learn_withdrawn_callback['exchange_calls'], array() );
+wpcpm_learn_check( 'a withdrawn callback keeps the withdrawal date', $wpcpm_learn_withdrawn_callback['meta'][ WPCPM_Learn_Progress::META_WITHDRAWN_AT ], 123 );
+wpcpm_learn_check( 'a withdrawn callback keeps the withdrawing Administrator', $wpcpm_learn_withdrawn_callback['meta'][ WPCPM_Learn_Progress::META_WITHDRAWN_BY ], 7 );
+wpcpm_learn_check( 'a withdrawn callback stores no token', isset( $wpcpm_learn_withdrawn_callback['meta'][ WPCPM_Learn_Progress::META_TOKEN ] ), false );
+
 $wpcpm_learn_denied = wpcpm_learn_callback_attempt(
 	62,
 	array( 'state' => 'denied-state', 'error' => 'access_denied' ),
@@ -757,19 +775,13 @@ $wpcpm_learn_success = wpcpm_learn_callback_attempt(
 	68,
 	array( 'state' => 'success-state', 'code' => 'success-code' ),
 	array( 'user' => 68, 'verifier' => str_repeat( 'z', 64 ), 'at' => time() ),
-	array(
-		'wpcpm_student_program'                   => array( 'username' => 'adaexample' ),
-		WPCPM_Learn_Progress::META_WITHDRAWN_AT => 123,
-		WPCPM_Learn_Progress::META_WITHDRAWN_BY => 7,
-	),
+	array( 'wpcpm_student_program' => array( 'username' => 'adaexample' ) ),
 	array( 'token' => $wpcpm_learn_token, 'username' => 'AdaExample' )
 );
 wpcpm_learn_check( 'success stores a sealed token', $wpcpm_learn_success['meta'][ WPCPM_Learn_Progress::META_TOKEN ], 'sealed:' . $wpcpm_learn_token );
 wpcpm_learn_check( 'success never stores the plain token', $wpcpm_learn_success['meta'][ WPCPM_Learn_Progress::META_TOKEN ] === $wpcpm_learn_token, false );
 wpcpm_learn_check( 'success records the connection time', abs( time() - $wpcpm_learn_success['meta'][ WPCPM_Learn_Progress::META_CONNECTED ] ) <= 2, true );
 wpcpm_learn_check( 'success stores the username Learn confirmed', $wpcpm_learn_success['meta'][ WPCPM_Learn_Progress::META_USERNAME ], 'AdaExample' );
-wpcpm_learn_check( 'success clears the withdrawal date', isset( $wpcpm_learn_success['meta'][ WPCPM_Learn_Progress::META_WITHDRAWN_AT ] ), false );
-wpcpm_learn_check( 'success clears the withdrawing Administrator', isset( $wpcpm_learn_success['meta'][ WPCPM_Learn_Progress::META_WITHDRAWN_BY ] ), false );
 wpcpm_learn_check( 'success refreshes once and forces the first read', $wpcpm_learn_success['refresh_calls'], array( array( 68, true ) ) );
 wpcpm_learn_check( 'success does not revoke', $wpcpm_learn_success['revoke_calls'], array() );
 wpcpm_learn_check( 'success gets the connected outcome', $wpcpm_learn_success['flash'], array( 'learn' => 'learn_connected' ) );
