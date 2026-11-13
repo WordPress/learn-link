@@ -99,4 +99,4 @@ If any of these three flags is disabled or missing, Sensei automatically falls b
 - Directly flipping settings without migration leaves HPPS tables empty and corrupts read consistency.
 - **Phase 1 Strategy:**
   - `tests/compare-storage.php` is committed as a test scaffold and diagnostic script displaying all three storage settings.
-  - The formal comparison test will be executed in **Phase 4 (#24)** using a clean twin site created with HPPS and synchronization enabled before seeding data.
+  - The formal comparison test will be executed as a follow-up for #3 using a clean twin site created with HPPS and synchronization enabled before seeding data.
