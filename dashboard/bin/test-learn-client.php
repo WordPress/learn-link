@@ -970,6 +970,20 @@ $wpcpm_res = WPCPM_Learn_Client::fetch( $wpcpm_valid_token_43 );
 wpcpm_learn_client_check( 'fetch returns learn_progress_slow_down on 429', is_wp_error( $wpcpm_res ) ? $wpcpm_res->get_error_code() : null, 'learn_progress_slow_down' );
 wpcpm_learn_client_check( 'fetch attaches retry_after from Retry-After header on 429', is_wp_error( $wpcpm_res ) ? $wpcpm_res->get_error_data() : null, array( 'retry_after' => 1800 ) );
 
+// 8f. courses= on the read (contract section 1.4, decision 4 in #2).
+$wpcpm_http_mock['next_return'] = new WP_Error( 'http_request_failed' );
+WPCPM_Learn_Client::fetch( $wpcpm_valid_token_43, array( 297853 ) );
+wpcpm_learn_client_check( 'fetch sends courses= with the one track course', $wpcpm_http_mock['last_url'], 'https://learn.test/wp-json/learn-progress/v1/me?courses=297853' );
+$wpcpm_http_mock['next_return'] = new WP_Error( 'http_request_failed' );
+WPCPM_Learn_Client::fetch( $wpcpm_valid_token_43, array( 301001, '297853', 301001 ) );
+wpcpm_learn_client_check( 'fetch sends several courses comma-separated, once each', $wpcpm_http_mock['last_url'], 'https://learn.test/wp-json/learn-progress/v1/me?courses=301001,297853' );
+$wpcpm_http_mock['next_return'] = new WP_Error( 'http_request_failed' );
+WPCPM_Learn_Client::fetch( $wpcpm_valid_token_43, array( 0, -5, 'abc', '12x', array( 7 ), null ) );
+wpcpm_learn_client_check( 'fetch drops invalid course IDs and then sends no courses', $wpcpm_http_mock['last_url'], 'https://learn.test/wp-json/learn-progress/v1/me' );
+$wpcpm_http_mock['next_return'] = new WP_Error( 'http_request_failed' );
+WPCPM_Learn_Client::fetch( $wpcpm_valid_token_43, array() );
+wpcpm_learn_client_check( 'fetch with no courses reads the whole list', $wpcpm_http_mock['last_url'], 'https://learn.test/wp-json/learn-progress/v1/me' );
+
 if ( 0 !== $wpcpm_learn_client_failures ) {
 	echo "\n{$wpcpm_learn_client_failures} FAILED ({$wpcpm_learn_client_checks} checks)\n";
 	exit( 1 );

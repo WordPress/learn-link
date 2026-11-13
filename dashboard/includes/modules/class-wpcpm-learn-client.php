@@ -367,6 +367,28 @@ final class WPCPM_Learn_Client {
 	}
 
 	/**
+	 * The `courses` query value: positive course IDs, without duplicates, comma-separated.
+	 *
+	 * @param array $courses Course IDs, as given.
+	 * @return string Comma-separated IDs, or an empty string when none is valid.
+	 */
+	private static function course_list( array $courses ) {
+		$ids = array();
+
+		foreach ( $courses as $course ) {
+			if ( is_int( $course ) || ( is_string( $course ) && ctype_digit( $course ) ) ) {
+				$id = (int) $course;
+
+				if ( $id > 0 && ! in_array( $id, $ids, true ) ) {
+					$ids[] = $id;
+				}
+			}
+		}
+
+		return implode( ',', $ids );
+	}
+
+	/**
 	 * Retrieve the configured Learn base URL without a trailing slash.
 	 *
 	 * @return string|WP_Error Base URL or WP_Error when unconfigured.
@@ -551,18 +573,29 @@ final class WPCPM_Learn_Client {
 	 *
 	 * Never follows redirects so the Bearer token cannot be sent to another host.
 	 *
-	 * @param string $token Unsealed Bearer access token.
+	 * Sends `courses=<ids>` when course IDs are given (contract section 1.4, decision 4 in #2).
+	 * Learn only narrows its fixed list with them, so an empty list reads every course.
+	 *
+	 * @param string $token   Unsealed Bearer access token.
+	 * @param int[]  $courses Learn course post IDs to read. Empty reads the whole list.
 	 * @return array|WP_Error Normalized progress from parse() on 200, or WP_Error on failure.
 	 */
-	public static function fetch( $token ) {
+	public static function fetch( $token, array $courses = array() ) {
 		$base = self::base();
 
 		if ( is_wp_error( $base ) ) {
 			return $base;
 		}
 
+		$url = $base . '/wp-json/learn-progress/v1/me';
+		$ids = self::course_list( $courses );
+
+		if ( '' !== $ids ) {
+			$url .= '?courses=' . $ids;
+		}
+
 		$response = wp_remote_get(
-			$base . '/wp-json/learn-progress/v1/me',
+			$url,
 			array(
 				'timeout'     => 5,
 				'redirection' => 0,
