@@ -1,6 +1,6 @@
 <?php
 /**
- * The learn-progress/v1 REST routes.
+ * The learn-progress/v1 REST routes: GET /me and DELETE /token.
  *
  * @package WPOrg_Learn\Learn_Progress
  */
@@ -8,7 +8,11 @@
 namespace WPOrg_Learn\Learn_Progress\Rest;
 
 use WPOrg_Learn\Learn_Progress\Clients;
+use WPOrg_Learn\Learn_Progress\Context;
+use WPOrg_Learn\Learn_Progress\Grants;
+use WPOrg_Learn\Learn_Progress\Rate;
 use WPOrg_Learn\Learn_Progress\Response;
+use WPOrg_Learn\Learn_Progress\Tokens;
 
 defined( 'WPINC' ) || die();
 
@@ -23,19 +27,16 @@ add_filter( 'rest_post_dispatch', __NAMESPACE__ . '\no_store', 10, 3 );
 /**
  * Register the routes.
  *
- * `/me` has no user parameter: the learner is the authenticated one and nobody else. A `user`,
- * `user_id` or `author` sent anyway is not in `args`, and nothing here reads it.
+ * `/me` has no user parameter: the learner is the owner of the token's grant and nobody else.
+ * A `user`, `user_id` or `author` sent anyway is not in `args`, and nothing here reads it.
  *
- * Phase 1 only: on a `production` site no route is registered, so `/me` answers WordPress's own 404
- * `rest_no_route`. The cookie check in authenticate() is for a local site, and this keeps it off a
- * live one even if the plugin is deployed by mistake. Studio sites report `local`. The guard goes
- * when the Bearer token version replaces authenticate() (P13).
+ * `DELETE /token` uses `__return_true` as its permission callback because delete_token()
+ * validates the Bearer token directly without counting toward the hourly read limit and accepts
+ * grants that have already been marked as revoked.
+ *
+ * @return void
  */
 function register_routes() {
-	if ( 'production' === wp_get_environment_type() ) {
-		return;
-	}
-
 	register_rest_route(
 		ROUTE_NAMESPACE,
 		'/me',
@@ -52,25 +53,78 @@ function register_routes() {
 			),
 		)
 	);
+
+	register_rest_route(
+		ROUTE_NAMESPACE,
+		'/token',
+		array(
+			'methods'             => 'DELETE',
+			'callback'            => __NAMESPACE__ . '\delete_token',
+			'permission_callback' => '__return_true',
+		)
+	);
 }
 
 /**
- * Let the request through only for a signed-in learner.
+ * Extract a well-formed 43-character Bearer token from the request's Authorization header.
  *
- * Phase 1 only: the signed-in browser (cookie and `wp_rest` nonce), on a local site. Phase 2
- * replaces this with the Bearer token (P13). Until then register_routes() adds no route on a
- * `production` site.
+ * Falls back to HTTP_AUTHORIZATION and REDIRECT_HTTP_AUTHORIZATION for web servers that move the
+ * header before PHP runs (risk R-08).
+ *
+ * @param \WP_REST_Request $request The request.
+ *
+ * @return string The 43-character token, or an empty string when missing or malformed.
+ */
+function bearer( \WP_REST_Request $request ): string {
+	$header = (string) $request->get_header( 'authorization' );
+
+	if ( '' === $header && isset( $_SERVER['HTTP_AUTHORIZATION'] ) ) {
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Validated by the strict regex below.
+		$header = (string) wp_unslash( $_SERVER['HTTP_AUTHORIZATION'] );
+	}
+
+	if ( '' === $header && isset( $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ) ) {
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Validated by the strict regex below.
+		$header = (string) wp_unslash( $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] );
+	}
+
+	return preg_match( '/^Bearer ([A-Za-z0-9_-]{43})$/D', trim( $header ), $matches ) ? $matches[1] : '';
+}
+
+/**
+ * Authenticate a `GET /me` request with its Bearer token.
+ *
+ * Never calls wp_set_current_user() and never hooks determine_current_user (technical guide
+ * section 6), so a Learn Link token grants no capability on any other route.
+ *
+ * This permission callback must stay free of side effects: WordPress may run it more than once for
+ * one request. Core's rest_send_allow_header(), on rest_post_dispatch, calls it again to build the
+ * Allow header. The hourly read limit is therefore counted in get_me(), which runs once.
  *
  * @param \WP_REST_Request $request The request.
  *
  * @return true|\WP_Error
  */
 function authenticate( \WP_REST_Request $request ) {
-	return is_user_logged_in() ? true : error( 'learn_progress_invalid_token', 401 );
+	Context\set( null );
+
+	$grant = Tokens\find_grant_by_token( bearer( $request ) );
+
+	if ( ! $grant ) {
+		return error( 'learn_progress_invalid_token', 401 );
+	}
+
+	if ( (int) get_post_meta( $grant, '_revoked_at', true ) > 0 ) {
+		return error( 'learn_progress_revoked', 403 );
+	}
+
+	Context\set( $grant );
+
+	return true;
 }
 
 /**
- * Answer `GET /me` with the signed-in learner's progress.
+ * Answer `GET /me` with the progress of the learner who owns the authenticated grant.
  *
  * @param \WP_REST_Request $request The request.
  *
@@ -83,20 +137,64 @@ function get_me( \WP_REST_Request $request ) {
 		return error( 'learn_progress_unavailable', 503 );
 	}
 
-	// Phase 1: the one local client. Phase 2: the client of the token's grant (P13).
-	$client = Clients\get( 'wpcredits' );
+	$grant = Context\get();
+
+	if ( ! $grant ) {
+		return error( 'learn_progress_invalid_token', 401 );
+	}
+
+	// Count the read here, once per request, and before anything is read (see authenticate()).
+	$wait = Rate\hit( (int) $grant );
+
+	if ( $wait > 0 ) {
+		return error( 'learn_progress_slow_down', 429, array( 'retry_after' => $wait ) );
+	}
+
+	$user = get_userdata( (int) get_post_field( 'post_author', $grant ) );
+
+	if ( ! $user ) {
+		return error( 'learn_progress_invalid_token', 401 );
+	}
+
+	$client_id = (string) get_post_meta( $grant, '_client_id', true );
+	$client    = Clients\get( $client_id );
 
 	if ( ! $client || empty( $client['courses'] ) ) {
 		return error( 'learn_progress_unavailable', 503 );
 	}
 
-	$body = Response\build_body( wp_get_current_user(), $client, (string) $request->get_param( 'courses' ) );
+	$granted_courses   = array_map( 'intval', (array) get_post_meta( $grant, '_courses', true ) );
+	$client['courses'] = array_values( array_intersect( $client['courses'], $granted_courses ) );
+
+	update_post_meta( $grant, '_last_used', time() );
+
+	$body = Response\build_body( $user, $client, (string) $request->get_param( 'courses' ) );
 
 	if ( is_wp_error( $body ) ) {
 		return error( 'learn_progress_unavailable', 503 );
 	}
 
 	return rest_ensure_response( $body );
+}
+
+/**
+ * Answer `DELETE /token` by deleting the grant that owns the Bearer token.
+ *
+ * Does not count against the hourly read limit and accepts grants that already carry `_revoked_at`
+ * so a withdrawal removes the grant and answers 204 (contract section 4).
+ *
+ * @param \WP_REST_Request $request The request.
+ *
+ * @return \WP_REST_Response|\WP_Error
+ */
+function delete_token( \WP_REST_Request $request ) {
+	$grant = Tokens\find_grant_by_token( bearer( $request ) );
+
+	if ( ! $grant || ! Grants\delete( $grant ) ) {
+		return error( 'learn_progress_invalid_token', 401 );
+	}
+
+	return new \WP_REST_Response( null, 204 );
 }
 
 /**
@@ -113,10 +211,13 @@ function get_me( \WP_REST_Request $request ) {
  */
 function error( $code, $status, array $data = array() ) {
 	$messages = array(
-		'learn_progress_invalid_token' => 'The token is not valid.',
-		'learn_progress_revoked'       => 'This connection was withdrawn.',
-		'learn_progress_slow_down'     => 'Too many requests. Try again later.',
-		'learn_progress_unavailable'   => 'Learn cannot read course progress right now.',
+		'learn_progress_invalid_token'   => 'The token is not valid.',
+		'learn_progress_revoked'         => 'This connection was withdrawn.',
+		'learn_progress_slow_down'       => 'Too many requests. Try again later.',
+		'learn_progress_unavailable'     => 'Learn cannot read course progress right now.',
+		'learn_progress_invalid_grant'   => 'The code is not valid.',
+		'learn_progress_invalid_client'  => 'The client is not known.',
+		'learn_progress_invalid_request' => 'The request is missing a parameter or has one that is not valid.',
 	);
 
 	return new \WP_Error(
@@ -127,10 +228,11 @@ function error( $code, $status, array $data = array() ) {
 }
 
 /**
- * Add `Cache-Control: no-store` to every learn-progress response, success or error.
+ * Add `Cache-Control: no-store` (and `Retry-After` when `data.retry_after` is present) to every
+ * learn-progress response, success or error.
  *
  * Contract section 2. Done here, after dispatch, so it also covers errors raised before the
- * callback runs: a refused permission check, an invalid parameter, a bad nonce.
+ * callback runs: a refused permission check, an invalid parameter, or a rate-limited token exchange.
  *
  * @param \WP_HTTP_Response $result  The response.
  * @param \WP_REST_Server   $server  The server.
@@ -143,6 +245,12 @@ function no_store( $result, $server, $request ) {
 
 	if ( $result instanceof \WP_HTTP_Response && ( '/' . ROUTE_NAMESPACE === $route || 0 === strpos( $route, '/' . ROUTE_NAMESPACE . '/' ) ) ) {
 		$result->header( 'Cache-Control', 'no-store' );
+
+		$data = $result->get_data();
+
+		if ( is_array( $data ) && isset( $data['data']['retry_after'] ) && is_numeric( $data['data']['retry_after'] ) && (int) $data['data']['retry_after'] > 0 ) {
+			$result->header( 'Retry-After', (string) (int) $data['data']['retry_after'] );
+		}
 	}
 
 	return $result;
