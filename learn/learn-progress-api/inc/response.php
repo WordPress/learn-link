@@ -57,7 +57,7 @@ function build_body( \WP_User $user, array $client, $courses_param = '' ) {
  * The parameter is a comma-separated list of course IDs. Anything that is not a whole number, or
  * not in the whitelist, is ignored, never an error, so a probe learns nothing about the whitelist
  * (contract section 1). The whitelist's order is kept. When nothing is left, the whole whitelist is
- * answered (proposed for contract section 7, pending decision D-12).
+ * answered (contract section 1.4).
  *
  * @param array  $whitelist The client's course IDs.
  * @param string $param     The `courses` parameter, possibly empty.
