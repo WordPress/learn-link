@@ -121,7 +121,7 @@ function respond( $method, array $source ) {
 		);
 	}
 
-	$code = Grants\create( get_current_user_id(), $request['client_id'], $request['client']['courses'], $request['code_challenge'] );
+	$code = Grants\create( get_current_user_id(), $request['client_id'], published_courses( $request['client'] ), $request['code_challenge'] );
 
 	if ( is_wp_error( $code ) ) {
 		return page( 500, __( 'Your approval could not be saved. Go back to your Student Report Card and try again.', 'wporg-learn' ) );
@@ -253,6 +253,27 @@ function client_redirect( array $request, array $args ) {
 }
 
 /**
+ * The client's courses that are published, in the client's order.
+ *
+ * The form names these and the grant holds these, so the learner shares exactly the courses they
+ * were shown (contract section 3: "for the named courses, and nothing else").
+ *
+ * @param array $client The validated client.
+ *
+ * @return int[]
+ */
+function published_courses( array $client ) {
+	return array_values(
+		array_filter(
+			$client['courses'],
+			function ( $course_id ) {
+				return 'publish' === get_post_status( $course_id );
+			}
+		)
+	);
+}
+
+/**
  * The form, in the words of contract section 3, step 2.
  *
  * @param array $request The validated request.
@@ -267,10 +288,8 @@ function consent_page( array $request ) {
 	/* translators: 1: The name of the program that asks. 2: Its web address. */
 	$html .= '<p>' . esc_html( sprintf( __( '%1$s (%2$s) asks to see your progress in these courses:', 'wporg-learn' ), $request['client']['name'], $host ) ) . '</p><ul>';
 
-	foreach ( $request['client']['courses'] as $course_id ) {
-		if ( 'publish' === get_post_status( $course_id ) ) {
-			$html .= '<li>' . esc_html( get_the_title( $course_id ) ) . '</li>';
-		}
+	foreach ( published_courses( $request['client'] ) as $course_id ) {
+		$html .= '<li>' . esc_html( get_the_title( $course_id ) ) . '</li>';
 	}
 
 	$html .= '</ul>';

@@ -27,11 +27,19 @@ $course    = get_posts(
 		'fields'      => 'ids',
 	)
 );
-$register  = function ( $clients ) use ( $client_id, $uri, $course ) {
+// A draft course in the client, which the form must not name and the grant must not hold.
+$draft    = wp_insert_post(
+	array(
+		'post_type'   => 'course',
+		'post_status' => 'draft',
+		'post_title'  => 'Learn Link test draft course',
+	)
+);
+$register = function ( $clients ) use ( $client_id, $uri, $course, $draft ) {
 	$clients[ $client_id ] = array(
 		'name'          => 'Test program',
 		'redirect_uris' => array( $uri ),
-		'courses'       => array( (int) $course[0] ),
+		'courses'       => array( (int) $course[0], (int) $draft ),
 	);
 
 	return $clients;
@@ -46,6 +54,7 @@ $valid = array(
 	'code_challenge_method' => 'S256',
 );
 
+ck( 'preconditions: the client holds one published course and one draft', array( get_post_status( $course[0] ), get_post_status( $draft ) ), array( 'publish', 'draft' ) );
 ck( 'preconditions: learner 07 exists and has no special capabilities', array( (bool) $learner, user_can( $learner, 'edit_posts' ), user_can( $learner, 'manage_options' ) ), array( true, false, false ) );
 
 /**
@@ -158,6 +167,7 @@ $words = array(
 foreach ( $words as $word ) {
 	ck( "the form says: {$word}", false !== strpos( $html, $word ), true );
 }
+ck( 'the form does not name the draft course', has( $html, 'Learn Link test draft course' ), false );
 ck( 'showing the form creates no grant', Grants\for_client( $learner->ID, $client_id ), array() );
 
 // SEC-12: POST.
@@ -201,6 +211,7 @@ $args   = location_args( $r );
 $grants = Grants\for_client( $learner->ID, $client_id );
 ck( 'I-L05 Approve: 302 to the exact client address', array( $r['status'], $r['external'], starts( $r['location'], $uri . '&' ) ), array( 302, true, true ) );
 ck( 'I-L05 Approve: a 43-character code and the same state', array( 1 === preg_match( '/^[A-Za-z0-9_-]{43}$/D', $args['code'] ), $args['state'] ), array( true, $valid['state'] ) );
+ck( 'I-L05 Approve: the grant holds the courses the form named, without the draft', get_post_meta( $grants[0], '_courses', true ), Authorize\published_courses( Clients\get( $client_id ) ) );
 ck( 'I-L05 Approve: one grant, holding the challenge and the courses', array( count( $grants ), get_post_meta( $grants[0], '_code_challenge', true ), get_post_meta( $grants[0], '_courses', true ) ), array( 1, $valid['code_challenge'], array( (int) $course[0] ) ) );
 
 Authorize\respond( 'POST', posted( $valid, 'approve' ) );
@@ -277,5 +288,6 @@ $signed_in = Authorize\respond( 'GET', array( 'view' => 'connections' ) );
 ck( 'view=connections signed in returns the view for that learner', array( $signed_in['status'], $signed_in['html'] ), array( 200, 'view of learnlink-learner-07' ) );
 
 wp_set_current_user( 0 );
+wp_delete_post( $draft, true );
 
 test_summary();
