@@ -1,0 +1,7 @@
+{
+  "code": "learn_progress_slow_down",
+  "message": "Too many requests. Try again later.",
+  "data": {
+    "status": 429
+  }
+}

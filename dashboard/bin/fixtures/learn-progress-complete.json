@@ -1,0 +1,123 @@
+{
+  "contract": "learn-progress/1",
+  "learner": {
+    "wporg_username": "adaexample"
+  },
+  "generated_at": "2026-12-05T03:00:12Z",
+  "courses": [
+    {
+      "course_id": 297853,
+      "status": "complete",
+      "enrolled_at": "2026-09-02T14:03:00Z",
+      "completed_at": "2026-12-04T16:55:20Z",
+      "progress_percent": 100,
+      "lessons": [
+        {
+          "lesson_id": 297901,
+          "status": "complete",
+          "completed_at": "2026-09-03T16:20:05Z",
+          "quiz": null
+        },
+        {
+          "lesson_id": 297902,
+          "status": "complete",
+          "completed_at": "2026-09-08T18:44:10Z",
+          "quiz": {
+            "quiz_id": 297952,
+            "status": "passed",
+            "grade_percent": 85,
+            "passmark_percent": 70,
+            "graded_at": "2026-09-08T18:44:10Z"
+          }
+        },
+        {
+          "lesson_id": 297903,
+          "status": "complete",
+          "completed_at": "2026-09-15T19:02:41Z",
+          "quiz": {
+            "quiz_id": 297953,
+            "status": "graded",
+            "grade_percent": 50,
+            "passmark_percent": null,
+            "graded_at": "2026-09-15T19:02:41Z"
+          }
+        },
+        {
+          "lesson_id": 297904,
+          "status": "complete",
+          "completed_at": "2026-09-22T17:30:00Z",
+          "quiz": null
+        },
+        {
+          "lesson_id": 297905,
+          "status": "complete",
+          "completed_at": "2026-10-20T13:05:00Z",
+          "quiz": {
+            "quiz_id": 297955,
+            "status": "passed",
+            "grade_percent": 90,
+            "passmark_percent": 70,
+            "graded_at": "2026-10-20T13:05:00Z"
+          }
+        },
+        {
+          "lesson_id": 297906,
+          "status": "complete",
+          "completed_at": "2026-10-27T18:00:00Z",
+          "quiz": {
+            "quiz_id": 297956,
+            "status": "passed",
+            "grade_percent": 80,
+            "passmark_percent": 70,
+            "graded_at": "2026-10-27T18:00:00Z"
+          }
+        },
+        {
+          "lesson_id": 297907,
+          "status": "complete",
+          "completed_at": "2026-11-10T19:45:33Z",
+          "quiz": {
+            "quiz_id": 297957,
+            "status": "passed",
+            "grade_percent": 100,
+            "passmark_percent": 70,
+            "graded_at": "2026-11-10T19:45:33Z"
+          }
+        },
+        {
+          "lesson_id": 297908,
+          "status": "complete",
+          "completed_at": "2026-12-04T16:55:20Z",
+          "quiz": null
+        }
+      ]
+    },
+    {
+      "course_id": 123456,
+      "status": "complete",
+      "enrolled_at": "2026-10-01T10:00:00Z",
+      "completed_at": "2026-11-20T21:14:09Z",
+      "progress_percent": 100,
+      "lessons": [
+        {
+          "lesson_id": 123461,
+          "status": "complete",
+          "completed_at": "2026-10-01T10:42:17Z",
+          "quiz": null
+        },
+        {
+          "lesson_id": 123462,
+          "status": "complete",
+          "completed_at": "2026-10-29T17:08:51Z",
+          "quiz": null
+        },
+        {
+          "lesson_id": 123463,
+          "status": "complete",
+          "completed_at": "2026-11-20T21:14:09Z",
+          "quiz": null
+        }
+      ]
+    }
+  ]
+}
