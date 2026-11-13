@@ -1,7 +1,8 @@
 {
   "contract": "learn-progress/1",
   "learner": {
-    "wporg_username": "adaexample"
+    "wporg_username": "adaexample",
+    "wporg_profile_slug": "adaexample"
   },
   "generated_at": "2026-10-14T09:12:33Z",
   "courses": [
@@ -38,7 +39,7 @@
             "quiz_id": 297953,
             "status": "not-taken",
             "grade_percent": null,
-            "passmark_percent": 70,
+            "passmark_percent": null,
             "graded_at": null
           }
         },
