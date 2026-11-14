@@ -4,7 +4,7 @@ The record for #26. Phase 2 is done when a test student connects on staging and 
 
 **Status:** run on 12 and 13 November 2026. The six cases passed locally on 12 November, and the four staging cases passed on 13 November. A test student connected on staging and saw their local Learn grades.
 
-The screenshots and command outputs are not kept in this repository. They are attached to the pull request for #26, and the results are summarized in the closing comment in #26.
+The screenshots and command outputs are not kept in this repository. They are attached to #43, the pull request for #26, and the results are summarized in the closing comment in #43.
 
 Invented data only. No tokens, codes or passwords in this file or in any screenshot.
 
@@ -27,11 +27,11 @@ The staging addresses end in `example.test`, so no mail reaches anyone. Check th
 
 | Person | Role |
 | --- | --- |
-| Wilberth | Coordinates, writes this file and decision record 007, and posts the results in #26 and #17 |
+| Wilberth | Coordinates, writes this file and decision record 007, and posts the results in #43 and #17 |
 | Rafael | Runs the local Learn and the tunnel |
 | Pedro | Runs the staging Dashboard and the browser cases |
 
-Wilberth records every result in this file, and posts the closing comment in #26 and the phase summary in #17.
+Wilberth records every result in this file, and posts the closing comment in #43 and the phase summary in #17.
 
 ## Schedule
 
@@ -93,6 +93,6 @@ Times are when each result was recorded, in the team's time zone (UTC-6). Stagin
 ## Closing checks
 
 - [x] The tunnel is off (13 November, 11:56).
-- [x] `WP_HOME` and `WP_SITEURL` are reverted on the local Learn, and the temporary must-use plugin is deleted.
-- [x] Both are confirmed in #43.
+- [x] `WP_HOME`, `WP_SITEURL` and the `$_SERVER['HTTPS']` line are reverted on the local Learn, and the temporary must-use plugin is deleted.
+- [x] This is confirmed in #43.
 - [x] The closing summary is posted in #17.
