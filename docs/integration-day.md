@@ -93,6 +93,6 @@ Times are when each result was recorded, in the team's time zone (UTC-6). Stagin
 ## Closing checks
 
 - [x] The tunnel is off (13 November, 11:56).
-- [ ] `WP_HOME` and `WP_SITEURL` are reverted on the local Learn, and the temporary must-use plugin is deleted.
-- [ ] Both are confirmed in #26.
-- [ ] The closing summary is posted in #17.
+- [x] `WP_HOME` and `WP_SITEURL` are reverted on the local Learn, and the temporary must-use plugin is deleted.
+- [x] Both are confirmed in #43.
+- [x] The closing summary is posted in #17.
