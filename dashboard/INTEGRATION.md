@@ -113,10 +113,12 @@ default:
  *
  * @param string $api Public Learn REST API root.
  */
-$api = (string) apply_filters( 'wpcpm_learn_api_base', self::API );
+$api = function_exists( 'apply_filters' )
+	? (string) apply_filters( 'wpcpm_learn_api_base', self::API )
+	: self::API;
 
 $response = wp_remote_get(
-	trailingslashit( $api ) . ltrim( $path, '/' ),
+	rtrim( $api, '/' ) . '/' . ltrim( $path, '/' ),
 	array(
 		'timeout'     => 5,
 		'redirection' => 3,
@@ -127,7 +129,9 @@ $response = wp_remote_get(
 The filter is registered by `WPCPM_Learn_Progress::init()` only after the
 `learn_enabled` check. Its callback converts the configured site address to its
 REST root, for example `http://localhost:8882/wp-json/`. With Learn Link off,
-the filter is absent and the existing production address is unchanged.
+the filter is absent and the existing production address is unchanged. The
+`function_exists()` fallback keeps the plugin's isolated `bin/test-learn.php`
+suite unchanged: outside WordPress, the reader continues with `WPCPM_Learn::API`.
 
 ### Block #13: register the editable withdrawal email
 
