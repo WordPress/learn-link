@@ -18,9 +18,23 @@
 }
 
 .wpcpm-learn__connect,
+.wpcpm-learn__allow,
 .wpcpm-learn__footer,
 .wpcpm-learn__updated {
 	margin-bottom: 0;
+}
+
+.wpcpm-learn__connect:focus-within,
+.wpcpm-learn__withdraw:focus-within,
+.wpcpm-learn__allow:focus-within {
+	outline: 2px solid currentColor;
+	outline-offset: 4px;
+}
+
+.wpcpm-learn .wpcpm-button:focus-visible,
+.wpcpm-learn textarea:focus-visible {
+	outline: 3px solid currentColor;
+	outline-offset: 3px;
 }
 
 .wpcpm-learn__withdraw {
