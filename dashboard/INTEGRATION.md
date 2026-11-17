@@ -37,11 +37,13 @@ From section 8.4 of the technical guide. Follow the code, not the spec, on each 
 | --- | --- | --- | --- | --- |
 | #1a | `wpcredits-program-manager.php`, `uninstall.php` | Load `class-wpcpm-learn-client.php`, `class-wpcpm-learn-progress-card.php` and `class-wpcpm-learn-progress.php` after the existing Learn and secret classes. The uninstall loader must also require `class-wpcpm-learn-progress.php`. | Pedro | P1.1/P1.3 |
 | #1b | `wpcredits-program-manager.php`, `uninstall.php` | Load `includes/modules/class-wpcpm-learn-progress-sync.php` with `require_once` alongside `class-wpcpm-learn-progress.php` in both the main plugin file and `uninstall.php`. | Rafael | R2.3 |
+| #1c | `wpcredits-program-manager.php`, `uninstall.php` | Load `includes/modules/class-wpcpm-learn-progress-mentor.php` with `require_once` right after block #1b's line, in both files. | Wilberth | W3.1 / issue #48 |
 | #2 | `includes/modules/class-wpcpm-students.php`, `WPCPM_Students::boot()`, `bin/test-students-screen.php` | Call `WPCPM_Learn_Progress::init()` after `WPCPM_Students_Dashboard::init()`, and add its no-op stub to the isolated students screen suite. | Pedro | P1.1 |
 | #3 | `includes/class-wpcpm-settings.php` | Add the five Learn Link keys to `defaults()`, the `advanced` scope and `write()`, including validation for each value. | Pedro | P1.1 |
 | #4 | `includes/class-wpcpm-settings-screen.php`, `WPCPM_Settings_Screen::render_tab_advanced()` | Add the Learn Link section and its five settings controls. | Pedro | P1.1 |
 | #5 | `includes/modules/class-wpcpm-students-dashboard.php`, `render_links()` | Render `WPCPM_Learn_Progress::panel( $student )` below the course button and hours inside the My course section. | Pedro | P1.3 |
 | #6 | `includes/modules/class-wpcpm-students-dashboard.php`, `register()` and `render()` | Register `assets/css/learn.css` after `student.css`, then enqueue it with the Student Report Card only while Learn Link is enabled. | Pedro | P1.3 |
+| #8 | `includes/modules/class-wpcpm-mentors-dashboard.php`, `WPCPM_Mentors_Dashboard::render_mentee()` | Add a "Learn" row to `$fields`, right after the Hours row, with `WPCPM_Learn_Progress_Mentor::line()` as its value, while Learn Link is enabled. | Wilberth | W3.1 / issue #48 |
 | #13 | `includes/mail/class-wpcpm-mail-catalog.php`, `includes/mail/class-wpcpm-mail-templates.php`, `includes/mail/templates/other.php`, `bin/test-mail-catalog.php`, `bin/test-mail-templates.php` | Register `learn-connection-withdrawn` as an editable student template in the Emails tool's Other area, and update the catalog, registry and source-context tests. | Pedro | P2.4 / issue #25 |
 
 ### Block #1a: Learn Link classes
@@ -97,6 +99,51 @@ if ( class_exists( 'WPCPM_Learn_Progress_Card' ) && class_exists( 'WPCPM_Learn_P
 	wp_enqueue_style( WPCPM_Learn_Progress_Card::STYLE );
 }
 ```
+
+### Block #8: the Learn line on the Mentor Report Card
+
+Written against WPCredits Program Manager **1.123.98**, where `render_mentee()`
+takes a fourth parameter, `$may_say`, and already finds the student's account
+with `WPCPM_Students_Sync::user_for_record( $record )`. Search for the method
+and for the Hours row by name, not by line number.
+
+In `WPCPM_Mentors_Dashboard::render_mentee()`, inside the `$fields` array, add
+this entry right after the Hours row, the one that ends with
+`'value' => self::logged_hours( $mentee, $student, $named ),` and `) : null,`:
+
+```php
+// Learn Link: one summary line from the local cache only (decision 2 in #2). The Mentor
+// Report Card never calls Learn. A row with no WordPress account reads "Learn: not connected".
+class_exists( 'WPCPM_Learn_Progress_Mentor' ) && WPCPM_Learn_Progress::enabled() ? array(
+	'label' => __( 'Learn', 'wpcredits-program-manager' ),
+	'value' => WPCPM_Learn_Progress_Mentor::line( $student instanceof WP_User ? (int) $student->ID : 0 ),
+) : null,
+```
+
+- The entry is `null` while `learn_enabled` is off, and `$fields` already goes
+  through `array_filter()`, as the Hours row does, so the page then has no Learn
+  row.
+- `class_exists()` comes first, as the method already does for
+  `WPCPM_Student_Flags`. The plugin's `bin/test-mentors-dashboard.php` has no
+  Learn stand-ins and stays green without a change.
+- `line()` returns plain text. `render_row()` escapes the value with
+  `esc_html()`, so the line is not escaped twice.
+- The value is never empty, so the row never shows as "Not set".
+- The line reads only `WPCPM_Learn_Progress::state_for()` and the cached
+  progress. It never calls `WPCPM_Learn_Progress_Sync::refresh()`,
+  `WPCPM_Learn_Client` or `WPCPM_Learn`, and `bin/test-learn-mentor.php` fails if
+  it does.
+
+| Student | Line |
+| --- | --- |
+| Connected with results; also "unavailable" with an older cache | Learn: 40% of the track course, 3 of 8 lessons |
+| Not connected, or no WordPress account | Learn: not connected |
+| Withdrawn | Learn: connection withdrawn |
+| "Unavailable" with no cache | Learn: no results yet |
+
+The numbers are those of the first cached course, which is the track course by
+contract section 1.4 and decision 4. Decision 2 limits the line to students who
+have a mentor, so it appears only on the Mentor Report Card.
 
 ### Block #13: register the editable withdrawal email
 
@@ -223,6 +270,24 @@ available during uninstall:
 
 ```php
 require_once plugin_dir_path( __FILE__ ) . 'includes/modules/class-wpcpm-learn-progress-sync.php';
+```
+
+### Block #1c: load the mentor line in normal and uninstall requests
+
+In `wpcredits-program-manager.php`, right after block #1b's
+`class-wpcpm-learn-progress-sync.php` line, add:
+
+```php
+require_once WPCPM_PLUGIN_DIR . 'includes/modules/class-wpcpm-learn-progress-mentor.php';
+```
+
+In `uninstall.php`, right after block #1b's line, add the same class with the
+uninstall file's path convention. The class does nothing during uninstall, but
+`bin/test-roles.php` fails when the main file loads a class that `uninstall.php`
+does not:
+
+```php
+require_once plugin_dir_path( __FILE__ ) . 'includes/modules/class-wpcpm-learn-progress-mentor.php';
 ```
 
 ### Block #2: boot the module and keep the isolated screen suite loadable
