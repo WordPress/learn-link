@@ -37,6 +37,7 @@ class WPCPM_Learn_Progress_Card {
 			<?php if ( isset( $ctx['message'] ) && is_string( $ctx['message'] ) && '' !== $ctx['message'] ) : ?>
 				<p class="wpcpm-learn__notice" role="status"><?php echo esc_html( $ctx['message'] ); ?></p>
 			<?php endif; ?>
+			<?php self::render_identity_notice( $ctx ); ?>
 			<?php
 			switch ( $state ) {
 				case 'not_connected':
@@ -76,6 +77,37 @@ class WPCPM_Learn_Progress_Card {
 		<?php
 
 		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Render an Administrator-only warning about a changed known username.
+	 *
+	 * @param array $ctx Display context for the current viewer.
+	 */
+	private static function render_identity_notice( array $ctx ) {
+		$notice   = isset( $ctx['identity_notice'] ) && is_array( $ctx['identity_notice'] )
+			? $ctx['identity_notice']
+			: array();
+		$known    = isset( $notice['known'] ) ? trim( (string) $notice['known'] ) : '';
+		$verified = isset( $notice['verified'] ) ? trim( (string) $notice['verified'] ) : '';
+
+		if ( empty( $ctx['can_manage'] ) || '' === $known || '' === $verified ) {
+			return;
+		}
+		?>
+		<p class="wpcpm-learn__notice wpcpm-learn__identity-notice" role="status">
+			<?php
+			/* translators: 1: Current WordPress.org username on the Student Report Card, 2: Username verified by Learn. */
+			echo esc_html(
+				sprintf(
+					__( "This Student Report Card's username (@%1\$s) no longer matches the Learn account it was connected with (@%2\$s). The connection is kept.", 'wpcredits-program-manager' ),
+					$known,
+					$verified
+				)
+			);
+			?>
+		</p>
+		<?php
 	}
 
 	/**
