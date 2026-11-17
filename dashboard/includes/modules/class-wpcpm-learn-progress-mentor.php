@@ -80,6 +80,51 @@ class WPCPM_Learn_Progress_Mentor {
 	}
 
 	/**
+	 * The Learn facet of a student for the Mentor Report Card's triage.
+	 *
+	 * Read from state_for() alone, so it agrees with line(): a student is
+	 * `connected` while the Dashboard holds their token, whatever their results,
+	 * including when Learn did not answer.
+	 *
+	 * @param int $student_id Student user ID, or 0 when the row has no account.
+	 * @return string `connected`, `not_connected` or `withdrawn`.
+	 */
+	public static function facet( $student_id ) {
+		$student_id = (int) $student_id;
+
+		if ( 0 >= $student_id ) {
+			return 'not_connected';
+		}
+
+		$state = WPCPM_Learn_Progress::state_for( $student_id );
+
+		if ( 'withdrawn' === $state || 'not_connected' === $state ) {
+			return $state;
+		}
+
+		return 'connected';
+	}
+
+	/**
+	 * The words a mentor can search for to find a student by their Learn state.
+	 *
+	 * Empty for a connected student, so a search for "not connected" never
+	 * matches one. Lowercase, as the triage search compares.
+	 *
+	 * @param int $student_id Student user ID, or 0 when the row has no account.
+	 * @return string
+	 */
+	public static function search_words( $student_id ) {
+		if ( 'connected' === self::facet( $student_id ) ) {
+			return '';
+		}
+
+		$line = self::line( $student_id );
+
+		return function_exists( 'mb_strtolower' ) ? mb_strtolower( $line ) : strtolower( $line );
+	}
+
+	/**
 	 * The first cached course, which is the track course.
 	 *
 	 * Contract section 1.4 keeps the list in a fixed order with the track course
