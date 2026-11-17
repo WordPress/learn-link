@@ -230,6 +230,18 @@ function __( $text ) {
 }
 
 /**
+ * Select one singular or plural source string.
+ *
+ * @param string $single Singular source string.
+ * @param string $plural Plural source string.
+ * @param int    $number Number that controls the plural.
+ * @return string
+ */
+function _n( $single, $plural, $number ) {
+	return 1 === (int) $number ? $single : $plural;
+}
+
+/**
  * Escape text for HTML.
  *
  * @param mixed $text Source value.
@@ -635,6 +647,42 @@ wpcpm_card_check( 'a fixture lesson outside every module goes under Other lesson
 
 $wpcpm_card_flat = WPCPM_Learn_Progress_Card::render( 'in_progress', $wpcpm_card_progress_data, array(), $wpcpm_card_context );
 wpcpm_card_check( 'missing structure keeps the flat lesson table', false === strpos( $wpcpm_card_flat, 'wpcpm-learn__module' ) && false !== strpos( $wpcpm_card_flat, '>Lesson 11</th>' ), true );
+
+$wpcpm_card_single_lesson_data = array(
+	'generated_at' => gmmktime( 9, 12, 0, 10, 18, 2026 ),
+	'courses'      => array(
+		297853 => array(
+			'status'       => 'in-progress',
+			'enrolled_at'  => gmmktime( 0, 0, 0, 9, 1, 2026 ),
+			'completed_at' => null,
+			'percent'      => 100,
+			'lessons'      => array(
+				array( 'id' => 11, 'status' => 'complete', 'quiz' => null ),
+			),
+		),
+	),
+);
+$wpcpm_card_single_lesson_structure = array(
+	array(
+		'id'      => 101,
+		'title'   => 'One lesson module',
+		'lessons' => array( array( 'id' => 11, 'title' => 'Only lesson' ) ),
+	),
+);
+$wpcpm_card_single_lesson = WPCPM_Learn_Progress_Card::render(
+	'in_progress',
+	$wpcpm_card_single_lesson_data,
+	$wpcpm_card_single_lesson_structure,
+	$wpcpm_card_context
+);
+wpcpm_card_check( 'one course lesson uses the singular form', 2, substr_count( $wpcpm_card_single_lesson, '>1 of 1 lesson</p>' ) );
+wpcpm_card_check( 'one course lesson never uses the plural form', false === strpos( $wpcpm_card_single_lesson, '>1 of 1 lessons</p>' ), true );
+wpcpm_card_check( 'several lessons keep the plural form', false !== strpos( $wpcpm_card_in_progress, '>2 of 6 lessons</p>' ), true );
+
+$wpcpm_card_css = (string) file_get_contents( WPCPM_PLUGIN_DIR . 'assets/css/learn.css' );
+wpcpm_card_check( 'the three Learn forms expose a focus-within outline', substr_count( $wpcpm_card_css, ':focus-within' ), 3 );
+wpcpm_card_check( 'buttons and the withdrawal reason expose focus-visible outlines', substr_count( $wpcpm_card_css, ':focus-visible' ), 2 );
+wpcpm_card_check( 'focus styles inherit a contrasting theme color', false !== strpos( $wpcpm_card_css, 'solid currentColor' ), true );
 
 $wpcpm_card_missing_override = WPCPM_Learn_Progress_Card::render(
 	'in_progress',
