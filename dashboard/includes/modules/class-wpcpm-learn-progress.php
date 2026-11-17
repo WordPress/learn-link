@@ -279,19 +279,157 @@ class WPCPM_Learn_Progress {
 			$data = array();
 		}
 
+		$structures    = array();
+		$course_titles = array();
+
+		if ( in_array( $state, array( 'in_progress', 'complete', 'unavailable' ), true ) && ! empty( $data['courses'] ) ) {
+			foreach ( array_keys( $data['courses'] ) as $course_id ) {
+				$course_id = absint( $course_id );
+
+				if ( 1 > $course_id ) {
+					continue;
+				}
+
+				$structures[ $course_id ]    = $is_owner
+					? self::structure_for( $course_id )
+					: self::cached_structure_for( $course_id );
+				$course_titles[ $course_id ] = $is_owner
+					? self::course_title_for( $course_id )
+					: self::cached_course_title_for( $course_id );
+			}
+		}
+
 		return WPCPM_Learn_Progress_Card::render(
 			$state,
 			$data,
-			array(),
+			$structures,
 			array(
-				'is_owner'     => $is_owner,
-				'can_manage'   => current_user_can( WPCPM_Roles::CAP_MANAGE ),
-				'student_id'   => $student_id,
-				'message'      => self::outcome_message( WPCPM_Flash::take( self::FLASH ) ),
-				'connected_at' => (int) get_user_meta( $student_id, self::META_CONNECTED, true ),
-				'withdrawn_at' => (int) get_user_meta( $student_id, self::META_WITHDRAWN_AT, true ),
+				'is_owner'         => $is_owner,
+				'can_manage'       => current_user_can( WPCPM_Roles::CAP_MANAGE ),
+				'student_id'       => $student_id,
+				'message'          => self::outcome_message( WPCPM_Flash::take( self::FLASH ) ),
+				'connected_at'     => (int) get_user_meta( $student_id, self::META_CONNECTED, true ),
+				'withdrawn_at'     => (int) get_user_meta( $student_id, self::META_WITHDRAWN_AT, true ),
+				'course_titles'    => $course_titles,
+				'expected_courses' => self::configured_course_ids(),
 			)
 		);
+	}
+
+	/**
+	 * Read one course structure through the plugin's daily Learn cache.
+	 *
+	 * @param int $course_id Learn course post ID.
+	 * @return array
+	 */
+	public static function structure_for( $course_id ) {
+		$course_id = absint( $course_id );
+
+		if ( 1 > $course_id || ! class_exists( 'WPCPM_Learn' ) ) {
+			return array();
+		}
+
+		$structure = WPCPM_Learn::structure( $course_id );
+
+		return is_array( $structure ) ? $structure : array();
+	}
+
+	/**
+	 * Resolve one track course's title through the plugin's daily Learn cache.
+	 *
+	 * @param int $course_id Learn course post ID.
+	 * @return string
+	 */
+	public static function course_title_for( $course_id ) {
+		$course_id = absint( $course_id );
+
+		if ( 1 > $course_id || ! class_exists( 'WPCPM_Learn' ) || ! class_exists( 'WPCPM_Program' ) ) {
+			return '';
+		}
+
+		$url = self::course_url_for( $course_id );
+
+		if ( '' === $url ) {
+			return '';
+		}
+
+		$course = WPCPM_Learn::resolve( $url );
+
+		return is_array( $course ) && isset( $course['title'] )
+			? trim( (string) $course['title'] )
+			: '';
+	}
+
+	/**
+	 * Read a structure only when the plugin's daily cache already has it.
+	 *
+	 * @param int $course_id Learn course post ID.
+	 * @return array
+	 */
+	private static function cached_structure_for( $course_id ) {
+		$structure = get_transient( 'wpcpm_learn_structure_' . absint( $course_id ) );
+
+		return is_array( $structure ) ? $structure : array();
+	}
+
+	/**
+	 * Read a course title only when the plugin's daily cache already has it.
+	 *
+	 * @param int $course_id Learn course post ID.
+	 * @return string
+	 */
+	private static function cached_course_title_for( $course_id ) {
+		if ( ! class_exists( 'WPCPM_Learn' ) ) {
+			return '';
+		}
+
+		$url  = self::course_url_for( $course_id );
+		$slug = '' !== $url ? WPCPM_Learn::slug( $url ) : '';
+
+		if ( '' === $slug ) {
+			return '';
+		}
+
+		$course = get_transient( 'wpcpm_learn_course_' . $slug );
+
+		return is_array( $course ) && isset( $course['title'] )
+			? trim( (string) $course['title'] )
+			: '';
+	}
+
+	/**
+	 * Find the program course URL that belongs to one Learn course ID.
+	 *
+	 * @param int $course_id Learn course post ID.
+	 * @return string
+	 */
+	private static function course_url_for( $course_id ) {
+		if ( ! class_exists( 'WPCPM_Program' ) ) {
+			return '';
+		}
+
+		foreach ( WPCPM_Program::course_ids() as $status => $known_course_id ) {
+			if ( (int) $course_id === (int) $known_course_id ) {
+				return trim( (string) WPCPM_Program::course_url( $status ) );
+			}
+		}
+
+		return '';
+	}
+
+	/**
+	 * Return the local or staging course override in its configured order.
+	 *
+	 * @return int[]
+	 */
+	private static function configured_course_ids() {
+		$override = trim( self::settings()['learn_courses'] );
+
+		if ( '' === $override ) {
+			return array();
+		}
+
+		return array_values( array_filter( array_map( 'absint', explode( ',', $override ) ) ) );
 	}
 
 	/**

@@ -63,6 +63,19 @@
 	margin: 0 0 0.75em;
 }
 
+.wpcpm-learn__module {
+	margin-top: 1.25em;
+}
+
+.wpcpm-learn__module h6 {
+	font-size: 0.95em;
+	margin: 0 0 0.35em;
+}
+
+.wpcpm-learn__module > p {
+	margin: 0;
+}
+
 .wpcpm-learn__bar {
 	accent-color: currentColor;
 	display: block;
