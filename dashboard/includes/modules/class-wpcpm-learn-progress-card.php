@@ -203,11 +203,8 @@ class WPCPM_Learn_Progress_Card {
 	/**
 	 * Render the numeric picture shared by connected states.
 	 *
-	 * Phase 1 uses a flat lesson count. Module grouping and multiple configured
-	 * course titles are added in Phase 3 without changing this public renderer.
-	 *
 	 * @param array $data      Normalized progress data.
-	 * @param array $structure Modules returned by WPCPM_Learn::structure().
+	 * @param array $structure Structures keyed by course ID, or one legacy module list.
 	 * @param array $ctx       Display context, including optional course titles.
 	 */
 	private static function render_progress( array $data, array $structure, array $ctx ) {
@@ -228,8 +225,9 @@ class WPCPM_Learn_Progress_Card {
 				}
 			}
 
-			$title      = self::course_title( $ctx, $course_id );
-			$heading_id = 'wpcpm-learn-course-' . absint( $course_id );
+			$course_structure = self::course_structure( $structure, $course_id );
+			$title            = self::course_title( $ctx, $course_id );
+			$heading_id       = 'wpcpm-learn-course-' . absint( $course_id );
 			?>
 			<section class="wpcpm-learn__course">
 				<h5 id="<?php echo esc_attr( $heading_id ); ?>"><?php echo esc_html( $title ); ?></h5>
@@ -243,9 +241,142 @@ class WPCPM_Learn_Progress_Card {
 				<progress class="wpcpm-learn__bar" aria-labelledby="<?php echo esc_attr( $heading_id ); ?>" max="100" value="<?php echo esc_attr( $percent ); ?>"><?php /* translators: %d: Course completion percentage. */ echo esc_html( sprintf( __( '%d%% of the course', 'wpcredits-program-manager' ), $percent ) ); ?></progress>
 				<p class="wpcpm-learn__percent"><?php /* translators: %d: Course completion percentage. */ echo esc_html( sprintf( __( '%d%%', 'wpcredits-program-manager' ), $percent ) ); ?></p>
 				<p><?php /* translators: 1: Number of completed lessons, 2: Total number of lessons. */ echo esc_html( sprintf( __( '%1$d of %2$d lessons', 'wpcredits-program-manager' ), $done, count( $lessons ) ) ); ?></p>
-				<?php self::render_lessons( $lessons, $structure ); ?>
+				<?php
+				if ( empty( $course_structure ) ) {
+					self::render_lessons( $lessons, array() );
+				} else {
+					self::render_modules( $lessons, $course_structure );
+				}
+				?>
 			</section>
 			<?php
+		}
+
+		self::render_missing_courses( $courses, $ctx );
+	}
+
+	/**
+	 * Select one course's module list while accepting the Phase 1 shape.
+	 *
+	 * @param array $structures Structures keyed by course ID, or one module list.
+	 * @param mixed $course_id  Learn course ID.
+	 * @return array
+	 */
+	private static function course_structure( array $structures, $course_id ) {
+		if ( isset( $structures[ $course_id ] ) && is_array( $structures[ $course_id ] ) ) {
+			return $structures[ $course_id ];
+		}
+
+		$first = reset( $structures );
+
+		return is_array( $first ) && isset( $first['lessons'] ) ? $structures : array();
+	}
+
+	/**
+	 * Render lessons grouped in Learn's module order.
+	 *
+	 * @param array $lessons   Normalized progress lessons.
+	 * @param array $structure Modules returned by WPCPM_Learn::structure().
+	 */
+	private static function render_modules( array $lessons, array $structure ) {
+		$by_id    = array();
+		$assigned = array();
+		$other    = array();
+
+		foreach ( $lessons as $lesson ) {
+			if ( is_array( $lesson ) && ! empty( $lesson['id'] ) ) {
+				$by_id[ absint( $lesson['id'] ) ] = $lesson;
+			}
+		}
+
+		foreach ( $structure as $module ) {
+			if ( ! is_array( $module ) ) {
+				continue;
+			}
+
+			$module_lessons = isset( $module['lessons'] ) && is_array( $module['lessons'] ) ? $module['lessons'] : array();
+			$rows           = array();
+
+			foreach ( $module_lessons as $known_lesson ) {
+				$lesson_id = isset( $known_lesson['id'] ) ? absint( $known_lesson['id'] ) : 0;
+
+				if ( 0 < $lesson_id ) {
+					$assigned[ $lesson_id ] = true;
+				}
+
+				if ( isset( $by_id[ $lesson_id ] ) ) {
+					$rows[] = $by_id[ $lesson_id ];
+				}
+			}
+
+			$title = isset( $module['title'] ) ? trim( (string) $module['title'] ) : '';
+
+			if ( '' === $title || 0 === ( isset( $module['id'] ) ? (int) $module['id'] : 0 ) ) {
+				$other = array_merge( $other, $rows );
+				continue;
+			}
+
+			self::render_module( $title, $rows, count( $module_lessons ), $structure );
+		}
+
+		foreach ( $by_id as $lesson_id => $lesson ) {
+			if ( ! isset( $assigned[ $lesson_id ] ) ) {
+				$other[] = $lesson;
+			}
+		}
+
+		if ( ! empty( $other ) ) {
+			self::render_module( __( 'Other lessons', 'wpcredits-program-manager' ), $other, count( $other ), $structure );
+		}
+	}
+
+	/**
+	 * Render one module heading, count and lesson table.
+	 *
+	 * @param string $title     Module title.
+	 * @param array  $lessons   Progress lessons in this module.
+	 * @param int    $total     Published lessons in the module.
+	 * @param array  $structure Full course structure for lesson titles.
+	 */
+	private static function render_module( $title, array $lessons, $total, array $structure ) {
+		$done = 0;
+
+		foreach ( $lessons as $lesson ) {
+			if ( isset( $lesson['status'] ) && 'complete' === $lesson['status'] ) {
+				++$done;
+			}
+		}
+		?>
+		<section class="wpcpm-learn__module">
+			<h6><?php echo esc_html( $title ); ?></h6>
+			<p><?php /* translators: 1: Number of completed lessons, 2: Total lessons in the module. */ echo esc_html( sprintf( __( '%1$d of %2$d lessons', 'wpcredits-program-manager' ), $done, absint( $total ) ) ); ?></p>
+			<?php self::render_lessons( $lessons, $structure ); ?>
+		</section>
+		<?php
+	}
+
+	/**
+	 * Explain configured override courses that Learn omitted from its answer.
+	 *
+	 * @param array $courses Courses returned by Learn.
+	 * @param array $ctx     Display context with expected course IDs.
+	 */
+	private static function render_missing_courses( array $courses, array $ctx ) {
+		$expected = isset( $ctx['expected_courses'] ) && is_array( $ctx['expected_courses'] )
+			? $ctx['expected_courses']
+			: array();
+
+		foreach ( $expected as $course_id ) {
+			$course_id = absint( $course_id );
+
+			if ( 0 < $course_id && ! isset( $courses[ $course_id ] ) ) {
+				?>
+				<section class="wpcpm-learn__course wpcpm-learn__course--missing">
+					<h5><?php echo esc_html( self::course_title( $ctx, $course_id ) ); ?></h5>
+					<p><?php echo esc_html__( 'This course is not part of your track on Learn.', 'wpcredits-program-manager' ); ?></p>
+				</section>
+				<?php
+			}
 		}
 	}
 
