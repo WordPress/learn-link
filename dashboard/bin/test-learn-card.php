@@ -472,6 +472,22 @@ $wpcpm_card_nothing_started = WPCPM_Learn_Progress_Card::render(
 wpcpm_card_check( 'nothing started names the connection date', false !== strpos( $wpcpm_card_nothing_started, 'Connected on October 16, 2026.' ), true );
 wpcpm_card_check( 'nothing started has its own message', false !== strpos( $wpcpm_card_nothing_started, 'You have not started the course yet.' ), true );
 
+$wpcpm_card_nothing_started_missing = WPCPM_Learn_Progress_Card::render(
+	'nothing_started',
+	array(
+		'courses' => array(
+			297853 => array( 'status' => 'not-started' ),
+		),
+	),
+	array(),
+	array(
+		'course_titles'    => array( 123456 => 'Foundation course' ),
+		'expected_courses' => array( 297853, 123456 ),
+	)
+);
+wpcpm_card_check( 'nothing started keeps an omitted override course title', false !== strpos( $wpcpm_card_nothing_started_missing, '<h5>Foundation course</h5>' ), true );
+wpcpm_card_check( 'nothing started explains an omitted override course', false !== strpos( $wpcpm_card_nothing_started_missing, 'This course is not part of your track on Learn.' ), true );
+
 $wpcpm_card_nothing_started_dateless = WPCPM_Learn_Progress_Card::render( 'nothing_started', array(), array(), array() );
 wpcpm_card_check( 'nothing started without a date uses a complete dateless sentence', false !== strpos( $wpcpm_card_nothing_started_dateless, 'You are connected, but you have not started the course yet.' ), true );
 wpcpm_card_check( 'a missing connection date never prints the Unix epoch', false === strpos( $wpcpm_card_nothing_started_dateless, '1970' ), true );
@@ -841,6 +857,47 @@ foreach ( $wpcpm_card_cached_examples as $wpcpm_card_fixture => $wpcpm_card_expe
 		array()
 	);
 }
+
+$GLOBALS['wpcpm_card_settings']['learn_courses'] = '297853,123456';
+WPCPM_Program::$course_ids['Foundation course']  = 123456;
+WPCPM_Program::$course_urls['Foundation course'] = 'https://learn.wordpress.org/course/foundation-course/';
+$GLOBALS['wpcpm_card_resolved_courses']['https://learn.wordpress.org/course/foundation-course/'] = array(
+	'id'    => 123456,
+	'title' => 'Foundation course',
+);
+$wpcpm_card_missing_course_cache = wpcpm_card_cached_fixture( 'learn-progress-not-started.json' );
+unset( $wpcpm_card_missing_course_cache['courses'][123456] );
+$GLOBALS['wpcpm_card_meta'][42][ WPCPM_Learn_Progress::META_CACHE ] = $wpcpm_card_missing_course_cache;
+$GLOBALS['wpcpm_card_structure_calls']                              = array();
+$GLOBALS['wpcpm_card_resolve_calls']                                = array();
+$wpcpm_card_nothing_started_panel                                   = WPCPM_Learn_Progress::panel( $wpcpm_card_student );
+
+wpcpm_card_check( 'nothing-started panel explains an omitted override course', false !== strpos( $wpcpm_card_nothing_started_panel, 'This course is not part of your track on Learn.' ), true );
+wpcpm_card_check( 'nothing-started panel resolves the omitted override course title', false !== strpos( $wpcpm_card_nothing_started_panel, '<h5>Foundation course</h5>' ), true );
+wpcpm_card_check( 'nothing-started panel reads structure only for a returned course', $GLOBALS['wpcpm_card_structure_calls'], array( 297853 ) );
+wpcpm_card_check(
+	'nothing-started panel resolves returned and omitted course titles',
+	$GLOBALS['wpcpm_card_resolve_calls'],
+	array(
+		'https://learn.wordpress.org/course/developer-track/',
+		'https://learn.wordpress.org/course/foundation-course/',
+	)
+);
+
+$GLOBALS['wpcpm_card_current_user_id'] = 7;
+$GLOBALS['wpcpm_card_can_manage']      = true;
+$GLOBALS['wpcpm_card_structure_calls'] = array();
+$GLOBALS['wpcpm_card_resolve_calls']   = array();
+$wpcpm_card_nothing_started_manager    = WPCPM_Learn_Progress::panel( $wpcpm_card_student );
+
+wpcpm_card_check( 'Administrator sees an omitted course while nothing is started', false !== strpos( $wpcpm_card_nothing_started_manager, 'This course is not part of your track on Learn.' ), true );
+wpcpm_card_check( 'Administrator nothing-started view makes no structure read', $GLOBALS['wpcpm_card_structure_calls'], array() );
+wpcpm_card_check( 'Administrator nothing-started view makes no title read', $GLOBALS['wpcpm_card_resolve_calls'], array() );
+
+$GLOBALS['wpcpm_card_settings']['learn_courses'] = '297853';
+$GLOBALS['wpcpm_card_current_user_id']           = 42;
+$GLOBALS['wpcpm_card_can_manage']                = false;
+unset( WPCPM_Program::$course_ids['Foundation course'], WPCPM_Program::$course_urls['Foundation course'] );
 
 $wpcpm_card_stale_cache                                               = $wpcpm_card_fresh_cache;
 $wpcpm_card_stale_cache['fetched_at']                                 = time() - ( 7 * 3600 );

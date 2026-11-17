@@ -44,6 +44,10 @@ class WPCPM_Learn_Progress_Card {
 					break;
 				case 'nothing_started':
 					self::render_nothing_started( $ctx );
+					self::render_missing_courses(
+						isset( $data['courses'] ) && is_array( $data['courses'] ) ? $data['courses'] : array(),
+						$ctx
+					);
 					break;
 				case 'in_progress':
 					self::render_progress( $data, $structure, $ctx );
