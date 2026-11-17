@@ -134,6 +134,8 @@ class WPCPM_Settings {
 }
 
 class WPCPM_Learn {
+	const API = 'https://learn.wordpress.org/wp-json/';
+
 	public static function structure( $course_id ) {
 		$course_id = (int) $course_id;
 		$GLOBALS['wpcpm_learn_structure_calls'][] = $course_id;
@@ -644,6 +646,8 @@ WPCPM_Learn_Progress::init();
 $wpcpm_learn_disabled_output = ob_get_clean();
 wpcpm_learn_check( 'disabled prints nothing', $wpcpm_learn_disabled_output, '' );
 wpcpm_learn_check( 'disabled registers no handlers', $GLOBALS['wpcpm_learn_test_actions'], array() );
+wpcpm_learn_check( 'disabled registers no Learn API filter', $GLOBALS['wpcpm_learn_test_filters'], array() );
+wpcpm_learn_check( 'disabled leaves the public Learn API unchanged', WPCPM_Learn_Progress::learn_api_base( WPCPM_Learn::API ), WPCPM_Learn::API );
 wpcpm_learn_check( 'disabled does not start sync', $GLOBALS['wpcpm_learn_sync_calls'], 0 );
 
 $GLOBALS['wpcpm_learn_test_settings'] = array(
@@ -668,6 +672,7 @@ wpcpm_learn_check(
 
 $GLOBALS['wpcpm_learn_test_settings']['learn_courses'] = array( 297853, 301001 );
 wpcpm_learn_check( 'a saved course ID list becomes stable text', WPCPM_Learn_Progress::settings()['learn_courses'], '297853,301001' );
+wpcpm_learn_check( 'the enabled module points public Learn reads at the configured site', WPCPM_Learn_Progress::learn_api_base( WPCPM_Learn::API ), 'http://localhost:8882/wp-json/' );
 
 $wpcpm_learn_modules = array(
 	array(
@@ -1226,6 +1231,11 @@ wpcpm_learn_check( 'a signed-out callback uses the WordPress login flow', $GLOBA
 
 WPCPM_Learn_Progress::init();
 wpcpm_learn_check( 'enabled starts sync once', $GLOBALS['wpcpm_learn_sync_calls'], 1 );
+wpcpm_learn_check(
+	'enabled registers the Learn API base filter',
+	$GLOBALS['wpcpm_learn_test_filters']['wpcpm_learn_api_base'],
+	array( 'WPCPM_Learn_Progress', 'learn_api_base' )
+);
 wpcpm_learn_check(
 	'enabled registers only its five handlers',
 	array_keys( $GLOBALS['wpcpm_learn_test_actions'] ),

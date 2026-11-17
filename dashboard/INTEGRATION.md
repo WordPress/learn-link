@@ -42,6 +42,7 @@ From section 8.4 of the technical guide. Follow the code, not the spec, on each 
 | #4 | `includes/class-wpcpm-settings-screen.php`, `WPCPM_Settings_Screen::render_tab_advanced()` | Add the Learn Link section and its five settings controls. | Pedro | P1.1 |
 | #5 | `includes/modules/class-wpcpm-students-dashboard.php`, `render_links()` | Render `WPCPM_Learn_Progress::panel( $student )` below the course button and hours inside the My course section. | Pedro | P1.3 |
 | #6 | `includes/modules/class-wpcpm-students-dashboard.php`, `register()` and `render()` | Register `assets/css/learn.css` after `student.css`, then enqueue it with the Student Report Card only while Learn Link is enabled. | Pedro | P1.3 |
+| #11 | `includes/class-wpcpm-learn.php`, `WPCPM_Learn::get()` | Apply `wpcpm_learn_api_base` to the public REST API root, with `WPCPM_Learn::API` as the default. The Learn Link module points it at the configured `learn_base_url` only while the feature is enabled. | Pedro | P3.2 / issue #46 |
 | #13 | `includes/mail/class-wpcpm-mail-catalog.php`, `includes/mail/class-wpcpm-mail-templates.php`, `includes/mail/templates/other.php`, `bin/test-mail-catalog.php`, `bin/test-mail-templates.php` | Register `learn-connection-withdrawn` as an editable student template in the Emails tool's Other area, and update the catalog, registry and source-context tests. | Pedro | P2.4 / issue #25 |
 
 ### Block #1a: Learn Link classes
@@ -97,6 +98,36 @@ if ( class_exists( 'WPCPM_Learn_Progress_Card' ) && class_exists( 'WPCPM_Learn_P
 	wp_enqueue_style( WPCPM_Learn_Progress_Card::STYLE );
 }
 ```
+
+### Block #11: configurable public Learn API root
+
+`WPCPM_Learn` normally reads the public API on `learn.wordpress.org`. Learn Link
+also runs against local and staging Learn sites, whose address already lives in
+the validated `learn_base_url` setting. In `WPCPM_Learn::get()`, replace the
+fixed API concatenation with a filtered root while keeping the constant as the
+default:
+
+```php
+/**
+ * Filters the public Learn REST API root.
+ *
+ * @param string $api Public Learn REST API root.
+ */
+$api = (string) apply_filters( 'wpcpm_learn_api_base', self::API );
+
+$response = wp_remote_get(
+	trailingslashit( $api ) . ltrim( $path, '/' ),
+	array(
+		'timeout'     => 5,
+		'redirection' => 3,
+	)
+);
+```
+
+The filter is registered by `WPCPM_Learn_Progress::init()` only after the
+`learn_enabled` check. Its callback converts the configured site address to its
+REST root, for example `http://localhost:8882/wp-json/`. With Learn Link off,
+the filter is absent and the existing production address is unchanged.
 
 ### Block #13: register the editable withdrawal email
 

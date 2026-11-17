@@ -40,6 +40,8 @@ class WPCPM_Learn_Progress {
 			return;
 		}
 
+		add_filter( 'wpcpm_learn_api_base', array( __CLASS__, 'learn_api_base' ) );
+
 		if ( class_exists( 'WPCPM_Learn_Progress_Sync' ) ) {
 			WPCPM_Learn_Progress_Sync::init();
 		}
@@ -79,6 +81,27 @@ class WPCPM_Learn_Progress {
 			'learn_courses'     => (string) $courses,
 			'learn_cache_hours' => (int) WPCPM_Settings::get_value( 'learn_cache_hours', 6 ),
 		);
+	}
+
+	/**
+	 * Point the plugin's public Learn reader at the configured Learn site.
+	 *
+	 * The filter is registered only while Learn Link is enabled. Keeping the
+	 * defensive switch check here also makes a direct callback invocation safe.
+	 *
+	 * @param string $api Default public Learn REST API root.
+	 * @return string
+	 */
+	public static function learn_api_base( $api ) {
+		if ( ! self::enabled() ) {
+			return (string) $api;
+		}
+
+		$base_url = trim( self::settings()['learn_base_url'] );
+
+		return '' === $base_url
+			? (string) $api
+			: untrailingslashit( $base_url ) . '/wp-json/';
 	}
 
 	/**
@@ -279,10 +302,11 @@ class WPCPM_Learn_Progress {
 			$data = array();
 		}
 
-		$structures    = array();
-		$course_titles = array();
+		$structures       = array();
+		$course_titles    = array();
+		$expected_courses = self::configured_course_ids();
 
-		if ( in_array( $state, array( 'in_progress', 'complete', 'unavailable' ), true ) && ! empty( $data['courses'] ) ) {
+		if ( in_array( $state, array( 'nothing_started', 'in_progress', 'complete', 'unavailable' ), true ) && ! empty( $data['courses'] ) ) {
 			foreach ( array_keys( $data['courses'] ) as $course_id ) {
 				$course_id = absint( $course_id );
 
@@ -290,9 +314,20 @@ class WPCPM_Learn_Progress {
 					continue;
 				}
 
-				$structures[ $course_id ]    = $is_owner
+				$structures[ $course_id ] = $is_owner
 					? self::structure_for( $course_id )
 					: self::cached_structure_for( $course_id );
+			}
+
+			$title_course_ids = array_unique( array_merge( array_keys( $data['courses'] ), $expected_courses ) );
+
+			foreach ( $title_course_ids as $course_id ) {
+				$course_id = absint( $course_id );
+
+				if ( 1 > $course_id ) {
+					continue;
+				}
+
 				$course_titles[ $course_id ] = $is_owner
 					? self::course_title_for( $course_id )
 					: self::cached_course_title_for( $course_id );
@@ -311,7 +346,7 @@ class WPCPM_Learn_Progress {
 				'connected_at'     => (int) get_user_meta( $student_id, self::META_CONNECTED, true ),
 				'withdrawn_at'     => (int) get_user_meta( $student_id, self::META_WITHDRAWN_AT, true ),
 				'course_titles'    => $course_titles,
-				'expected_courses' => self::configured_course_ids(),
+				'expected_courses' => $expected_courses,
 			)
 		);
 	}
