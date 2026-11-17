@@ -62,7 +62,7 @@ function render_view( \WP_User $user ): string {
 
 	$html .= '<p>' . esc_html__( 'Only a program Administrator can withdraw a connection. To stop sharing your progress, ask an Administrator of that program.', 'wporg-learn' ) . '</p>';
 
-	return Authorize\document( 200, $html )['html'];
+	return Authorize\document( 200, $html, __( 'Your connections', 'wporg-learn' ) )['html'];
 }
 
 /**
@@ -203,7 +203,9 @@ function profile_table( \WP_User $user ): string {
 	}
 
 	$html .= '<p>' . esc_html__( 'Withdrawing stops the program from reading this learner\'s progress. The program sees the connection as withdrawn on its next read. No email is sent.', 'wporg-learn' ) . '</p>';
-	$html .= '<table class="widefat striped"><thead><tr>';
+	/* translators: %s: The learner's username. */
+	$caption = sprintf( __( 'Learn Link connections of @%s', 'wporg-learn' ), $user->user_login );
+	$html   .= '<table class="widefat striped"><caption class="screen-reader-text">' . esc_html( $caption ) . '</caption><thead><tr>';
 
 	foreach ( array( __( 'Program', 'wporg-learn' ), __( 'Courses', 'wporg-learn' ), __( 'Connected on', 'wporg-learn' ), __( 'Last read', 'wporg-learn' ), __( 'Status', 'wporg-learn' ) ) as $heading ) {
 		$html .= '<th scope="col">' . esc_html( $heading ) . '</th>';
@@ -221,9 +223,10 @@ function profile_table( \WP_User $user ): string {
 			/* translators: %s: The date of the withdrawal. */
 			$html .= esc_html( sprintf( __( 'Withdrawn on Learn on %s', 'wporg-learn' ), format_date( $entry['revoked_at'] ) ) );
 		} else {
-			$html .= '<button type="submit" class="button" form="' . esc_attr( form_id( $entry['grant'] ) ) . '">';
 			/* translators: %s: The name of the program. */
-			$html .= esc_html__( 'Withdraw', 'wporg-learn' ) . '<span class="screen-reader-text"> ' . esc_html( sprintf( __( 'the connection to %s', 'wporg-learn' ), $entry['program'] ) ) . '</span></button>';
+			$label = sprintf( __( 'Withdraw the connection to %s', 'wporg-learn' ), $entry['program'] );
+			$html .= '<button type="submit" class="button" form="' . esc_attr( form_id( $entry['grant'] ) ) . '" aria-label="' . esc_attr( $label ) . '">';
+			$html .= esc_html__( 'Withdraw', 'wporg-learn' ) . '</button>';
 
 			$GLOBALS['learn_progress_revoke_forms'][ $entry['grant'] ] = (int) $user->ID;
 		}
