@@ -17,6 +17,7 @@ class WPCPM_Learn_Progress {
 	const META_TOKEN          = '_wpcpm_learn_token';
 	const META_CONNECTED      = '_wpcpm_learn_connected_at';
 	const META_USERNAME       = '_wpcpm_learn_username';
+	const META_PROFILE_SLUG   = '_wpcpm_learn_profile_slug';
 	const META_CACHE          = '_wpcpm_learn_cache';
 	const META_ERROR          = '_wpcpm_learn_last_error';
 	const META_WITHDRAWN_AT   = '_wpcpm_learn_withdrawn_at';
@@ -280,6 +281,7 @@ class WPCPM_Learn_Progress {
 
 		$student_id = (int) $student->ID;
 		$is_owner   = get_current_user_id() === $student_id;
+		$can_manage = current_user_can( WPCPM_Roles::CAP_MANAGE );
 		$cache      = get_user_meta( $student_id, self::META_CACHE, true );
 
 		if (
@@ -305,6 +307,7 @@ class WPCPM_Learn_Progress {
 		$structures       = array();
 		$course_titles    = array();
 		$expected_courses = self::configured_course_ids();
+		$identity_notice  = array();
 
 		if ( in_array( $state, array( 'nothing_started', 'in_progress', 'complete', 'unavailable' ), true ) && ! empty( $data['courses'] ) ) {
 			foreach ( array_keys( $data['courses'] ) as $course_id ) {
@@ -334,19 +337,29 @@ class WPCPM_Learn_Progress {
 			}
 		}
 
+		if ( $can_manage && self::identity_changed( $student_id ) ) {
+			$program = get_user_meta( $student_id, 'wpcpm_student_program', true );
+
+			$identity_notice = array(
+				'known'    => isset( $program['username'] ) ? (string) $program['username'] : '',
+				'verified' => (string) get_user_meta( $student_id, self::META_USERNAME, true ),
+			);
+		}
+
 		return WPCPM_Learn_Progress_Card::render(
 			$state,
 			$data,
 			$structures,
 			array(
 				'is_owner'         => $is_owner,
-				'can_manage'       => current_user_can( WPCPM_Roles::CAP_MANAGE ),
+				'can_manage'       => $can_manage,
 				'student_id'       => $student_id,
 				'message'          => self::outcome_message( WPCPM_Flash::take( self::FLASH ) ),
 				'connected_at'     => (int) get_user_meta( $student_id, self::META_CONNECTED, true ),
 				'withdrawn_at'     => (int) get_user_meta( $student_id, self::META_WITHDRAWN_AT, true ),
 				'course_titles'    => $course_titles,
 				'expected_courses' => $expected_courses,
+				'identity_notice'  => $identity_notice,
 			)
 		);
 	}
@@ -628,6 +641,36 @@ class WPCPM_Learn_Progress {
 	}
 
 	/**
+	 * Whether the Student Report Card username changed after Learn was connected.
+	 *
+	 * @param int $student_id Student user ID.
+	 * @return bool
+	 */
+	public static function identity_changed( $student_id ) {
+		$student_id = (int) $student_id;
+
+		if ( ! self::is_connected( $student_id ) ) {
+			return false;
+		}
+
+		$program = get_user_meta( $student_id, 'wpcpm_student_program', true );
+		$known   = is_array( $program ) && isset( $program['username'] ) && is_string( $program['username'] )
+			? trim( $program['username'] )
+			: '';
+
+		if ( '' === $known ) {
+			return false;
+		}
+
+		$verified = array(
+			get_user_meta( $student_id, self::META_USERNAME, true ),
+			get_user_meta( $student_id, self::META_PROFILE_SLUG, true ),
+		);
+
+		return ! self::identity_matches( $verified, $known );
+	}
+
+	/**
 	 * Receive the learner from Learn.
 	 */
 	public static function handle_callback() {
@@ -727,6 +770,7 @@ class WPCPM_Learn_Progress {
 		update_user_meta( $user_id, self::META_TOKEN, $sealed );
 		update_user_meta( $user_id, self::META_CONNECTED, time() );
 		update_user_meta( $user_id, self::META_USERNAME, $learn_username );
+		update_user_meta( $user_id, self::META_PROFILE_SLUG, $learn_profile_slug );
 
 		if ( class_exists( 'WPCPM_Learn_Progress_Sync' ) ) {
 			// A first read is best effort. Its failure must not undo a valid connection.

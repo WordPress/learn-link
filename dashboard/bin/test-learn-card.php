@@ -717,6 +717,21 @@ $wpcpm_card_escaped_course                        = WPCPM_Learn_Progress_Card::r
 
 wpcpm_card_check( 'course title is escaped', false === strpos( $wpcpm_card_escaped_course, '<img' ), true );
 
+$wpcpm_card_identity_context = array(
+	'can_manage'      => true,
+	'identity_notice' => array(
+		'known'    => '<script>alert(1)</script>new-name',
+		'verified' => '<img src=x onerror=alert(1)>verified-name',
+	),
+);
+$wpcpm_card_identity_notice = WPCPM_Learn_Progress_Card::render( 'not_connected', array(), array(), $wpcpm_card_identity_context );
+wpcpm_card_check( 'the identity notice uses a status region', false !== strpos( $wpcpm_card_identity_notice, 'wpcpm-learn__identity-notice" role="status"' ), true );
+wpcpm_card_check( 'the identity notice names both accounts', false !== strpos( $wpcpm_card_identity_notice, '@&lt;script&gt;alert(1)&lt;/script&gt;new-name' ) && false !== strpos( $wpcpm_card_identity_notice, '@&lt;img src=x onerror=alert(1)&gt;verified-name' ), true );
+wpcpm_card_check( 'identity notice values are never executable markup', false === strpos( $wpcpm_card_identity_notice, '<script' ) && false === strpos( $wpcpm_card_identity_notice, '<img' ), true );
+$wpcpm_card_identity_context['can_manage'] = false;
+$wpcpm_card_student_identity_notice = WPCPM_Learn_Progress_Card::render( 'not_connected', array(), array(), $wpcpm_card_identity_context );
+wpcpm_card_check( 'a student never sees the identity notice', false === strpos( $wpcpm_card_student_identity_notice, 'no longer matches the Learn account' ), true );
+
 // Prove the escaping assertions detect a regression by loading a temporary
 // copy whose esc_html() calls deliberately pass text through unchanged.
 $wpcpm_card_mutation_dir  = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'wpcpm-learn-card-' . getmypid();
@@ -735,6 +750,11 @@ require_once $wpcpm_card_mutation_file;
 $wpcpm_card_mutated_context                         = $wpcpm_card_context;
 $wpcpm_card_mutated_context['course_titles'][297853] = '<img src=x onerror=alert(1)>';
 $wpcpm_card_mutated_context['message']               = '<script>alert(1)</script>';
+$wpcpm_card_mutated_context['can_manage']            = true;
+$wpcpm_card_mutated_context['identity_notice']       = array(
+	'known'    => '<script>identity(1)</script>',
+	'verified' => 'verified-name',
+);
 $wpcpm_card_mutated_html                            = WPCPM_Learn_Progress_Card_Mutation::render(
 	'in_progress',
 	$wpcpm_card_progress_data,
@@ -745,9 +765,10 @@ $wpcpm_card_mutated_escape_checks = array(
 	false === strpos( $wpcpm_card_mutated_html, '<script' ),
 	false === strpos( $wpcpm_card_mutated_html, '<img' ),
 	false === strpos( $wpcpm_card_mutated_html, '<script>alert(1)</script>' ),
+	false === strpos( $wpcpm_card_mutated_html, '<script>identity(1)</script>' ),
 );
 
-wpcpm_card_check( 'removing esc_html makes all escaping checks fail', $wpcpm_card_mutated_escape_checks, array( false, false, false ) );
+wpcpm_card_check( 'removing esc_html makes all escaping checks fail', $wpcpm_card_mutated_escape_checks, array( false, false, false, false ) );
 
 unlink( $wpcpm_card_mutation_file );
 rmdir( $wpcpm_card_mutation_dir );
@@ -812,6 +833,9 @@ unset( $GLOBALS['wpcpm_card_meta'][42][ WPCPM_Learn_Progress::META_WITHDRAWN_AT 
 $GLOBALS['wpcpm_card_current_user_id'] = 42;
 $GLOBALS['wpcpm_card_can_manage']      = false;
 $GLOBALS['wpcpm_card_meta'][42][ WPCPM_Learn_Progress::META_TOKEN ] = 'sealed-token';
+$GLOBALS['wpcpm_card_meta'][42][ WPCPM_Learn_Progress::META_USERNAME ] = 'verified-name';
+$GLOBALS['wpcpm_card_meta'][42][ WPCPM_Learn_Progress::META_PROFILE_SLUG ] = 'verified-profile';
+$GLOBALS['wpcpm_card_meta'][42]['wpcpm_student_program'] = array( 'username' => 'new-known-name' );
 $wpcpm_card_fresh_cache                                              = $wpcpm_card_progress_data;
 $wpcpm_card_fresh_cache['fetched_at']                                = time();
 $GLOBALS['wpcpm_card_meta'][42][ WPCPM_Learn_Progress::META_CACHE ]  = $wpcpm_card_fresh_cache;
@@ -834,6 +858,7 @@ wpcpm_card_check( 'a fresh cache triggers no refresh', $GLOBALS['wpcpm_card_refr
 wpcpm_card_check( 'an owner panel reads each course structure once', $GLOBALS['wpcpm_card_structure_calls'], array( 297853 ) );
 wpcpm_card_check( 'an owner panel resolves the matching course title once', $GLOBALS['wpcpm_card_resolve_calls'], array( 'https://learn.wordpress.org/course/developer-track/' ) );
 wpcpm_card_check( 'an owner panel displays cached module and course titles', false !== strpos( $wpcpm_card_cached_panel, '<h5 id="wpcpm-learn-course-297853">Developer Track</h5>' ) && false !== strpos( $wpcpm_card_cached_panel, '<h6>Orientation</h6>' ), true );
+wpcpm_card_check( 'the connected student does not see the identity warning', false === strpos( $wpcpm_card_cached_panel, 'no longer matches the Learn account' ), true );
 
 $wpcpm_card_cached_examples = array(
 	'learn-progress-not-started.json' => 'nothing_started',
@@ -924,6 +949,10 @@ wpcpm_card_check( 'an Administrator viewing stale progress triggers no refresh',
 wpcpm_card_check( 'an Administrator viewing another student triggers no structure read', $GLOBALS['wpcpm_card_structure_calls'], array() );
 wpcpm_card_check( 'an Administrator viewing another student triggers no title read', $GLOBALS['wpcpm_card_resolve_calls'], array() );
 wpcpm_card_check( 'an Administrator sees module and course titles already in the daily cache', false !== strpos( $wpcpm_card_stale_manager_panel, '<h5 id="wpcpm-learn-course-297853">Developer Track</h5>' ) && false !== strpos( $wpcpm_card_stale_manager_panel, '<h6>Orientation</h6>' ), true );
+wpcpm_card_check( 'an Administrator sees the changed known username warning', false !== strpos( $wpcpm_card_stale_manager_panel, esc_html( "This Student Report Card's username (@new-known-name) no longer matches the Learn account it was connected with (@verified-name). The connection is kept." ) ), true );
+wpcpm_card_check( 'the identity warning keeps the token unchanged', $GLOBALS['wpcpm_card_meta'][42][ WPCPM_Learn_Progress::META_TOKEN ], 'sealed-token' );
+wpcpm_card_check( 'the identity warning keeps the cache unchanged', $GLOBALS['wpcpm_card_meta'][42][ WPCPM_Learn_Progress::META_CACHE ], $wpcpm_card_stale_cache );
+wpcpm_card_check( 'the identity warning keeps the panel state', false !== strpos( $wpcpm_card_stale_manager_panel, 'data-state="in_progress"' ), true );
 wpcpm_card_check( 'an Administrator may see the stored progress picture', false !== strpos( $wpcpm_card_stale_manager_panel, 'class="wpcpm-learn__percent">50%</p>' ), true );
 wpcpm_card_check( 'an Administrator viewing connected progress sees withdrawal controls', false !== strpos( $wpcpm_card_stale_manager_panel, 'wpcpm-learn__withdraw' ), true );
 
