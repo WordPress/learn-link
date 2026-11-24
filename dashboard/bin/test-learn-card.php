@@ -11,6 +11,7 @@ if ( 'cli' !== PHP_SAPI ) {
 
 define( 'ABSPATH', __DIR__ . '/' );
 define( 'WPCPM_PLUGIN_DIR', dirname( __DIR__ ) . '/' );
+define( 'MINUTE_IN_SECONDS', 60 );
 
 $GLOBALS['wpcpm_card_settings']         = array();
 $GLOBALS['wpcpm_card_current_user_id']  = 0;
@@ -24,6 +25,7 @@ $GLOBALS['wpcpm_card_structures']       = array();
 $GLOBALS['wpcpm_card_resolve_calls']    = array();
 $GLOBALS['wpcpm_card_resolved_courses'] = array();
 $GLOBALS['wpcpm_card_transients']       = array();
+$GLOBALS['wpcpm_card_transient_ttls']   = array();
 
 /**
  * Minimal WordPress user for the isolated panel test.
@@ -217,6 +219,13 @@ function get_transient( $key ) {
 	return isset( $GLOBALS['wpcpm_card_transients'][ (string) $key ] )
 		? $GLOBALS['wpcpm_card_transients'][ (string) $key ]
 		: false;
+}
+
+function set_transient( $key, $value, $expiration ) {
+	$GLOBALS['wpcpm_card_transients'][ (string) $key ]     = $value;
+	$GLOBALS['wpcpm_card_transient_ttls'][ (string) $key ] = (int) $expiration;
+
+	return true;
 }
 
 /**
@@ -908,6 +917,34 @@ wpcpm_card_check( 'an owner panel resolves the matching course title once', $GLO
 wpcpm_card_check( 'an owner panel displays cached module and course titles', false !== strpos( $wpcpm_card_cached_panel, '<h5 id="wpcpm-learn-course-297853">Developer Track</h5>' ) && false !== strpos( $wpcpm_card_cached_panel, '<h6>Orientation</h6>' ), true );
 wpcpm_card_check( 'the connected student does not see the identity warning', false === strpos( $wpcpm_card_cached_panel, 'no longer matches the Learn account' ), true );
 
+unset(
+	$GLOBALS['wpcpm_card_structures'][297853],
+	$GLOBALS['wpcpm_card_resolved_courses']['https://learn.wordpress.org/course/developer-track/']
+);
+$GLOBALS['wpcpm_card_settings']['learn_courses'] = '297853,123456';
+$wpcpm_card_outage_cache                         = $wpcpm_card_fresh_cache;
+$wpcpm_card_outage_cache['courses'][123456]      = $wpcpm_card_outage_cache['courses'][297853];
+$GLOBALS['wpcpm_card_meta'][42][ WPCPM_Learn_Progress::META_CACHE ] = $wpcpm_card_outage_cache;
+$GLOBALS['wpcpm_card_structure_calls']                            = array();
+$GLOBALS['wpcpm_card_resolve_calls']                              = array();
+
+WPCPM_Learn_Progress::panel( $wpcpm_card_student );
+WPCPM_Learn_Progress::panel( $wpcpm_card_student );
+
+wpcpm_card_check( 'a Learn outage makes only one public read across courses and page views', $GLOBALS['wpcpm_card_structure_calls'], array( 297853 ) );
+wpcpm_card_check( 'a failed structure read prevents title reads during the outage', $GLOBALS['wpcpm_card_resolve_calls'], array() );
+wpcpm_card_check( 'a Learn outage starts the card backoff', $GLOBALS['wpcpm_card_transients'][ WPCPM_Learn_Progress::OUTAGE_TRANSIENT ], 1 );
+wpcpm_card_check( 'the card retries after a short backoff', $GLOBALS['wpcpm_card_transient_ttls'][ WPCPM_Learn_Progress::OUTAGE_TRANSIENT ], WPCPM_Learn_Progress::OUTAGE_TTL );
+
+unset( $GLOBALS['wpcpm_card_transients'][ WPCPM_Learn_Progress::OUTAGE_TRANSIENT ] );
+$GLOBALS['wpcpm_card_settings']['learn_courses'] = '297853';
+$GLOBALS['wpcpm_card_structures'][297853] = $wpcpm_card_three_modules;
+$GLOBALS['wpcpm_card_resolved_courses']['https://learn.wordpress.org/course/developer-track/'] = array(
+	'id'    => 297853,
+	'title' => 'Developer Track',
+);
+$GLOBALS['wpcpm_card_meta'][42][ WPCPM_Learn_Progress::META_CACHE ] = $wpcpm_card_fresh_cache;
+
 $wpcpm_card_cached_examples = array(
 	'learn-progress-not-started.json' => 'nothing_started',
 	'learn-progress-in-progress.json' => 'in_progress',
@@ -930,6 +967,9 @@ foreach ( $wpcpm_card_cached_examples as $wpcpm_card_fixture => $wpcpm_card_expe
 		array()
 	);
 }
+
+// The fixture scenarios share one PHP process, unlike separate page views in WordPress.
+unset( $GLOBALS['wpcpm_card_transients'][ WPCPM_Learn_Progress::OUTAGE_TRANSIENT ] );
 
 $GLOBALS['wpcpm_card_settings']['learn_courses'] = '297853,123456';
 WPCPM_Program::$course_ids['Foundation course']  = 123456;

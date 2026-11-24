@@ -97,9 +97,9 @@ class WPCPM_Learn_Progress_Card {
 		?>
 		<p class="wpcpm-learn__notice wpcpm-learn__identity-notice" role="status">
 			<?php
-			/* translators: 1: Current WordPress.org username on the Student Report Card, 2: Username verified by Learn. */
 			echo esc_html(
 				sprintf(
+					/* translators: 1: Current WordPress.org username on the Student Report Card, 2: Username verified by Learn. */
 					__( "This Student Report Card's username (@%1\$s) no longer matches the Learn account it was connected with (@%2\$s). The connection is kept.", 'wpcredits-program-manager' ),
 					$known,
 					$verified
