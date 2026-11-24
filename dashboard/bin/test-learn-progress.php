@@ -630,6 +630,16 @@ wpcpm_learn_check(
 	true
 );
 wpcpm_learn_check(
+	'card outage value is covered by the uninstall Learn sweep',
+	0 === strpos( '_transient_' . WPCPM_Learn_Progress::OUTAGE_TRANSIENT, '_transient_wpcpm_learn_' ),
+	true
+);
+wpcpm_learn_check(
+	'card outage timeout is covered by the uninstall Learn sweep',
+	0 === strpos( '_transient_timeout_' . WPCPM_Learn_Progress::OUTAGE_TRANSIENT, '_transient_timeout_wpcpm_learn_' ),
+	true
+);
+wpcpm_learn_check(
 	'default settings',
 	WPCPM_Learn_Progress::settings(),
 	array(
@@ -685,8 +695,11 @@ $GLOBALS['wpcpm_learn_structures'][297853] = $wpcpm_learn_modules;
 wpcpm_learn_check( 'structure_for returns the plugin structure', WPCPM_Learn_Progress::structure_for( 297853 ), $wpcpm_learn_modules );
 wpcpm_learn_check( 'structure_for asks for the selected course', $GLOBALS['wpcpm_learn_structure_calls'], array( 297853 ) );
 wpcpm_learn_check( 'structure_for degrades a Learn error to an empty list', WPCPM_Learn_Progress::structure_for( 123456 ), array() );
+wpcpm_learn_check( 'an unreachable structure starts the card outage backoff', $GLOBALS['wpcpm_learn_test_transient'][ WPCPM_Learn_Progress::OUTAGE_TRANSIENT ]['value'], 1 );
+wpcpm_learn_check( 'the card outage backoff is brief', $GLOBALS['wpcpm_learn_test_transient'][ WPCPM_Learn_Progress::OUTAGE_TRANSIENT ]['expiration'], WPCPM_Learn_Progress::OUTAGE_TTL );
 wpcpm_learn_check( 'structure_for rejects an invalid course without a read', WPCPM_Learn_Progress::structure_for( 0 ), array() );
 wpcpm_learn_check( 'an invalid structure course made no extra read', $GLOBALS['wpcpm_learn_structure_calls'], array( 297853, 123456 ) );
+delete_transient( WPCPM_Learn_Progress::OUTAGE_TRANSIENT );
 
 WPCPM_Program::$course_ids = array(
 	'Developer Track' => 297853,
@@ -703,6 +716,8 @@ $GLOBALS['wpcpm_learn_resolved_courses']['https://learn.wordpress.org/course/dev
 wpcpm_learn_check( 'course_title_for resolves the matching program course', WPCPM_Learn_Progress::course_title_for( 297853 ), 'Developer Track' );
 wpcpm_learn_check( 'course_title_for uses the matching course URL', $GLOBALS['wpcpm_learn_resolve_calls'], array( 'https://learn.wordpress.org/course/developer-track/' ) );
 wpcpm_learn_check( 'course_title_for degrades a resolve error to an empty title', WPCPM_Learn_Progress::course_title_for( 301001 ), '' );
+wpcpm_learn_check( 'an unreachable title starts the same card outage backoff', get_transient( WPCPM_Learn_Progress::OUTAGE_TRANSIENT ), 1 );
+delete_transient( WPCPM_Learn_Progress::OUTAGE_TRANSIENT );
 wpcpm_learn_check( 'course_title_for ignores a course outside the program map', WPCPM_Learn_Progress::course_title_for( 999999 ), '' );
 wpcpm_learn_check( 'an unknown course causes no title read', count( $GLOBALS['wpcpm_learn_resolve_calls'] ), 2 );
 
