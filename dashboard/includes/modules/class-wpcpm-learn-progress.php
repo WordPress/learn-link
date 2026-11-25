@@ -26,6 +26,7 @@ class WPCPM_Learn_Progress {
 	const ACTION_CONNECT  = 'wpcpm_learn_connect';
 	const ACTION_CALLBACK = 'wpcpm_learn_callback';
 	const ACTION_WITHDRAW = 'wpcpm_learn_withdraw';
+	const ACTION_ALLOW    = 'wpcpm_learn_allow';
 
 	// Keep state values and timeouts within uninstall.php's Learn transient sweep.
 	const STATE_PREFIX = 'wpcpm_learn_state_';
@@ -47,6 +48,7 @@ class WPCPM_Learn_Progress {
 		add_action( 'admin_post_' . self::ACTION_CALLBACK, array( __CLASS__, 'handle_callback' ) );
 		add_action( 'admin_post_nopriv_' . self::ACTION_CALLBACK, array( __CLASS__, 'handle_callback_nopriv' ) );
 		add_action( 'admin_post_' . self::ACTION_WITHDRAW, array( __CLASS__, 'handle_withdraw' ) );
+		add_action( 'admin_post_' . self::ACTION_ALLOW, array( __CLASS__, 'handle_allow_reconnect' ) );
 	}
 
 	/**
@@ -418,6 +420,12 @@ class WPCPM_Learn_Progress {
 				return __( 'That student does not have a Learn connection to withdraw.', 'wpcredits-program-manager' );
 			case 'learn_withdraw_complete':
 				return __( 'The Learn connection was withdrawn.', 'wpcredits-program-manager' );
+			case 'learn_allow_student':
+				return __( 'Choose a valid withdrawn student.', 'wpcredits-program-manager' );
+			case 'learn_allow_not_withdrawn':
+				return __( "That student's Learn connection is not withdrawn.", 'wpcredits-program-manager' );
+			case 'learn_allow_complete':
+				return __( 'The student can connect their Learn account again.', 'wpcredits-program-manager' );
 			default:
 				return '';
 		}
@@ -648,5 +656,34 @@ class WPCPM_Learn_Progress {
 		);
 
 		self::back( 'learn_withdraw_complete', $student_id );
+	}
+
+	/**
+	 * Let a withdrawn student connect their Learn account again.
+	 */
+	public static function handle_allow_reconnect() {
+		if ( ! current_user_can( WPCPM_Roles::CAP_MANAGE ) ) {
+			wp_die( esc_html__( 'You are not allowed to reopen Learn connections.', 'wpcredits-program-manager' ), 403 );
+		}
+
+		$request    = wp_unslash( $_POST ); // phpcs:ignore WordPress.Security.NonceVerification.Missing -- The student ID is needed to select the per-student nonce action.
+		$student_id = isset( $request['student'] ) ? absint( $request['student'] ) : 0;
+
+		check_admin_referer( self::ACTION_ALLOW . '_' . $student_id );
+
+		$student = get_userdata( $student_id );
+
+		if ( ! $student instanceof WP_User || ! WPCPM_Students_Dashboard::is_student( $student ) ) {
+			self::back( 'learn_allow_student' );
+		}
+
+		if ( ! get_user_meta( $student_id, self::META_WITHDRAWN_AT, true ) ) {
+			self::back( 'learn_allow_not_withdrawn', $student_id );
+		}
+
+		delete_user_meta( $student_id, self::META_WITHDRAWN_AT );
+		delete_user_meta( $student_id, self::META_WITHDRAWN_BY );
+
+		self::back( 'learn_allow_complete', $student_id );
 	}
 }

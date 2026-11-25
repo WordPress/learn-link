@@ -539,6 +539,43 @@ function wpcpm_learn_withdraw_attempt( $can_manage, $nonce_valid, $student_id, $
 	);
 }
 
+function wpcpm_learn_allow_attempt( $can_manage, $nonce_valid, $student_id, $is_student, array $meta = array() ) {
+	$_POST = array( 'student' => $student_id );
+	$denied_code = 0;
+
+	$GLOBALS['wpcpm_learn_test_meta']        = array( (int) $student_id => $meta );
+	$GLOBALS['wpcpm_learn_test_events']      = array();
+	$GLOBALS['wpcpm_learn_test_flash']       = array();
+	$GLOBALS['wpcpm_learn_test_redirects']   = array();
+	$GLOBALS['wpcpm_learn_test_user']        = new WP_User( 900, 'Ada Administrator', 'administrator@example.test' );
+	$GLOBALS['wpcpm_learn_test_can_manage']  = (bool) $can_manage;
+	$GLOBALS['wpcpm_learn_test_nonce_valid'] = (bool) $nonce_valid;
+	$GLOBALS['wpcpm_learn_test_is_student']  = (bool) $is_student;
+	$GLOBALS['wpcpm_learn_test_nonce']       = '';
+	$GLOBALS['wpcpm_learn_test_users']       = 0 < (int) $student_id
+		? array( (int) $student_id => new WP_User( $student_id, 'Sam Student', 'student@example.test' ) )
+		: array();
+
+	try {
+		WPCPM_Learn_Progress::handle_allow_reconnect();
+	} catch ( WPCPM_Learn_Test_Redirect $redirect ) {
+		unset( $redirect );
+	} catch ( WPCPM_Learn_Test_Denied $denied ) {
+		$denied_code = (int) $denied->getCode();
+	}
+
+	return array(
+		'events'    => $GLOBALS['wpcpm_learn_test_events'],
+		'flash'     => $GLOBALS['wpcpm_learn_test_flash'],
+		'meta'      => isset( $GLOBALS['wpcpm_learn_test_meta'][ (int) $student_id ] )
+			? $GLOBALS['wpcpm_learn_test_meta'][ (int) $student_id ]
+			: array(),
+		'nonce'     => $GLOBALS['wpcpm_learn_test_nonce'],
+		'denied'    => $denied_code,
+		'redirects' => $GLOBALS['wpcpm_learn_test_redirects'],
+	);
+}
+
 wpcpm_learn_check( 'disabled by default', WPCPM_Learn_Progress::enabled(), false );
 
 // WordPress stores a transient's value and expiration as separate options.
@@ -1072,6 +1109,44 @@ $wpcpm_learn_script_mail_body = $wpcpm_learn_withdraw_script_reason['mail'][0]['
 wpcpm_learn_check( 'a script reason is never executable in mail', false === strpos( $wpcpm_learn_script_mail_body, '<script>' ), true );
 wpcpm_learn_check( 'safe reason text remains visible in mail', false !== strpos( $wpcpm_learn_script_mail_body, 'alert("withdraw") Required follow-up.' ), true );
 
+$wpcpm_learn_allow_meta = array(
+	WPCPM_Learn_Progress::META_WITHDRAWN_AT   => 100,
+	WPCPM_Learn_Progress::META_WITHDRAWN_BY   => 900,
+	WPCPM_Learn_Progress::META_REVOKE_PENDING => 'sealed:pending-token',
+);
+$wpcpm_learn_allow_mentor = wpcpm_learn_allow_attempt( false, true, 81, true, $wpcpm_learn_allow_meta );
+wpcpm_learn_check( 'allow reconnect checks the management capability first', $wpcpm_learn_allow_mentor['events'], array( 'capability' ) );
+wpcpm_learn_check( 'a mentor cannot reach the allow reconnect nonce', $wpcpm_learn_allow_mentor['nonce'], '' );
+wpcpm_learn_check( 'a mentor gets a 403 from allow reconnect', $wpcpm_learn_allow_mentor['denied'], 403 );
+wpcpm_learn_check( 'a mentor cannot change withdrawal data', $wpcpm_learn_allow_mentor['meta'], $wpcpm_learn_allow_meta );
+
+$wpcpm_learn_allow_no_nonce = wpcpm_learn_allow_attempt( true, false, 82, true, $wpcpm_learn_allow_meta );
+wpcpm_learn_check( 'allow reconnect checks capability before its nonce', $wpcpm_learn_allow_no_nonce['events'], array( 'capability', 'nonce' ) );
+wpcpm_learn_check( 'allow reconnect uses the per-student nonce action', $wpcpm_learn_allow_no_nonce['nonce'], 'wpcpm_learn_allow_82' );
+wpcpm_learn_check( 'a missing allow reconnect nonce changes no data', $wpcpm_learn_allow_no_nonce['meta'], $wpcpm_learn_allow_meta );
+
+$wpcpm_learn_allow_nonstudent = wpcpm_learn_allow_attempt( true, true, 83, false, $wpcpm_learn_allow_meta );
+wpcpm_learn_check( 'allow reconnect confirms the target after the nonce', $wpcpm_learn_allow_nonstudent['events'], array( 'capability', 'nonce', 'student' ) );
+wpcpm_learn_check( 'a non-student allow reconnect target gets a safe message', $wpcpm_learn_allow_nonstudent['flash'], array( 'learn' => 'learn_allow_student' ) );
+wpcpm_learn_check( 'a non-student allow reconnect target changes no data', $wpcpm_learn_allow_nonstudent['meta'], $wpcpm_learn_allow_meta );
+
+$wpcpm_learn_not_withdrawn_meta = array(
+	WPCPM_Learn_Progress::META_CONNECTED => 100,
+	WPCPM_Learn_Progress::META_USERNAME  => 'adaexample',
+);
+$wpcpm_learn_allow_not_withdrawn = wpcpm_learn_allow_attempt( true, true, 84, true, $wpcpm_learn_not_withdrawn_meta );
+wpcpm_learn_check( 'a student who is not withdrawn gets a safe message', $wpcpm_learn_allow_not_withdrawn['flash'], array( 'learn' => 'learn_allow_not_withdrawn' ) );
+wpcpm_learn_check( 'a student who is not withdrawn changes no data', $wpcpm_learn_allow_not_withdrawn['meta'], $wpcpm_learn_not_withdrawn_meta );
+wpcpm_learn_check( 'a not-withdrawn outcome returns to the selected student', $wpcpm_learn_allow_not_withdrawn['redirects'], array( 'https://dashboard.test/student-dashboard/?wpcpm_student_view=84' ) );
+
+$wpcpm_learn_allow_success = wpcpm_learn_allow_attempt( true, true, 85, true, $wpcpm_learn_allow_meta );
+wpcpm_learn_check( 'allow reconnect deletes the withdrawal time', isset( $wpcpm_learn_allow_success['meta'][ WPCPM_Learn_Progress::META_WITHDRAWN_AT ] ), false );
+wpcpm_learn_check( 'allow reconnect deletes the withdrawing Administrator', isset( $wpcpm_learn_allow_success['meta'][ WPCPM_Learn_Progress::META_WITHDRAWN_BY ] ), false );
+wpcpm_learn_check( 'allow reconnect preserves the pending revocation', $wpcpm_learn_allow_success['meta'][ WPCPM_Learn_Progress::META_REVOKE_PENDING ], 'sealed:pending-token' );
+wpcpm_learn_check( 'allow reconnect changes the card to not connected', WPCPM_Learn_Progress::state_for( 85 ), 'not_connected' );
+wpcpm_learn_check( 'allow reconnect gets the completed outcome', $wpcpm_learn_allow_success['flash'], array( 'learn' => 'learn_allow_complete' ) );
+wpcpm_learn_check( 'allow reconnect returns to the selected student', $wpcpm_learn_allow_success['redirects'], array( 'https://dashboard.test/student-dashboard/?wpcpm_student_view=85' ) );
+
 $GLOBALS['wpcpm_learn_auth_redirects'] = 0;
 try {
 	WPCPM_Learn_Progress::handle_callback_nopriv();
@@ -1083,13 +1158,14 @@ wpcpm_learn_check( 'a signed-out callback uses the WordPress login flow', $GLOBA
 WPCPM_Learn_Progress::init();
 wpcpm_learn_check( 'enabled starts sync once', $GLOBALS['wpcpm_learn_sync_calls'], 1 );
 wpcpm_learn_check(
-	'enabled registers only its four handlers',
+	'enabled registers only its five handlers',
 	array_keys( $GLOBALS['wpcpm_learn_test_actions'] ),
 	array(
 		'admin_post_wpcpm_learn_connect',
 		'admin_post_wpcpm_learn_callback',
 		'admin_post_nopriv_wpcpm_learn_callback',
 		'admin_post_wpcpm_learn_withdraw',
+		'admin_post_wpcpm_learn_allow',
 	)
 );
 
@@ -1112,6 +1188,11 @@ wpcpm_learn_check(
 	'withdraw callback',
 	$GLOBALS['wpcpm_learn_test_actions']['admin_post_wpcpm_learn_withdraw'],
 	array( 'WPCPM_Learn_Progress', 'handle_withdraw' )
+);
+wpcpm_learn_check(
+	'allow reconnect callback',
+	$GLOBALS['wpcpm_learn_test_actions']['admin_post_wpcpm_learn_allow'],
+	array( 'WPCPM_Learn_Progress', 'handle_allow_reconnect' )
 );
 
 $wpcpm_learn_parent = get_parent_class( 'WPCPM_Learn_Progress' );

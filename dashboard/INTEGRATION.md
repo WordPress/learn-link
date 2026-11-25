@@ -43,6 +43,7 @@ From section 8.4 of the technical guide. Follow the code, not the spec, on each 
 | #4 | `includes/class-wpcpm-settings-screen.php`, `WPCPM_Settings_Screen::render_tab_advanced()` | Add the Learn Link section and its five settings controls. | Pedro | P1.1 |
 | #5 | `includes/modules/class-wpcpm-students-dashboard.php`, `render_links()` | Render `WPCPM_Learn_Progress::panel( $student )` below the course button and hours inside the My course section. | Pedro | P1.3 |
 | #6 | `includes/modules/class-wpcpm-students-dashboard.php`, `register()` and `render()` | Register `assets/css/learn.css` after `student.css`, then enqueue it with the Student Report Card only while Learn Link is enabled. | Pedro | P1.3 |
+| #7 | `wpcredits-program-manager.php`, `wpcpm_deactivate()` | Clear the nightly warmer cron event and any active run lock via `WPCPM_Learn_Progress_Sync::deactivate()` alongside `WPCPM_Outcome_Figures::deactivate()`. | Rafael | R3.1 / issue #47 |
 | #8 | `includes/modules/class-wpcpm-mentors-dashboard.php`, `WPCPM_Mentors_Dashboard::render_mentee()` | Add a "Learn" row to `$fields`, right after the Hours row, with `WPCPM_Learn_Progress_Mentor::line()` as its value, while Learn Link is enabled. | Wilberth | W3.1 / issue #48 |
 | #13 | `includes/mail/class-wpcpm-mail-catalog.php`, `includes/mail/class-wpcpm-mail-templates.php`, `includes/mail/templates/other.php`, `bin/test-mail-catalog.php`, `bin/test-mail-templates.php` | Register `learn-connection-withdrawn` as an editable student template in the Emails tool's Other area, and update the catalog, registry and source-context tests. | Pedro | P2.4 / issue #25 |
 
@@ -806,4 +807,13 @@ $GLOBALS['opts']             = $wpcpm_url_saved_options;
 $GLOBALS['umeta']            = $wpcpm_url_saved_meta;
 $GLOBALS['signed_in']        = $wpcpm_url_saved_user;
 $GLOBALS['environment_type'] = $wpcpm_url_saved_env;
+```
+
+### Block #7: clear the nightly warmer on deactivation
+
+In `wpcredits-program-manager.php`, inside `wpcpm_deactivate()`, clear the scheduled `wpcpm_learn_progress_nightly` hook and any active run lock alongside `WPCPM_Outcome_Figures::deactivate()`:
+
+```php
+WPCPM_Outcome_Figures::deactivate();
+WPCPM_Learn_Progress_Sync::deactivate();
 ```
