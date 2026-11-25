@@ -107,7 +107,56 @@ function wp_json_encode( $data ) {
 	return json_encode( $data );
 }
 
-$GLOBALS['wpcpm_sync_actions'] = array();
+$GLOBALS['wpcpm_sync_actions']    = array();
+$GLOBALS['wpcpm_sync_filters']    = array();
+$GLOBALS['wpcpm_sync_test_users'] = array();
+
+/**
+ * Minimal WordPress user stand-in.
+ */
+class WP_User {
+	/** @var int */
+	public $ID;
+
+	/** @var string */
+	public $user_email;
+
+	/**
+	 * Build a test user.
+	 *
+	 * @param int    $id    User ID.
+	 * @param string $email User email address.
+	 */
+	public function __construct( $id, $email ) {
+		$this->ID         = (int) $id;
+		$this->user_email = (string) $email;
+	}
+}
+
+/**
+ * Look up an in-memory user by field.
+ *
+ * @param string $field Field name (`email` or `id`).
+ * @param mixed  $value Field value.
+ * @return WP_User|false
+ */
+function get_user_by( $field, $value ) {
+	if ( 'email' === $field ) {
+		foreach ( $GLOBALS['wpcpm_sync_test_users'] as $user ) {
+			if ( $user instanceof WP_User && 0 === strcasecmp( $user->user_email, (string) $value ) ) {
+				return $user;
+			}
+		}
+		return false;
+	}
+
+	if ( 'id' === $field ) {
+		$id = (int) $value;
+		return isset( $GLOBALS['wpcpm_sync_test_users'][ $id ] ) ? $GLOBALS['wpcpm_sync_test_users'][ $id ] : false;
+	}
+
+	return false;
+}
 
 /**
  * Action registration stand-in.
@@ -121,6 +170,20 @@ function add_action( $hook, $callback ) {
 	}
 
 	$GLOBALS['wpcpm_sync_actions'][ $hook ][] = $callback;
+}
+
+/**
+ * Filter registration stand-in.
+ *
+ * @param string   $hook     Filter hook name.
+ * @param callable $callback Callback.
+ */
+function add_filter( $hook, $callback ) {
+	if ( ! isset( $GLOBALS['wpcpm_sync_filters'][ $hook ] ) ) {
+		$GLOBALS['wpcpm_sync_filters'][ $hook ] = array();
+	}
+
+	$GLOBALS['wpcpm_sync_filters'][ $hook ][] = $callback;
 }
 
 /**
@@ -1104,6 +1167,169 @@ WPCPM_Learn_Progress_Sync::schedule();
 WPCPM_Learn_Progress_Sync::deactivate();
 wpcpm_sync_check( 'deactivate clears scheduled nightly hook', wp_next_scheduled( WPCPM_Learn_Progress_Sync::HOOK ), false );
 wpcpm_sync_check( 'deactivate deletes LOCK_OPTION', get_option( WPCPM_Learn_Progress_Sync::LOCK_OPTION, false ), false );
+
+// ---------------------------------------------------------------------------
+// 12. #51: Data lifecycle (lifecycle, delete_user, privacy exporter and eraser)
+// ---------------------------------------------------------------------------
+
+// 12a. SEC-20: lifecycle() registers hooks even when learn_enabled is false.
+WPCPM_Settings::$options['learn_enabled'] = false;
+$GLOBALS['wpcpm_sync_actions']            = array();
+$GLOBALS['wpcpm_sync_filters']            = array();
+
+WPCPM_Learn_Progress_Sync::lifecycle();
+wpcpm_sync_check(
+	'SEC-20 lifecycle registers delete_user hook when disabled',
+	isset( $GLOBALS['wpcpm_sync_actions']['delete_user'] )
+	&& in_array( array( 'WPCPM_Learn_Progress_Sync', 'delete_user_data' ), $GLOBALS['wpcpm_sync_actions']['delete_user'], true ),
+	true
+);
+wpcpm_sync_check(
+	'SEC-20 lifecycle registers personal data exporter when disabled',
+	isset( $GLOBALS['wpcpm_sync_filters']['wp_privacy_personal_data_exporters'] )
+	&& in_array( array( 'WPCPM_Learn_Progress_Sync', 'register_exporter' ), $GLOBALS['wpcpm_sync_filters']['wp_privacy_personal_data_exporters'], true ),
+	true
+);
+wpcpm_sync_check(
+	'SEC-20 lifecycle registers personal data eraser when disabled',
+	isset( $GLOBALS['wpcpm_sync_filters']['wp_privacy_personal_data_erasers'] )
+	&& in_array( array( 'WPCPM_Learn_Progress_Sync', 'register_eraser' ), $GLOBALS['wpcpm_sync_filters']['wp_privacy_personal_data_erasers'], true ),
+	true
+);
+
+$wpcpm_exporters = WPCPM_Learn_Progress_Sync::register_exporter( array() );
+$wpcpm_erasers   = WPCPM_Learn_Progress_Sync::register_eraser( array() );
+wpcpm_sync_check( 'register_exporter exposes wpcpm-learn-progress callback', isset( $wpcpm_exporters['wpcpm-learn-progress']['callback'] ), true );
+wpcpm_sync_check( 'register_eraser exposes wpcpm-learn-progress callback', isset( $wpcpm_erasers['wpcpm-learn-progress']['callback'] ), true );
+
+// 12b. delete_user_data() revokes once and removes all _wpcpm_learn_* user meta.
+$GLOBALS['wpcpm_sync_http_calls'] = array();
+$GLOBALS['wpcpm_sync_http_queue'] = array(
+	array(
+		'response' => array( 'code' => 204 ),
+		'body'     => '',
+	),
+);
+$GLOBALS['wpcpm_sync_test_meta']  = array(
+	41 => array(
+		WPCPM_Learn_Progress::META_TOKEN          => $wpcpm_sync_sealed_token,
+		WPCPM_Learn_Progress::META_CONNECTED      => 1763400000,
+		WPCPM_Learn_Progress::META_USERNAME       => 'AdaExample',
+		WPCPM_Learn_Progress::META_CACHE          => $wpcpm_previous_cache,
+		WPCPM_Learn_Progress::META_ERROR          => array( 'code' => 'learn_progress_unavailable', 'at' => 1763400100, 'retry_after' => 0 ),
+		WPCPM_Learn_Progress::META_REVOKE_PENDING => $wpcpm_sync_sealed_token,
+		'unrelated_meta'                          => 'kept',
+	),
+);
+
+WPCPM_Learn_Progress_Sync::delete_user_data( 41 );
+wpcpm_sync_check( 'delete_user attempts revoke exactly once for matching tokens', count( $GLOBALS['wpcpm_sync_http_calls'] ), 1 );
+wpcpm_sync_check( 'delete_user sends DELETE revoke request', $GLOBALS['wpcpm_sync_http_calls'][0]['method'], 'DELETE' );
+wpcpm_sync_check( 'delete_user removes all _wpcpm_learn_* meta and keeps unrelated meta', $GLOBALS['wpcpm_sync_test_meta'][41], array( 'unrelated_meta' => 'kept' ) );
+
+// 12c. delete_user_data() cleans up local meta even if revoke fails (503 / network error).
+$GLOBALS['wpcpm_sync_http_calls'] = array();
+$GLOBALS['wpcpm_sync_http_queue'] = array(
+	array(
+		'response' => array( 'code' => 503 ),
+		'body'     => wp_json_encode( wpcpm_sync_fixture( 'error-503' ) ),
+	),
+);
+$GLOBALS['wpcpm_sync_test_meta']  = array(
+	42 => array(
+		WPCPM_Learn_Progress::META_TOKEN    => $wpcpm_sync_sealed_token,
+		WPCPM_Learn_Progress::META_USERNAME => 'AdaExample',
+		WPCPM_Learn_Progress::META_CACHE    => $wpcpm_previous_cache,
+	),
+);
+
+WPCPM_Learn_Progress_Sync::delete_user_data( 42 );
+wpcpm_sync_check( 'delete_user attempts revoke on failure without aborting', count( $GLOBALS['wpcpm_sync_http_calls'] ), 1 );
+wpcpm_sync_check( 'delete_user removes local meta when revoke fails', $GLOBALS['wpcpm_sync_test_meta'][42], array() );
+
+// 12d. Privacy exporter outputs summary without tokens or hashes, and ignores unknown users.
+$GLOBALS['wpcpm_sync_test_users'] = array(
+	43 => new WP_User( 43, 'student43@example.test' ),
+	44 => new WP_User( 44, 'empty44@example.test' ),
+);
+$GLOBALS['wpcpm_sync_test_meta']  = array(
+	43 => array(
+		WPCPM_Learn_Progress::META_TOKEN     => $wpcpm_sync_sealed_token,
+		WPCPM_Learn_Progress::META_CONNECTED => 1763400000,
+		WPCPM_Learn_Progress::META_USERNAME  => 'AdaExample',
+		WPCPM_Learn_Progress::META_CACHE     => array(
+			'fetched_at' => 1763401800,
+			'courses'    => array(
+				297853 => array(
+					'status'  => 'in-progress',
+					'percent' => 50,
+				),
+			),
+		),
+	),
+	44 => array(),
+);
+
+$wpcpm_export_43      = WPCPM_Learn_Progress_Sync::export( 'student43@example.test' );
+$wpcpm_export_43_json = (string) wp_json_encode( $wpcpm_export_43 );
+wpcpm_sync_check( 'privacy exporter returns done=true for connected user', $wpcpm_export_43['done'], true );
+wpcpm_sync_check( 'privacy exporter returns one group item for connected user', count( $wpcpm_export_43['data'] ), 1 );
+wpcpm_sync_check( 'privacy exporter includes username and cached course summary', false !== strpos( $wpcpm_export_43_json, 'AdaExample' ) && false !== strpos( $wpcpm_export_43_json, 'Course 297853: in-progress (50%)' ), true );
+wpcpm_sync_check( 'privacy exporter never exposes plain or sealed tokens', false === strpos( $wpcpm_export_43_json, $wpcpm_sync_token ) && false === strpos( $wpcpm_export_43_json, 'sealed:' ), true );
+wpcpm_sync_check( 'privacy exporter returns empty data for user with no Learn meta', WPCPM_Learn_Progress_Sync::export( 'empty44@example.test' ), array( 'data' => array(), 'done' => true ) );
+wpcpm_sync_check( 'privacy exporter returns empty data for unknown email', WPCPM_Learn_Progress_Sync::export( 'unknown@example.test' ), array( 'data' => array(), 'done' => true ) );
+
+// 12e. Privacy eraser revokes token and removes all META_* keys even with switch off.
+$GLOBALS['wpcpm_sync_http_calls'] = array();
+$GLOBALS['wpcpm_sync_http_queue'] = array(
+	array(
+		'response' => array( 'code' => 204 ),
+		'body'     => '',
+	),
+);
+$wpcpm_erase_43 = WPCPM_Learn_Progress_Sync::erase( 'student43@example.test' );
+wpcpm_sync_check(
+	'privacy eraser removes data and returns items_removed=true',
+	$wpcpm_erase_43,
+	array(
+		'items_removed'  => true,
+		'items_retained' => false,
+		'messages'       => array(),
+		'done'           => true,
+	)
+);
+wpcpm_sync_check( 'privacy eraser revokes token at Learn', count( $GLOBALS['wpcpm_sync_http_calls'] ), 1 );
+wpcpm_sync_check( 'privacy eraser deletes all META_* keys for the user', $GLOBALS['wpcpm_sync_test_meta'][43], array() );
+wpcpm_sync_check(
+	'privacy eraser returns items_removed=false when user has no Learn meta',
+	WPCPM_Learn_Progress_Sync::erase( 'empty44@example.test' ),
+	array(
+		'items_removed'  => false,
+		'items_retained' => false,
+		'messages'       => array(),
+		'done'           => true,
+	)
+);
+wpcpm_sync_check(
+	'privacy eraser returns items_removed=false for unknown email',
+	WPCPM_Learn_Progress_Sync::erase( 'unknown@example.test' ),
+	array(
+		'items_removed'  => false,
+		'items_retained' => false,
+		'messages'       => array(),
+		'done'           => true,
+	)
+);
+
+// 12f. ReflectionClass META_* discovery picks up new constants such as META_PROFILE_SLUG.
+/**
+ * Stand-in module class adding a new META_* constant.
+ */
+class WPCPM_Learn_Progress_Extended_Standin extends WPCPM_Learn_Progress {
+	const META_PROFILE_SLUG = '_wpcpm_learn_profile_slug';
+}
+$wpcpm_discovered_keys = WPCPM_Learn_Progress_Sync::meta_keys( 'WPCPM_Learn_Progress_Extended_Standin' );
+wpcpm_sync_check( 'meta_keys discovers new META_* constants via ReflectionClass', in_array( '_wpcpm_learn_profile_slug', $wpcpm_discovered_keys, true ), true );
 
 if ( 0 !== $wpcpm_sync_failures ) {
 	echo "\n{$wpcpm_sync_failures} FAILED ({$wpcpm_sync_checks} checks)\n";

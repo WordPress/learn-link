@@ -65,6 +65,235 @@ final class WPCPM_Learn_Progress_Sync {
 	}
 
 	/**
+	 * Register data lifecycle hooks that must run even when Learn Link is disabled.
+	 */
+	public static function lifecycle() {
+		add_action( 'delete_user', array( __CLASS__, 'delete_user_data' ) );
+		add_filter( 'wp_privacy_personal_data_exporters', array( __CLASS__, 'register_exporter' ) );
+		add_filter( 'wp_privacy_personal_data_erasers', array( __CLASS__, 'register_eraser' ) );
+	}
+
+	/**
+	 * Attempt remote token revocation and delete stored Learn meta before a user is deleted.
+	 *
+	 * @param int $user_id User ID being deleted.
+	 */
+	public static function delete_user_data( $user_id ) {
+		$user_id = (int) $user_id;
+
+		if ( $user_id <= 0 ) {
+			return;
+		}
+
+		self::revoke_user_tokens( $user_id );
+
+		foreach ( self::meta_keys() as $meta_key ) {
+			delete_user_meta( $user_id, $meta_key );
+		}
+	}
+
+	/**
+	 * Register the Dashboard Learn progress personal data exporter.
+	 *
+	 * @param array $exporters Registered personal data exporters.
+	 * @return array
+	 */
+	public static function register_exporter( $exporters ) {
+		$exporters = is_array( $exporters ) ? $exporters : array();
+
+		$exporters['wpcpm-learn-progress'] = array(
+			'exporter_friendly_name' => __( 'Learn progress on the Dashboard', 'wpcredits-program-manager' ),
+			'callback'               => array( __CLASS__, 'export' ),
+		);
+
+		return $exporters;
+	}
+
+	/**
+	 * Register the Dashboard Learn progress personal data eraser.
+	 *
+	 * @param array $erasers Registered personal data erasers.
+	 * @return array
+	 */
+	public static function register_eraser( $erasers ) {
+		$erasers = is_array( $erasers ) ? $erasers : array();
+
+		$erasers['wpcpm-learn-progress'] = array(
+			'eraser_friendly_name' => __( 'Learn progress on the Dashboard', 'wpcredits-program-manager' ),
+			'callback'             => array( __CLASS__, 'erase' ),
+		);
+
+		return $erasers;
+	}
+
+	/**
+	 * Export stored Learn progress summary and connection metadata for a user.
+	 *
+	 * Never exports sealed or plain tokens.
+	 *
+	 * @param string $email User email address.
+	 * @param int    $page  Pagination index.
+	 * @return array{data: array, done: bool}
+	 */
+	public static function export( $email, $page = 1 ) {
+		if ( (int) $page > 1 ) {
+			return array(
+				'data' => array(),
+				'done' => true,
+			);
+		}
+
+		$user = get_user_by( 'email', trim( (string) $email ) );
+
+		if ( ! $user instanceof WP_User ) {
+			return array(
+				'data' => array(),
+				'done' => true,
+			);
+		}
+
+		$user_id      = (int) $user->ID;
+		$username     = get_user_meta( $user_id, WPCPM_Learn_Progress::META_USERNAME, true );
+		$slug_key     = defined( 'WPCPM_Learn_Progress::META_PROFILE_SLUG' )
+			? constant( 'WPCPM_Learn_Progress::META_PROFILE_SLUG' )
+			: '_wpcpm_learn_profile_slug';
+		$profile_slug = get_user_meta( $user_id, $slug_key, true );
+		$connected    = (int) get_user_meta( $user_id, WPCPM_Learn_Progress::META_CONNECTED, true );
+		$withdrawn    = (int) get_user_meta( $user_id, WPCPM_Learn_Progress::META_WITHDRAWN_AT, true );
+		$cache        = get_user_meta( $user_id, WPCPM_Learn_Progress::META_CACHE, true );
+		$rows         = array();
+
+		if ( is_string( $username ) && '' !== $username ) {
+			$rows[] = array(
+				'name'  => __( 'Learn username', 'wpcredits-program-manager' ),
+				'value' => self::escape_text( $username ),
+			);
+		}
+
+		if ( is_string( $profile_slug ) && '' !== $profile_slug && $profile_slug !== $username ) {
+			$rows[] = array(
+				'name'  => __( 'Learn profile slug', 'wpcredits-program-manager' ),
+				'value' => self::escape_text( $profile_slug ),
+			);
+		}
+
+		if ( $connected > 0 ) {
+			$rows[] = array(
+				'name'  => __( 'Connected on', 'wpcredits-program-manager' ),
+				'value' => gmdate( 'Y-m-d H:i:s', $connected ) . ' UTC',
+			);
+		}
+
+		if ( $withdrawn > 0 ) {
+			$rows[] = array(
+				'name'  => __( 'Withdrawn on', 'wpcredits-program-manager' ),
+				'value' => gmdate( 'Y-m-d H:i:s', $withdrawn ) . ' UTC',
+			);
+		}
+
+		if ( is_array( $cache ) ) {
+			if ( ! empty( $cache['fetched_at'] ) && (int) $cache['fetched_at'] > 0 ) {
+				$rows[] = array(
+					'name'  => __( 'Last read', 'wpcredits-program-manager' ),
+					'value' => gmdate( 'Y-m-d H:i:s', (int) $cache['fetched_at'] ) . ' UTC',
+				);
+			}
+
+			$summary = self::summarize_cached_courses( $cache );
+
+			if ( '' !== $summary ) {
+				$rows[] = array(
+					'name'  => __( 'Cached progress', 'wpcredits-program-manager' ),
+					'value' => self::escape_text( $summary ),
+				);
+			}
+		}
+
+		if ( empty( $rows ) ) {
+			return array(
+				'data' => array(),
+				'done' => true,
+			);
+		}
+
+		return array(
+			'data' => array(
+				array(
+					'group_id'    => 'wpcpm-learn-progress',
+					'group_label' => __( 'Learn progress on the Dashboard', 'wpcredits-program-manager' ),
+					'item_id'     => 'wpcpm-learn-progress-' . $user_id,
+					'data'        => $rows,
+				),
+			),
+			'done' => true,
+		);
+	}
+
+	/**
+	 * Erase all stored Learn progress user meta for a user and attempt remote token revocation.
+	 *
+	 * @param string $email User email address.
+	 * @param int    $page  Pagination index.
+	 * @return array{items_removed: bool, items_retained: bool, messages: array, done: bool}
+	 */
+	public static function erase( $email, $page = 1 ) {
+		unset( $page );
+
+		$user = get_user_by( 'email', trim( (string) $email ) );
+
+		if ( ! $user instanceof WP_User ) {
+			return array(
+				'items_removed'  => false,
+				'items_retained' => false,
+				'messages'       => array(),
+				'done'           => true,
+			);
+		}
+
+		$user_id = (int) $user->ID;
+		self::revoke_user_tokens( $user_id );
+
+		$removed = false;
+
+		foreach ( self::meta_keys() as $meta_key ) {
+			if ( '' !== get_user_meta( $user_id, $meta_key, true ) ) {
+				delete_user_meta( $user_id, $meta_key );
+				$removed = true;
+			}
+		}
+
+		return array(
+			'items_removed'  => $removed,
+			'items_retained' => false,
+			'messages'       => array(),
+			'done'           => true,
+		);
+	}
+
+	/**
+	 * Discover all Learn progress user meta keys declared as `META_*` constants.
+	 *
+	 * @param string $class_name Class declaring `META_*` constants.
+	 * @return string[] Meta key names.
+	 */
+	public static function meta_keys( $class_name = 'WPCPM_Learn_Progress' ) {
+		if ( ! class_exists( $class_name ) ) {
+			return array();
+		}
+
+		$reflection = new ReflectionClass( $class_name );
+		$keys       = array();
+
+		foreach ( $reflection->getConstants() as $name => $value ) {
+			if ( 0 === strpos( (string) $name, 'META_' ) && is_string( $value ) && '' !== $value ) {
+				$keys[] = $value;
+			}
+		}
+
+		return $keys;
+	}
+
+	/**
 	 * Schedule the daily warmer event on `init` when missing.
 	 */
 	public static function schedule() {
@@ -463,6 +692,96 @@ final class WPCPM_Learn_Progress_Sync {
 	 */
 	private static function unlock() {
 		delete_option( self::LOCK_OPTION );
+	}
+
+	/**
+	 * Unseal any active or pending-revocation tokens for a user and ask Learn to revoke them.
+	 *
+	 * @param int $user_id Student user ID.
+	 */
+	private static function revoke_user_tokens( $user_id ) {
+		if ( ! class_exists( 'WPCPM_Secret' ) || ! class_exists( 'WPCPM_Learn_Client' ) ) {
+			return;
+		}
+
+		$meta_keys = array(
+			WPCPM_Learn_Progress::META_TOKEN,
+			WPCPM_Learn_Progress::META_REVOKE_PENDING,
+		);
+		$seen      = array();
+
+		foreach ( $meta_keys as $meta_key ) {
+			$sealed = get_user_meta( $user_id, $meta_key, true );
+
+			if ( ! is_string( $sealed ) || '' === $sealed ) {
+				continue;
+			}
+
+			$token = WPCPM_Secret::unseal_from_option( $sealed );
+
+			if ( is_wp_error( $token ) || ! is_string( $token ) || '' === $token ) {
+				continue;
+			}
+
+			if ( isset( $seen[ $token ] ) ) {
+				unset( $token );
+				continue;
+			}
+
+			$seen[ $token ] = true;
+			WPCPM_Learn_Client::revoke( $token );
+			unset( $token );
+		}
+
+		unset( $seen );
+	}
+
+	/**
+	 * Build a human-readable summary of cached course progress for privacy export.
+	 *
+	 * @param array $cache Normalized cached progress array.
+	 * @return string Course summary text, or empty string when none exists.
+	 */
+	private static function summarize_cached_courses( array $cache ) {
+		if ( empty( $cache['courses'] ) || ! is_array( $cache['courses'] ) ) {
+			return '';
+		}
+
+		$parts = array();
+
+		foreach ( $cache['courses'] as $course_id => $course ) {
+			if ( ! is_array( $course ) ) {
+				continue;
+			}
+
+			$status  = isset( $course['status'] ) ? (string) $course['status'] : '';
+			$percent = isset( $course['percent'] )
+				? (int) $course['percent']
+				: ( isset( $course['progress_percent'] ) ? (int) $course['progress_percent'] : 0 );
+
+			$parts[] = sprintf(
+				'Course %d: %s (%d%%)',
+				(int) $course_id,
+				'' !== $status ? $status : 'unknown',
+				$percent
+			);
+		}
+
+		return implode( '; ', $parts );
+	}
+
+	/**
+	 * Escape plain text for privacy export rendering.
+	 *
+	 * @param string $text Text to escape.
+	 * @return string Escaped text.
+	 */
+	private static function escape_text( $text ) {
+		$text = (string) $text;
+
+		return function_exists( 'esc_html' )
+			? esc_html( $text )
+			: htmlspecialchars( $text, ENT_QUOTES, 'UTF-8' );
 	}
 
 	/**
