@@ -168,6 +168,14 @@ foreach ( $words as $word ) {
 	ck( "the form says: {$word}", false !== strpos( $html, $word ), true );
 }
 ck( 'the form does not name the draft course', has( $html, 'Learn Link test draft course' ), false );
+
+// #53: the page's language, title, main region and keyboard focus, and errors as alerts.
+ck( 'the form page has the site language, its own title and one main region', array( has( $html, '<html ' . get_language_attributes() . '>' ), has( $html, '<title>Share your Learn progress? - Learn WordPress</title>' ), substr_count( $html, '<main>' ), has( $html, '<main><h1>Share your Learn progress?</h1>' ) ), array( true, true, 1, true ) );
+ck( 'the language attribute names a language', (bool) preg_match( '/^lang="[a-z]{2,3}(-[A-Za-z]+)?"/', get_language_attributes() ), true );
+ck( 'buttons and links show where the keyboard focus is', has( $html, 'button:focus-visible,a:focus-visible{outline:3px solid;outline-offset:2px}' ), true );
+ck( 'the two buttons say what they do, as text', array( has( $html, 'value="approve">Approve</button>' ), has( $html, 'value="deny">Deny</button>' ) ), array( true, true ) );
+$error_page = Authorize\respond( 'GET', array() );
+ck( 'an error page has a heading, a title and its message in an alert', array( $error_page['status'], has( $error_page['html'], '<h1>Something went wrong</h1><p role="alert">This connection request is not valid.</p>' ), has( $error_page['html'], '<title>Something went wrong - Learn WordPress</title>' ) ), array( 400, true, true ) );
 ck( 'showing the form creates no grant', Grants\for_client( $learner->ID, $client_id ), array() );
 
 // SEC-12: POST.

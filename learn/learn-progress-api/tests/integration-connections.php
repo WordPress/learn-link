@@ -174,6 +174,8 @@ ck( 'SEC-06: it never lists another learner\'s grant', connections_has( $view_07
 ck( 'no hash, token or challenge anywhere in the view', connections_leaks( $view_07, $hashes ), false );
 ck( 'the learner has no withdraw button: no form and no button at all', array( connections_has( $view_07, '<form' ), connections_has( $view_07, '<button' ) ), array( false, false ) );
 ck( 'it explains that a program Administrator withdraws a connection', connections_has( $view_07, 'Only a program Administrator can withdraw a connection.' ), true );
+ck( '#53: the view has its own title, the site language and one main region', array( connections_has( $view_07, '<title>Your connections - Learn WordPress</title>' ), connections_has( $view_07, '<html ' . get_language_attributes() . '>' ), substr_count( $view_07, '<main>' ) ), array( true, true, 1 ) );
+ck( '#53: each program is a section with its own heading, its courses a list', array( substr_count( $view_07, '<section><h2>' ), connections_has( $view_07, '</h2><ul><li>' ) ), array( 1, true ) );
 ck( 'nothing says withdrawn while the grant is active', connections_has( $view_07, 'Withdrawn on Learn' ), false );
 
 update_post_meta( $alpha_07['grant'], '_last_used', strtotime( '2026-11-02 10:00:00 UTC' ) );
@@ -220,6 +222,8 @@ ck( 'an administrator sees the learner\'s grant, its courses and a Withdraw butt
 ck( 'and not another learner\'s grant', connections_has( $table, 'Test program Beta' ), false );
 ck( 'the button\'s form posts to admin-post with the action, the grant, the user and a nonce for that grant', array( connections_has( $forms, 'id="learn-progress-revoke-' . $alpha_07['grant'] . '"' ), connections_has( $forms, 'value="' . Connections\REVOKE_ACTION . '"' ), connections_has( $forms, 'name="grant" value="' . $alpha_07['grant'] . '"' ), connections_has( $forms, 'name="user_id" value="' . $learner_07->ID . '"' ), (bool) preg_match( '/name="_wpnonce" value="([^"]+)"/', $forms ) ), array( true, true, true, true, true ) );
 ck( 'the forms are not nested in the table, so they can live outside the profile form', connections_has( $table, '<form' ), false );
+ck( '#53: the table has a caption and column headers', array( connections_has( $table, '<caption class="screen-reader-text">Learn Link connections of @learnlink-learner-07</caption>' ), substr_count( $table, '<th scope="col">' ) ), array( true, 5 ) );
+ck( '#53: the Withdraw button names the program in one sentence for screen readers', connections_has( $table, 'aria-label="Withdraw the connection to Test program Alpha">Withdraw</button>' ), true );
 ck( 'no hash, token or challenge on the profile screen', connections_leaks( $table . $forms, $hashes ), false );
 preg_match( '/name="_wpnonce" value="([^"]+)"/', $forms, $match );
 ck( 'the printed nonce verifies for that grant only', array( (bool) wp_verify_nonce( $match[1], Connections\NONCE_PREFIX . $alpha_07['grant'] ), (bool) wp_verify_nonce( $match[1], Connections\NONCE_PREFIX . $beta_08['grant'] ) ), array( true, false ) );
