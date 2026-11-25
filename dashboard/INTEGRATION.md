@@ -43,8 +43,11 @@ From section 8.4 of the technical guide. Follow the code, not the spec, on each 
 | #4 | `includes/class-wpcpm-settings-screen.php`, `WPCPM_Settings_Screen::render_tab_advanced()` | Add the Learn Link section and its five settings controls. | Pedro | P1.1 |
 | #5 | `includes/modules/class-wpcpm-students-dashboard.php`, `render_links()` | Render `WPCPM_Learn_Progress::panel( $student )` below the course button and hours inside the My course section. | Pedro | P1.3 |
 | #6 | `includes/modules/class-wpcpm-students-dashboard.php`, `register()` and `render()` | Register `assets/css/learn.css` after `student.css`, then enqueue it with the Student Report Card only while Learn Link is enabled. | Pedro | P1.3 |
+| #7 | `wpcredits-program-manager.php`, `wpcpm_deactivate()` | Clear the nightly warmer cron event and any active run lock via `WPCPM_Learn_Progress_Sync::deactivate()` alongside `WPCPM_Outcome_Figures::deactivate()`. | Rafael | R3.1 / issue #47 |
 | #8 | `includes/modules/class-wpcpm-mentors-dashboard.php`, `WPCPM_Mentors_Dashboard::render_mentee()` | Add a "Learn" row to `$fields`, right after the Hours row, with `WPCPM_Learn_Progress_Mentor::line()` as its value, while Learn Link is enabled. | Wilberth | W3.1 / issue #48 |
 | #9 | `includes/modules/class-wpcpm-mentors-dashboard.php`, `WPCPM_Mentors_Dashboard::triage_data()` | While Learn Link is enabled, give each student a `learn` facet (`connected`, `not_connected` or `withdrawn`), add "learn: not connected" or "learn: connection withdrawn" to that student's `search`, and add the label `learnFilter` to `i18n`. `assets/js/triage.js` does not change: the search is the filter. | Wilberth | W3.2 / issue #48 |
+| #10 | `uninstall.php`, `bin/test-uninstall.php` | Delete every `META_*` user meta key declared on `WPCPM_Learn_Progress` via `ReflectionClass`, delete `RUN_OPTION` and `LOCK_OPTION`, clear `HOOK`, and verify Learn meta, options, cron hook and `wpcpm_learn_state_*` transients in the uninstall suite. | Rafael | R3.3 / issue #51 |
+| #10b | `wpcredits-program-manager.php`, `wpcpm_bootstrap()` | Call `WPCPM_Learn_Progress_Sync::lifecycle()` unconditionally (outside the `learn_enabled` switch) so `delete_user` cleanup and WordPress privacy tools remain active when Learn Link is off. | Rafael | R3.3 / issue #51 |
 | #13 | `includes/mail/class-wpcpm-mail-catalog.php`, `includes/mail/class-wpcpm-mail-templates.php`, `includes/mail/templates/other.php`, `bin/test-mail-catalog.php`, `bin/test-mail-templates.php` | Register `learn-connection-withdrawn` as an editable student template in the Emails tool's Other area, and update the catalog, registry and source-context tests. | Pedro | P2.4 / issue #25 |
 
 ### Block #1a: Learn Link classes
@@ -861,4 +864,54 @@ $GLOBALS['opts']             = $wpcpm_url_saved_options;
 $GLOBALS['umeta']            = $wpcpm_url_saved_meta;
 $GLOBALS['signed_in']        = $wpcpm_url_saved_user;
 $GLOBALS['environment_type'] = $wpcpm_url_saved_env;
+```
+
+### Block #7: clear the nightly warmer on deactivation
+
+In `wpcredits-program-manager.php`, inside `wpcpm_deactivate()`, clear the scheduled `wpcpm_learn_progress_nightly` hook and any active run lock alongside `WPCPM_Outcome_Figures::deactivate()`:
+
+```php
+WPCPM_Outcome_Figures::deactivate();
+WPCPM_Learn_Progress_Sync::deactivate();
+```
+
+### Block #10: remove Learn progress data on uninstall
+
+In `uninstall.php` (which already loads `class-wpcpm-learn-progress.php` and `class-wpcpm-learn-progress-sync.php` via blocks `#1a` and `#1b`), delete every user meta key whose constant name on `WPCPM_Learn_Progress` begins with `META_`, delete `WPCPM_Learn_Progress_Sync::RUN_OPTION` and `LOCK_OPTION`, and clear `WPCPM_Learn_Progress_Sync::HOOK`:
+
+```php
+if ( class_exists( 'WPCPM_Learn_Progress' ) ) {
+	$wpcpm_learn_reflection = new ReflectionClass( 'WPCPM_Learn_Progress' );
+
+	foreach ( $wpcpm_learn_reflection->getConstants() as $wpcpm_learn_const => $wpcpm_learn_meta_key ) {
+		if ( 0 === strpos( (string) $wpcpm_learn_const, 'META_' ) && is_string( $wpcpm_learn_meta_key ) && '' !== $wpcpm_learn_meta_key ) {
+			delete_metadata( 'user', 0, $wpcpm_learn_meta_key, '', true );
+		}
+	}
+}
+
+if ( class_exists( 'WPCPM_Learn_Progress_Sync' ) ) {
+	delete_option( WPCPM_Learn_Progress_Sync::RUN_OPTION );
+	delete_option( WPCPM_Learn_Progress_Sync::LOCK_OPTION );
+	wp_clear_scheduled_hook( WPCPM_Learn_Progress_Sync::HOOK );
+}
+```
+
+Note that `wpcpm_learn_state_*` transients created by `WPCPM_Learn_Progress::STATE_PREFIX` are already swept by the existing `_transient_wpcpm_learn_` and `_transient_timeout_wpcpm_learn_` prefix loop in `uninstall.php`.
+
+In `bin/test-uninstall.php`:
+
+1. Add `'wpcpm_learn_progress_run'` and `'wpcpm_learn_progress_lock'` to `$named_options`.
+2. Add `'wpcpm_learn_progress_nightly'` to `$file_hooks`.
+3. Seed `set_transient( 'wpcpm_learn_state_example', array( 'student_id' => 1 ), 15 * MINUTE_IN_SECONDS );` beside the other Learn transients.
+4. Seed every `_wpcpm_learn_*` key on `$student` (for example `_wpcpm_learn_token`, `_wpcpm_learn_connected_at`, `_wpcpm_learn_username`, `_wpcpm_learn_cache`, `_wpcpm_learn_last_error`, `_wpcpm_learn_withdrawn_at`, `_wpcpm_learn_withdrawn_by` and `_wpcpm_learn_revoke_pending`, plus `_wpcpm_learn_profile_slug` once added).
+5. Append `'WPCPM_Learn_Progress_Sync::RUN_OPTION'`, `'WPCPM_Learn_Progress_Sync::LOCK_OPTION'` and `'WPCPM_Learn_Progress_Sync::HOOK'` to `$names`, and assert that `wpcpm_learn_state_example` (including its timeout) and all `_wpcpm_learn_*` student meta keys are gone after `run_uninstall()`.
+
+### Block #10b: start data lifecycle hooks regardless of the switch
+
+In `wpcredits-program-manager.php`, inside `wpcpm_bootstrap()`, register the data lifecycle hooks unconditionally so account deletion cleanup and WordPress privacy export/erase tools continue working even when `learn_enabled` is turned off:
+
+```php
+WPCPM_Outcome_Figures::init();
+WPCPM_Learn_Progress_Sync::lifecycle();
 ```

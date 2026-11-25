@@ -458,6 +458,19 @@ $wpcpm_card_withdrawn     = WPCPM_Learn_Progress_Card::render(
 wpcpm_card_check( 'withdrawn has its own message', false !== strpos( $wpcpm_card_withdrawn, 'This connection was withdrawn on October 17, 2026. Contact a program Administrator if you think this is a mistake.' ), true );
 wpcpm_card_check( 'withdrawn never renders cached percentage', 0, preg_match( '/\d+%/', $wpcpm_card_withdrawn ) );
 
+$wpcpm_card_allow_context = array(
+	'can_manage'   => true,
+	'student_id'   => 42,
+	'withdrawn_at' => gmmktime( 0, 0, 0, 10, 17, 2026 ),
+);
+$wpcpm_card_allow_form = WPCPM_Learn_Progress_Card::render( 'withdrawn', array(), array(), $wpcpm_card_allow_context );
+wpcpm_card_check( 'Administrator allow reconnect form posts to admin-post', false !== strpos( $wpcpm_card_allow_form, 'action="https://dashboard.test/wp-admin/admin-post.php" method="post"' ), true );
+wpcpm_card_check( 'allow reconnect form names the handler action', false !== strpos( $wpcpm_card_allow_form, 'name="action" value="wpcpm_learn_allow"' ), true );
+wpcpm_card_check( 'allow reconnect form identifies the student', false !== strpos( $wpcpm_card_allow_form, 'name="student" value="42"' ), true );
+wpcpm_card_check( 'allow reconnect form uses the student-specific nonce', false !== strpos( $wpcpm_card_allow_form, 'value="nonce-wpcpm_learn_allow_42"' ), true );
+wpcpm_card_check( 'allow reconnect form has its own submit button', false !== strpos( $wpcpm_card_allow_form, '>Allow reconnecting</button>' ), true );
+wpcpm_card_check( 'a viewer without CAP_MANAGE sees no allow reconnect form', false === strpos( WPCPM_Learn_Progress_Card::render( 'withdrawn', array(), array(), array( 'student_id' => 42 ) ), 'wpcpm-learn__allow' ), true );
+
 $wpcpm_card_withdrawn_dateless = WPCPM_Learn_Progress_Card::render( 'withdrawn', $wpcpm_card_progress_data, array(), array() );
 wpcpm_card_check( 'withdrawn without a date uses a complete dateless sentence', false !== strpos( $wpcpm_card_withdrawn_dateless, 'This connection was withdrawn. Contact a program Administrator if you think this is a mistake.' ), true );
 wpcpm_card_check( 'a missing withdrawal date never prints the Unix epoch', false === strpos( $wpcpm_card_withdrawn_dateless, '1970' ), true );
@@ -663,6 +676,17 @@ $wpcpm_card_manager_panel              = WPCPM_Learn_Progress::panel( $wpcpm_car
 wpcpm_card_check( 'Administrator panel without a token says Not connected', false !== strpos( $wpcpm_card_manager_panel, '>Not connected</p>' ), true );
 wpcpm_card_check( 'Administrator panel cannot connect for the student', false === strpos( $wpcpm_card_manager_panel, '<form' ), true );
 
+$wpcpm_card_allow_messages = array(
+	'learn_allow_student'       => 'Choose a valid withdrawn student.',
+	'learn_allow_not_withdrawn' => "That student's Learn connection is not withdrawn.",
+	'learn_allow_complete'      => 'The student can connect their Learn account again.',
+);
+foreach ( $wpcpm_card_allow_messages as $outcome => $message ) {
+	$GLOBALS['wpcpm_card_flash'] = $outcome;
+	$wpcpm_card_allow_message_panel = WPCPM_Learn_Progress::panel( $wpcpm_card_student );
+	wpcpm_card_check( $outcome . ' has its required message', false !== strpos( $wpcpm_card_allow_message_panel, esc_html( $message ) ), true );
+}
+
 $GLOBALS['wpcpm_card_current_user_id'] = 42;
 $GLOBALS['wpcpm_card_can_manage']      = false;
 $GLOBALS['wpcpm_card_meta'][42][ WPCPM_Learn_Progress::META_WITHDRAWN_AT ] = gmmktime( 9, 0, 0, 11, 4, 2026 );
@@ -671,7 +695,15 @@ $wpcpm_card_withdrawn_panel = WPCPM_Learn_Progress::panel( $wpcpm_card_student )
 wpcpm_card_check( 'withdrawn student panel uses the withdrawn state', false !== strpos( $wpcpm_card_withdrawn_panel, 'data-state="withdrawn"' ), true );
 wpcpm_card_check( 'withdrawn student panel never offers Connect', false === strpos( $wpcpm_card_withdrawn_panel, '<form' ), true );
 
+$GLOBALS['wpcpm_card_current_user_id'] = 7;
+$GLOBALS['wpcpm_card_can_manage']      = true;
+$wpcpm_card_withdrawn_manager_panel    = WPCPM_Learn_Progress::panel( $wpcpm_card_student );
+wpcpm_card_check( 'Administrator sees allow reconnect on a withdrawn card', false !== strpos( $wpcpm_card_withdrawn_manager_panel, '>Allow reconnecting</button>' ), true );
+wpcpm_card_check( 'Administrator allow reconnect action carries the selected student', false !== strpos( $wpcpm_card_withdrawn_manager_panel, 'name="student" value="42"' ), true );
+
 unset( $GLOBALS['wpcpm_card_meta'][42][ WPCPM_Learn_Progress::META_WITHDRAWN_AT ] );
+$GLOBALS['wpcpm_card_current_user_id'] = 42;
+$GLOBALS['wpcpm_card_can_manage']      = false;
 $GLOBALS['wpcpm_card_meta'][42][ WPCPM_Learn_Progress::META_TOKEN ] = 'sealed-token';
 $wpcpm_card_fresh_cache                                              = $wpcpm_card_progress_data;
 $wpcpm_card_fresh_cache['fetched_at']                                = time();
