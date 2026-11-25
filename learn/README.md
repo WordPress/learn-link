@@ -9,6 +9,7 @@ A Sensei LMS extension that runs on Learn WordPress (learn.wordpress.org). Its w
 - **The consent screen** at `/learn-link/authorize/`, a front-end page (Phase 2).
 - **The token endpoint** `POST` and `DELETE /wp-json/learn-progress/v1/token`: the code exchange with PKCE, and withdrawal (Phase 2).
 - **Grants:** learner, client, courses, the token's hash, created and last-used times; listed on the learner's Learn profile.
+- **WordPress privacy tools** (Phase 3): personal data exporter and eraser for a learner's Learn Link grants, without exposing token or code hashes.
 
 Where this code finally lives on Learn is open: see [ADR 003](../docs/decisions/003-where-the-learn-code-lives.md). Until the Meta team answers, build it as a small standalone plugin, written so it can move into the `wporg-learn` plugin's `inc/` folder unchanged.
 
