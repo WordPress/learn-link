@@ -168,6 +168,14 @@ foreach ( $words as $word ) {
 	ck( "the form says: {$word}", false !== strpos( $html, $word ), true );
 }
 ck( 'the form does not name the draft course', has( $html, 'Learn Link test draft course' ), false );
+
+// #53: the page's language, title, main region and keyboard focus, and errors as alerts.
+ck( 'the form page has the site language, its own title and one main region', array( has( $html, '<html ' . get_language_attributes() . '>' ), has( $html, '<title>Share your Learn progress? - Learn WordPress</title>' ), substr_count( $html, '<main>' ), has( $html, '<main><h1>Share your Learn progress?</h1>' ) ), array( true, true, 1, true ) );
+ck( 'the language attribute names a language', (bool) preg_match( '/^lang="[a-z]{2,3}(-[A-Za-z]+)?"/', get_language_attributes() ), true );
+ck( 'buttons and links show where the keyboard focus is', has( $html, 'button:focus-visible,a:focus-visible{outline:3px solid;outline-offset:2px}' ), true );
+ck( 'the two buttons say what they do, as text', array( has( $html, 'value="approve">Approve</button>' ), has( $html, 'value="deny">Deny</button>' ) ), array( true, true ) );
+$error_page = Authorize\respond( 'GET', array() );
+ck( 'an error page has a heading, a title and its message in an alert', array( $error_page['status'], has( $error_page['html'], '<h1>Something went wrong</h1><p role="alert">This connection request is not valid.</p>' ), has( $error_page['html'], '<title>Something went wrong - Learn WordPress</title>' ) ), array( 400, true, true ) );
 ck( 'showing the form creates no grant', Grants\for_client( $learner->ID, $client_id ), array() );
 
 // SEC-12: POST.
@@ -276,16 +284,14 @@ if ( ! $local ) {
 	ck( 'HTTP leaves no grant for the local client', Grants\for_client( $learner->ID, 'wpcredits' ), array() );
 }
 
-// Delegation to the Phase 3 view: only when that function exists.
-$without = Authorize\respond( 'GET', array( 'view' => 'connections' ) );
-ck( 'view=connections without the Phase 3 view is an invalid request', $without['status'], 400 );
-// phpcs:ignore Squiz.PHP.Eval.Discouraged -- A namespaced stand-in, which a file with global code cannot declare.
-eval( 'namespace WPOrg_Learn\Learn_Progress\Connections; function render_view( \WP_User $user ): string { return "view of " . $user->user_login; }' );
+// Delegation to the connections view (#50), which inc/connections.php now provides. Its own
+// content is checked in integration-connections.php.
+ck( 'the connections view is loaded', function_exists( 'WPOrg_Learn\Learn_Progress\Connections\render_view' ), true );
 $signed_out = Authorize\respond( 'GET', array( 'view' => 'connections' ) );
 ck( 'view=connections signed out goes to the login screen', array( $signed_out['status'], $signed_out['external'] ), array( 302, false ) );
 wp_set_current_user( $learner->ID );
 $signed_in = Authorize\respond( 'GET', array( 'view' => 'connections' ) );
-ck( 'view=connections signed in returns the view for that learner', array( $signed_in['status'], $signed_in['html'] ), array( 200, 'view of learnlink-learner-07' ) );
+ck( 'view=connections signed in returns the view for that learner', array( $signed_in['status'], $signed_in['html'] ), array( 200, \WPOrg_Learn\Learn_Progress\Connections\render_view( $learner ) ) );
 
 wp_set_current_user( 0 );
 wp_delete_post( $draft, true );
