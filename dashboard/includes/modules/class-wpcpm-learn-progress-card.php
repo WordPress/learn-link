@@ -134,11 +134,13 @@ class WPCPM_Learn_Progress_Card {
 			?>
 			<p><?php echo esc_html__( 'This connection was withdrawn. Contact a program Administrator if you think this is a mistake.', 'wpcredits-program-manager' ); ?></p>
 			<?php
-			return;
+		} else {
+			?>
+			<p><?php /* translators: %s: Learn connection withdrawal date. */ echo esc_html( sprintf( __( 'This connection was withdrawn on %s. Contact a program Administrator if you think this is a mistake.', 'wpcredits-program-manager' ), $withdrawn_at ) ); ?></p>
+			<?php
 		}
-		?>
-		<p><?php /* translators: %s: Learn connection withdrawal date. */ echo esc_html( sprintf( __( 'This connection was withdrawn on %s. Contact a program Administrator if you think this is a mistake.', 'wpcredits-program-manager' ), $withdrawn_at ) ); ?></p>
-		<?php
+
+		self::render_allow_reconnect_form( $ctx );
 	}
 
 	/**
@@ -434,6 +436,27 @@ class WPCPM_Learn_Progress_Card {
 			<textarea id="wpcpm-learn-withdraw-reason-<?php echo esc_attr( $student_id ); ?>" name="reason" maxlength="500" required><?php echo esc_textarea( $reason ); ?></textarea>
 			<?php wp_nonce_field( 'wpcpm_learn_withdraw_' . $student_id ); ?>
 			<button class="wpcpm-button" type="submit"><?php echo esc_html__( 'Withdraw Learn connection', 'wpcredits-program-manager' ); ?></button>
+		</form>
+		<?php
+	}
+
+	/**
+	 * Render the Administrator-only action that reopens a withdrawn connection.
+	 *
+	 * @param array $ctx Display context for the current viewer and student.
+	 */
+	private static function render_allow_reconnect_form( array $ctx ) {
+		$student_id = isset( $ctx['student_id'] ) ? absint( $ctx['student_id'] ) : 0;
+
+		if ( empty( $ctx['can_manage'] ) || 1 > $student_id ) {
+			return;
+		}
+		?>
+		<form class="wpcpm-learn__allow" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" method="post">
+			<input type="hidden" name="action" value="wpcpm_learn_allow">
+			<input type="hidden" name="student" value="<?php echo esc_attr( $student_id ); ?>">
+			<?php wp_nonce_field( 'wpcpm_learn_allow_' . $student_id ); ?>
+			<button class="wpcpm-button" type="submit"><?php echo esc_html__( 'Allow reconnecting', 'wpcredits-program-manager' ); ?></button>
 		</form>
 		<?php
 	}

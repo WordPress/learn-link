@@ -9,6 +9,7 @@ A Sensei LMS extension that runs on Learn WordPress (learn.wordpress.org). Its w
 - **The consent screen** at `/learn-link/authorize/`, a front-end page (Phase 2).
 - **The token endpoint** `POST` and `DELETE /wp-json/learn-progress/v1/token`: the code exchange with PKCE, and withdrawal (Phase 2).
 - **Grants:** learner, client, courses, the token's hash, created and last-used times; listed on the learner's Learn profile.
+- **WordPress privacy tools** (Phase 3): personal data exporter and eraser for a learner's Learn Link grants, without exposing token or code hashes.
 - **The connections view** (`inc/connections.php`, Phase 3): the learner's own grants at `/learn-link/authorize/?view=connections`, with no withdraw button, and a Withdraw button for each grant on another user's profile screen in wp-admin, for someone who can `edit_users`. That withdrawal marks `_revoked_at`, so the next read answers `403 learn_progress_revoked`. Tests: `tests/integration-connections.php`.
 
 Where this code finally lives on Learn is open: see [ADR 003](../docs/decisions/003-where-the-learn-code-lives.md). Until the Meta team answers, build it as a small standalone plugin, written so it can move into the `wporg-learn` plugin's `inc/` folder unchanged.
