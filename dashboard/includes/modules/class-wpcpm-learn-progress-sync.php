@@ -15,11 +15,147 @@ if ( ! defined( 'ABSPATH' ) ) {
 final class WPCPM_Learn_Progress_Sync {
 
 	/**
-	 * Register synchronization hooks.
+	 * Daily cron hook that refreshes cached progress and retries pending revocations.
 	 *
-	 * Nightly cron scheduling is added in Phase 3.
+	 * @var string
+	 */
+	const HOOK = 'wpcpm_learn_progress_nightly';
+
+	/**
+	 * Option storing the summary counts of the last warmer run.
+	 *
+	 * @var string
+	 */
+	const RUN_OPTION = 'wpcpm_learn_progress_run';
+
+	/**
+	 * Option holding the Unix timestamp of an active warmer run lock.
+	 *
+	 * @var string
+	 */
+	const LOCK_OPTION = 'wpcpm_learn_progress_lock';
+
+	/**
+	 * How long a lock holds before an unfinished run is considered stale: ten minutes.
+	 *
+	 * @var int
+	 */
+	const LOCK_TTL = 600;
+
+	/**
+	 * The hour, UTC, the daily warmer run starts (08:00 UTC).
+	 *
+	 * @var int
+	 */
+	const RUN_HOUR = 8;
+
+	/**
+	 * Maximum number of connected students queried per batch.
+	 *
+	 * @var int
+	 */
+	const BATCH_SIZE = 500;
+
+	/**
+	 * Register synchronization hooks.
 	 */
 	public static function init() {
+		add_action( self::HOOK, array( __CLASS__, 'run' ) );
+		add_action( 'init', array( __CLASS__, 'schedule' ) );
+	}
+
+	/**
+	 * Schedule the daily warmer event on `init` when missing.
+	 */
+	public static function schedule() {
+		if ( ! WPCPM_Learn_Progress::enabled() ) {
+			return;
+		}
+
+		if ( ! wp_next_scheduled( self::HOOK ) ) {
+			wp_schedule_event( self::next_run( time() ), 'daily', self::HOOK );
+		}
+	}
+
+	/**
+	 * Return the next 08:00 UTC timestamp at or after a given Unix time.
+	 *
+	 * @param int $now Unix timestamp.
+	 * @return int Next 08:00 UTC Unix timestamp.
+	 */
+	public static function next_run( $now ) {
+		$now      = (int) $now;
+		$midnight = $now - ( $now % DAY_IN_SECONDS );
+		$at       = $midnight + ( self::RUN_HOUR * HOUR_IN_SECONDS );
+
+		return $at >= $now ? $at : $at + DAY_IN_SECONDS;
+	}
+
+	/**
+	 * Clear the scheduled daily event and any active lock on plugin deactivation.
+	 */
+	public static function deactivate() {
+		wp_clear_scheduled_hook( self::HOOK );
+		delete_option( self::LOCK_OPTION );
+	}
+
+	/**
+	 * Retry pending revocations and refresh cached progress for connected students.
+	 *
+	 * @return array|false Run summary counts, or false when disabled or already locked.
+	 */
+	public static function run() {
+		if ( ! WPCPM_Learn_Progress::enabled() ) {
+			return false;
+		}
+
+		$now = time();
+
+		if ( ! self::lock( $now ) ) {
+			return false;
+		}
+
+		try {
+			$revocations = self::retry_revocations();
+			$user_ids    = self::connected_user_ids();
+			$refreshed   = 0;
+			$failed      = 0;
+			$waiting     = 0;
+
+			foreach ( $user_ids as $user_id ) {
+				if ( get_user_meta( $user_id, WPCPM_Learn_Progress::META_WITHDRAWN_AT, true ) ) {
+					continue;
+				}
+
+				$res = self::refresh( $user_id, true );
+
+				if ( true === $res ) {
+					++$refreshed;
+					continue;
+				}
+
+				if ( is_wp_error( $res ) && 'learn_progress_slow_down' === $res->get_error_code() ) {
+					++$waiting;
+					continue;
+				}
+
+				++$failed;
+			}
+
+			$summary = array(
+				'at'          => $now,
+				'refreshed'   => $refreshed,
+				'failed'      => $failed,
+				'waiting'     => $waiting,
+				'revocations' => $revocations,
+			);
+
+			update_option( self::RUN_OPTION, $summary, false );
+
+			return $summary;
+		} finally {
+			self::unlock();
+		}
 	}
 
 	/**
@@ -260,6 +396,73 @@ final class WPCPM_Learn_Progress_Sync {
 		$course = (int) WPCPM_Program::course_id( WPCPM_Program::course_status( $status, $student_id ) );
 
 		return $course > 0 ? array( $course ) : array();
+	}
+
+	/**
+	 * Query all user IDs holding a stored Learn token in batches.
+	 *
+	 * @return int[] Deduplicated user IDs.
+	 */
+	private static function connected_user_ids() {
+		$seen  = array();
+		$paged = 1;
+
+		do {
+			$batch = get_users(
+				array(
+					'meta_key' => WPCPM_Learn_Progress::META_TOKEN,
+					'fields'   => 'ID',
+					'number'   => self::BATCH_SIZE,
+					'paged'    => $paged,
+				)
+			);
+
+			if ( ! is_array( $batch ) || empty( $batch ) ) {
+				break;
+			}
+
+			$batch_count = count( $batch );
+
+			foreach ( $batch as $raw_id ) {
+				$user_id = (int) $raw_id;
+				if ( $user_id > 0 ) {
+					$seen[ $user_id ] = true;
+				}
+			}
+
+			++$paged;
+		} while ( $batch_count >= self::BATCH_SIZE );
+
+		return array_keys( $seen );
+	}
+
+	/**
+	 * Acquire the warmer lock, taking over any lock older than `LOCK_TTL`.
+	 *
+	 * @param int $now Current Unix timestamp.
+	 * @return bool True if the lock was acquired, false if another active run holds it.
+	 */
+	private static function lock( $now ) {
+		if ( add_option( self::LOCK_OPTION, (int) $now, '', false ) ) {
+			return true;
+		}
+
+		$held = (int) get_option( self::LOCK_OPTION, 0 );
+
+		if ( $held > 0 && ( (int) $now - $held ) < self::LOCK_TTL ) {
+			return false;
+		}
+
+		update_option( self::LOCK_OPTION, (int) $now, false );
+
+		return true;
+	}
+
+	/**
+	 * Release the warmer lock.
+	 */
+	private static function unlock() {
+		delete_option( self::LOCK_OPTION );
 	}
 
 	/**
