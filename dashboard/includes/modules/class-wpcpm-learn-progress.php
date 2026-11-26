@@ -32,7 +32,8 @@ class WPCPM_Learn_Progress {
 	// Keep state values and timeouts within uninstall.php's Learn transient sweep.
 	const STATE_PREFIX     = 'wpcpm_learn_state_';
 	const OUTAGE_TRANSIENT = 'wpcpm_learn_card_outage';
-	const OUTAGE_TTL       = 5 * MINUTE_IN_SECONDS;
+	// Standalone suites may load this class without WordPress time constants.
+	const OUTAGE_TTL       = 300;
 	const FLASH            = 'learn';
 
 	/**
