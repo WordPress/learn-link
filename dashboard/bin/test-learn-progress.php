@@ -40,6 +40,10 @@ $GLOBALS['wpcpm_learn_test_nonce_valid'] = true;
 $GLOBALS['wpcpm_learn_test_users']       = array();
 $GLOBALS['wpcpm_learn_test_mail']        = array();
 $GLOBALS['wpcpm_learn_template_calls']   = array();
+$GLOBALS['wpcpm_learn_structure_calls']  = array();
+$GLOBALS['wpcpm_learn_structures']       = array();
+$GLOBALS['wpcpm_learn_resolve_calls']    = array();
+$GLOBALS['wpcpm_learn_resolved_courses'] = array();
 
 class WP_User {
 	public $ID;
@@ -126,6 +130,41 @@ class WPCPM_Settings {
 		return array_key_exists( $key, $GLOBALS['wpcpm_learn_test_settings'] )
 			? $GLOBALS['wpcpm_learn_test_settings'][ $key ]
 			: $fallback;
+	}
+}
+
+class WPCPM_Learn {
+	const API = 'https://learn.wordpress.org/wp-json/';
+
+	public static function structure( $course_id ) {
+		$course_id = (int) $course_id;
+		$GLOBALS['wpcpm_learn_structure_calls'][] = $course_id;
+
+		return isset( $GLOBALS['wpcpm_learn_structures'][ $course_id ] )
+			? $GLOBALS['wpcpm_learn_structures'][ $course_id ]
+			: new WP_Error( 'wpcpm_learn_unreachable' );
+	}
+
+	public static function resolve( $url ) {
+		$url = (string) $url;
+		$GLOBALS['wpcpm_learn_resolve_calls'][] = $url;
+
+		return isset( $GLOBALS['wpcpm_learn_resolved_courses'][ $url ] )
+			? $GLOBALS['wpcpm_learn_resolved_courses'][ $url ]
+			: new WP_Error( 'wpcpm_learn_unreachable' );
+	}
+}
+
+class WPCPM_Program {
+	public static $course_ids = array();
+	public static $course_urls = array();
+
+	public static function course_ids() {
+		return self::$course_ids;
+	}
+
+	public static function course_url( $status ) {
+		return isset( self::$course_urls[ (string) $status ] ) ? self::$course_urls[ (string) $status ] : '';
 	}
 }
 
@@ -607,6 +646,8 @@ WPCPM_Learn_Progress::init();
 $wpcpm_learn_disabled_output = ob_get_clean();
 wpcpm_learn_check( 'disabled prints nothing', $wpcpm_learn_disabled_output, '' );
 wpcpm_learn_check( 'disabled registers no handlers', $GLOBALS['wpcpm_learn_test_actions'], array() );
+wpcpm_learn_check( 'disabled registers no Learn API filter', $GLOBALS['wpcpm_learn_test_filters'], array() );
+wpcpm_learn_check( 'disabled leaves the public Learn API unchanged', WPCPM_Learn_Progress::learn_api_base( WPCPM_Learn::API ), WPCPM_Learn::API );
 wpcpm_learn_check( 'disabled does not start sync', $GLOBALS['wpcpm_learn_sync_calls'], 0 );
 
 $GLOBALS['wpcpm_learn_test_settings'] = array(
@@ -631,6 +672,39 @@ wpcpm_learn_check(
 
 $GLOBALS['wpcpm_learn_test_settings']['learn_courses'] = array( 297853, 301001 );
 wpcpm_learn_check( 'a saved course ID list becomes stable text', WPCPM_Learn_Progress::settings()['learn_courses'], '297853,301001' );
+wpcpm_learn_check( 'the enabled module points public Learn reads at the configured site', WPCPM_Learn_Progress::learn_api_base( WPCPM_Learn::API ), 'http://localhost:8882/wp-json/' );
+
+$wpcpm_learn_modules = array(
+	array(
+		'id'      => 101,
+		'title'   => 'Orientation',
+		'lessons' => array( array( 'id' => 297901, 'title' => 'Welcome' ) ),
+	),
+);
+$GLOBALS['wpcpm_learn_structures'][297853] = $wpcpm_learn_modules;
+wpcpm_learn_check( 'structure_for returns the plugin structure', WPCPM_Learn_Progress::structure_for( 297853 ), $wpcpm_learn_modules );
+wpcpm_learn_check( 'structure_for asks for the selected course', $GLOBALS['wpcpm_learn_structure_calls'], array( 297853 ) );
+wpcpm_learn_check( 'structure_for degrades a Learn error to an empty list', WPCPM_Learn_Progress::structure_for( 123456 ), array() );
+wpcpm_learn_check( 'structure_for rejects an invalid course without a read', WPCPM_Learn_Progress::structure_for( 0 ), array() );
+wpcpm_learn_check( 'an invalid structure course made no extra read', $GLOBALS['wpcpm_learn_structure_calls'], array( 297853, 123456 ) );
+
+WPCPM_Program::$course_ids = array(
+	'Developer Track' => 297853,
+	'Designer Track'  => 301001,
+);
+WPCPM_Program::$course_urls = array(
+	'Developer Track' => 'https://learn.wordpress.org/course/developer-track/',
+	'Designer Track'  => 'https://learn.wordpress.org/course/designer-track/',
+);
+$GLOBALS['wpcpm_learn_resolved_courses']['https://learn.wordpress.org/course/developer-track/'] = array(
+	'id'    => 297853,
+	'title' => 'Developer Track',
+);
+wpcpm_learn_check( 'course_title_for resolves the matching program course', WPCPM_Learn_Progress::course_title_for( 297853 ), 'Developer Track' );
+wpcpm_learn_check( 'course_title_for uses the matching course URL', $GLOBALS['wpcpm_learn_resolve_calls'], array( 'https://learn.wordpress.org/course/developer-track/' ) );
+wpcpm_learn_check( 'course_title_for degrades a resolve error to an empty title', WPCPM_Learn_Progress::course_title_for( 301001 ), '' );
+wpcpm_learn_check( 'course_title_for ignores a course outside the program map', WPCPM_Learn_Progress::course_title_for( 999999 ), '' );
+wpcpm_learn_check( 'an unknown course causes no title read', count( $GLOBALS['wpcpm_learn_resolve_calls'] ), 2 );
 
 $wpcpm_learn_state    = WPCPM_Learn_Progress::random_b64url( 32 );
 $wpcpm_learn_verifier = WPCPM_Learn_Progress::random_b64url( 48 );
@@ -1157,6 +1231,11 @@ wpcpm_learn_check( 'a signed-out callback uses the WordPress login flow', $GLOBA
 
 WPCPM_Learn_Progress::init();
 wpcpm_learn_check( 'enabled starts sync once', $GLOBALS['wpcpm_learn_sync_calls'], 1 );
+wpcpm_learn_check(
+	'enabled registers the Learn API base filter',
+	$GLOBALS['wpcpm_learn_test_filters']['wpcpm_learn_api_base'],
+	array( 'WPCPM_Learn_Progress', 'learn_api_base' )
+);
 wpcpm_learn_check(
 	'enabled registers only its five handlers',
 	array_keys( $GLOBALS['wpcpm_learn_test_actions'] ),

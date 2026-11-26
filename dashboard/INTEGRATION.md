@@ -48,6 +48,7 @@ From section 8.4 of the technical guide. Follow the code, not the spec, on each 
 | #9 | `includes/modules/class-wpcpm-mentors-dashboard.php`, `WPCPM_Mentors_Dashboard::triage_data()` | While Learn Link is enabled, give each student a `learn` facet (`connected`, `not_connected` or `withdrawn`), add "learn: not connected" or "learn: connection withdrawn" to that student's `search`, and add the label `learnFilter` to `i18n`. `assets/js/triage.js` does not change: the search is the filter. | Wilberth | W3.2 / issue #48 |
 | #10 | `uninstall.php`, `bin/test-uninstall.php` | Delete every `META_*` user meta key declared on `WPCPM_Learn_Progress` via `ReflectionClass`, delete `RUN_OPTION` and `LOCK_OPTION`, clear `HOOK`, and verify Learn meta, options, cron hook and `wpcpm_learn_state_*` transients in the uninstall suite. | Rafael | R3.3 / issue #51 |
 | #10b | `wpcredits-program-manager.php`, `wpcpm_bootstrap()` | Call `WPCPM_Learn_Progress_Sync::lifecycle()` unconditionally (outside the `learn_enabled` switch) so `delete_user` cleanup and WordPress privacy tools remain active when Learn Link is off. | Rafael | R3.3 / issue #51 |
+| #11 | `includes/class-wpcpm-learn.php`, `WPCPM_Learn::get()` | Apply `wpcpm_learn_api_base` to the public REST API root, with `WPCPM_Learn::API` as the default. The Learn Link module points it at the configured `learn_base_url` only while the feature is enabled. | Pedro | P3.2 / issue #46 |
 | #13 | `includes/mail/class-wpcpm-mail-catalog.php`, `includes/mail/class-wpcpm-mail-templates.php`, `includes/mail/templates/other.php`, `bin/test-mail-catalog.php`, `bin/test-mail-templates.php` | Register `learn-connection-withdrawn` as an editable student template in the Emails tool's Other area, and update the catalog, registry and source-context tests. | Pedro | P2.4 / issue #25 |
 
 ### Block #1a: Learn Link classes
@@ -202,6 +203,40 @@ line right after `'until' => __( 'until %s', … ),`, to:
   `line()`, and `bin/test-learn-mentor.php` checks them with the same network
   doubles. The plugin's `bin/test-mentors-dashboard.php` and
   `bin/test-mentors-screen.php` stay green with blocks #8 and #9 applied.
+
+### Block #11: configurable public Learn API root
+
+`WPCPM_Learn` normally reads the public API on `learn.wordpress.org`. Learn Link
+also runs against local and staging Learn sites, whose address already lives in
+the validated `learn_base_url` setting. In `WPCPM_Learn::get()`, replace the
+fixed API concatenation with a filtered root while keeping the constant as the
+default:
+
+```php
+/**
+ * Filters the public Learn REST API root.
+ *
+ * @param string $api Public Learn REST API root.
+ */
+$api = function_exists( 'apply_filters' )
+	? (string) apply_filters( 'wpcpm_learn_api_base', self::API )
+	: self::API;
+
+$response = wp_remote_get(
+	rtrim( $api, '/' ) . '/' . ltrim( $path, '/' ),
+	array(
+		'timeout'     => 5,
+		'redirection' => 3,
+	)
+);
+```
+
+The filter is registered by `WPCPM_Learn_Progress::init()` only after the
+`learn_enabled` check. Its callback converts the configured site address to its
+REST root, for example `http://localhost:8882/wp-json/`. With Learn Link off,
+the filter is absent and the existing production address is unchanged. The
+`function_exists()` fallback keeps the plugin's isolated `bin/test-learn.php`
+suite unchanged: outside WordPress, the reader continues with `WPCPM_Learn::API`.
 
 ### Block #13: register the editable withdrawal email
 

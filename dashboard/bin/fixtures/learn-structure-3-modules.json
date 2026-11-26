@@ -1,0 +1,27 @@
+[
+  {
+    "id": 101,
+    "title": "Orientation",
+    "lessons": [
+      { "id": 297901, "title": "Welcome to WordPress Credits" },
+      { "id": 297902, "title": "Meet the WordPress community" },
+      { "id": 297903, "title": "Set up your contribution tools" }
+    ]
+  },
+  {
+    "id": 102,
+    "title": "Contribution project",
+    "lessons": [
+      { "id": 297904, "title": "Choose a contribution" },
+      { "id": 297905, "title": "Plan the work" },
+      { "id": 297906, "title": "Share an update" }
+    ]
+  },
+  {
+    "id": 103,
+    "title": "Wrap-up <script>alert(1)</script>",
+    "lessons": [
+      { "id": 297907, "title": "Reflect on the contribution" }
+    ]
+  }
+]
