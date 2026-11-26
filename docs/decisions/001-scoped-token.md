@@ -1,28 +1,35 @@
 # 001. A scoped token of its own, not Application Passwords
 
-- **Status:** Accepted before the term (handbook section 4, "Already made"). The team writes this record up in week 1 or 2.
-- **Date:**
-- **Decided by:** the product owners, Maciej Pilarski and Isotta Peira
-- **Issue:**
-
-_Stub. Replace each "To be written" with a few sentences of your own._
+- **Status:** Accepted
+- **Date:** 2026-09-07
+- **Decided by:** the product owners, Maciej Pilarski and Isotta Peira, before the term (handbook section 4, "Already made")
+- **Issue:** #2
 
 ## Context
 
 The Dashboard needs a credential to read one learner's progress from Learn. Learn already has WordPress Application Passwords switched on, and WordPress.org's own authorization flow at login.wordpress.org (March 2026) hands out a full Application Password. An Application Password can do everything its user can do.
 
-To be written: why that matters here, with the builders being participants themselves.
+The people building Learn Link are participants in the program themselves. If the Dashboard held Application Passwords, a mistake or a leak would hand over fellow students' whole WordPress.org accounts, not just their course results. The credential has to be worth as little as possible to anyone who gets it.
 
 ## Decision
 
 Learn Link uses its own token. It reads its holder's own progress for the whitelisted courses and nothing else, and it works only on the learn-progress routes.
 
-To be written: how the token is made (32 random bytes), stored (only its hash on Learn, sealed on the Dashboard) and checked (inside each route's permission callback, never through `determine_current_user`).
+- **Made:** 32 random bytes, encoded as 43 Base64URL characters (`Tokens\mint()`).
+- **Stored on Learn:** only its keyed hash, `hash_hmac( 'sha256', $token, wp_salt( 'auth' ) )`, on the learner's grant. The one-time code is stored the same way.
+- **Stored on the Dashboard:** sealed with the plugin's `WPCPM_Secret` (AES-256-GCM), and only its fingerprint is ever logged.
+- **Checked:** inside the permission callback of `GET /learn-progress/v1/me` and `DELETE /learn-progress/v1/token` (`Rest\authenticate()`). It never goes through `determine_current_user` and never calls `wp_set_current_user()`, so the token cannot sign anyone in or reach any other route.
+- **Limited:** Learn may refuse more than sixty reads per token per hour.
 
 ## Alternatives considered
 
-To be written. At least: core Application Passwords; WordPress.org's login-application-passwords flow.
+- **Core Application Passwords:** each one carries every capability of its user on every REST route. Storing one per student on the Dashboard would turn any leak into account takeover.
+- **WordPress.org's login application-passwords flow:** it is convenient, but it hands out the same full Application Password, so it has the same problem.
+- **A general OAuth server plugin on Learn:** it would give scopes, but it is far more code for the Meta team to review and maintain than one read-only route needs.
 
 ## Consequences
 
-To be written. For example: the Learn half must build and secure its own token storage, and a leaked token exposes one learner's progress and nothing more.
+- The Learn half builds and tests its own grant storage, hashing and rate limit (the grants, bearer and token integration suites).
+- A leaked token exposes one learner's progress in the whitelisted courses, and nothing more, until it is withdrawn.
+- Changing Learn's `AUTH_KEY` or `AUTH_SALT` makes every stored hash useless, so every student would have to connect again.
+- No route outside the learn-progress namespace may ever accept this token. `integration-bearer.php` checks that `/wp/v2/users/me` still answers 401 to it (SEC-07).
