@@ -123,4 +123,4 @@ Comparison verification was executed on a disposable WordPress Studio site runni
 6. Delete the disposable site after capturing evidence.
 
 ### 5.5 Production Storage Question (`WordPress/Learn#3732`)
-- **Production Learn repository status:** asked in `WordPress/Learn#3732`, no answer yet. Once confirmed, update this section with the verified production configuration.
+- **Production Learn repository status:** answered in `WordPress/Learn#3732` on 17 November 2026. `experimental_progress_storage` and its synchronization are off and the repository is `comments`, so learn.wordpress.org reads the comment storage, on the latest Sensei LMS. That is the store the team tested first, and 5.4 shows the tables give the same answer if that ever changes.
