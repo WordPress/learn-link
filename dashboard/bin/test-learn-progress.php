@@ -977,6 +977,38 @@ wpcpm_learn_check( 'identity refuses another username', WPCPM_Learn_Progress::id
 wpcpm_learn_check( 'identity refuses two different Learn names', WPCPM_Learn_Progress::identity_matches( array( 'login-name', 'other-profile' ), 'adaexample' ), false );
 wpcpm_learn_check( 'identity refuses a missing known username', WPCPM_Learn_Progress::identity_matches( 'adaexample', '' ), false );
 
+$wpcpm_learn_identity_meta = array(
+	WPCPM_Learn_Progress::META_TOKEN        => 'sealed:identity-token',
+	WPCPM_Learn_Progress::META_USERNAME     => 'AdaLogin',
+	WPCPM_Learn_Progress::META_PROFILE_SLUG => 'ada-profile',
+	'wpcpm_student_program'                 => array( 'username' => 'adalogin' ),
+);
+$GLOBALS['wpcpm_learn_test_meta'][700] = $wpcpm_learn_identity_meta;
+wpcpm_learn_check( 'an unchanged known username is not flagged', WPCPM_Learn_Progress::identity_changed( 700 ), false );
+$GLOBALS['wpcpm_learn_test_meta'][700]['wpcpm_student_program']['username'] = 'ADA-PROFILE';
+wpcpm_learn_check( 'a known username matching the saved slug ignores case', WPCPM_Learn_Progress::identity_changed( 700 ), false );
+$GLOBALS['wpcpm_learn_test_meta'][700]['wpcpm_student_program']['username'] = 'new-name';
+$wpcpm_learn_identity_before = $GLOBALS['wpcpm_learn_test_meta'][700];
+wpcpm_learn_check( 'a real known username change is flagged', WPCPM_Learn_Progress::identity_changed( 700 ), true );
+wpcpm_learn_check( 'checking identity changes modifies no stored data', $GLOBALS['wpcpm_learn_test_meta'][700], $wpcpm_learn_identity_before );
+$GLOBALS['wpcpm_learn_test_meta'][701] = array(
+	WPCPM_Learn_Progress::META_TOKEN    => 'sealed:legacy-token',
+	WPCPM_Learn_Progress::META_USERNAME => 'legacy-name',
+	'wpcpm_student_program'             => array( 'username' => 'LEGACY-NAME' ),
+);
+wpcpm_learn_check( 'a connection made before profile slugs uses the saved username', WPCPM_Learn_Progress::identity_changed( 701 ), false );
+$GLOBALS['wpcpm_learn_test_meta'][702] = array(
+	WPCPM_Learn_Progress::META_TOKEN    => 'sealed:empty-known-token',
+	WPCPM_Learn_Progress::META_USERNAME => 'verified-name',
+	'wpcpm_student_program'             => array( 'username' => '' ),
+);
+wpcpm_learn_check( 'an empty known username is not flagged', WPCPM_Learn_Progress::identity_changed( 702 ), false );
+$GLOBALS['wpcpm_learn_test_meta'][703] = array(
+	WPCPM_Learn_Progress::META_USERNAME => 'verified-name',
+	'wpcpm_student_program'             => array( 'username' => 'different-name' ),
+);
+wpcpm_learn_check( 'a student without a connection is not flagged', WPCPM_Learn_Progress::identity_changed( 703 ), false );
+
 $wpcpm_learn_token = str_repeat( 'T', 43 );
 $wpcpm_learn_identity_error = wpcpm_learn_callback_attempt(
 	65,
@@ -1023,6 +1055,7 @@ $wpcpm_learn_slug_identity = wpcpm_learn_callback_attempt(
 wpcpm_learn_check( 'a matching profile slug connects the account', isset( $wpcpm_learn_slug_identity['meta'][ WPCPM_Learn_Progress::META_TOKEN ] ), true );
 wpcpm_learn_check( 'a matching profile slug does not revoke', $wpcpm_learn_slug_identity['revoke_calls'], array() );
 wpcpm_learn_check( 'a profile-slug match stores the primary Learn username', $wpcpm_learn_slug_identity['meta'][ WPCPM_Learn_Progress::META_USERNAME ], 'login-name' );
+wpcpm_learn_check( 'a profile-slug match stores the verified profile slug', $wpcpm_learn_slug_identity['meta'][ WPCPM_Learn_Progress::META_PROFILE_SLUG ], 'AdaExample' );
 
 $wpcpm_learn_seal_error = wpcpm_learn_callback_attempt(
 	67,
@@ -1047,6 +1080,7 @@ wpcpm_learn_check( 'success stores a sealed token', $wpcpm_learn_success['meta']
 wpcpm_learn_check( 'success never stores the plain token', $wpcpm_learn_success['meta'][ WPCPM_Learn_Progress::META_TOKEN ] === $wpcpm_learn_token, false );
 wpcpm_learn_check( 'success records the connection time', abs( time() - $wpcpm_learn_success['meta'][ WPCPM_Learn_Progress::META_CONNECTED ] ) <= 2, true );
 wpcpm_learn_check( 'success stores the username Learn confirmed', $wpcpm_learn_success['meta'][ WPCPM_Learn_Progress::META_USERNAME ], 'AdaExample' );
+wpcpm_learn_check( 'success records an empty optional profile slug', $wpcpm_learn_success['meta'][ WPCPM_Learn_Progress::META_PROFILE_SLUG ], '' );
 wpcpm_learn_check( 'success refreshes once and forces the first read', $wpcpm_learn_success['refresh_calls'], array( array( 68, true ) ) );
 wpcpm_learn_check( 'success does not revoke', $wpcpm_learn_success['revoke_calls'], array() );
 wpcpm_learn_check( 'success gets the connected outcome', $wpcpm_learn_success['flash'], array( 'learn' => 'learn_connected' ) );
