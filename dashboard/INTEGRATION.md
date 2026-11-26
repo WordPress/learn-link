@@ -45,6 +45,7 @@ From section 8.4 of the technical guide. Follow the code, not the spec, on each 
 | #6 | `includes/modules/class-wpcpm-students-dashboard.php`, `register()` and `render()` | Register `assets/css/learn.css` after `student.css`, then enqueue it with the Student Report Card only while Learn Link is enabled. | Pedro | P1.3 |
 | #7 | `wpcredits-program-manager.php`, `wpcpm_deactivate()` | Clear the nightly warmer cron event and any active run lock via `WPCPM_Learn_Progress_Sync::deactivate()` alongside `WPCPM_Outcome_Figures::deactivate()`. | Rafael | R3.1 / issue #47 |
 | #8 | `includes/modules/class-wpcpm-mentors-dashboard.php`, `WPCPM_Mentors_Dashboard::render_mentee()` | Add a "Learn" row to `$fields`, right after the Hours row, with `WPCPM_Learn_Progress_Mentor::line()` as its value, while Learn Link is enabled. | Wilberth | W3.1 / issue #48 |
+| #9 | `includes/modules/class-wpcpm-mentors-dashboard.php`, `WPCPM_Mentors_Dashboard::triage_data()` | While Learn Link is enabled, give each student a `learn` facet (`connected`, `not_connected` or `withdrawn`), add "learn: not connected" or "learn: connection withdrawn" to that student's `search`, and add the label `learnFilter` to `i18n`. `assets/js/triage.js` does not change: the search is the filter. | Wilberth | W3.2 / issue #48 |
 | #10 | `uninstall.php`, `bin/test-uninstall.php` | Delete every `META_*` user meta key declared on `WPCPM_Learn_Progress` via `ReflectionClass`, delete `RUN_OPTION` and `LOCK_OPTION`, clear `HOOK`, and verify Learn meta, options, cron hook and `wpcpm_learn_state_*` transients in the uninstall suite. | Rafael | R3.3 / issue #51 |
 | #10b | `wpcredits-program-manager.php`, `wpcpm_bootstrap()` | Call `WPCPM_Learn_Progress_Sync::lifecycle()` unconditionally (outside the `learn_enabled` switch) so `delete_user` cleanup and WordPress privacy tools remain active when Learn Link is off. | Rafael | R3.3 / issue #51 |
 | #11 | `includes/class-wpcpm-learn.php`, `WPCPM_Learn::get()` | Apply `wpcpm_learn_api_base` to the public REST API root, with `WPCPM_Learn::API` as the default. The Learn Link module points it at the configured `learn_base_url` only while the feature is enabled. | Pedro | P3.2 / issue #46 |
@@ -148,6 +149,60 @@ class_exists( 'WPCPM_Learn_Progress_Mentor' ) && WPCPM_Learn_Progress::enabled()
 The numbers are those of the first cached course, which is the track course by
 contract section 1.4 and decision 4. Decision 2 limits the line to students who
 have a mentor, so it appears only on the Mentor Report Card.
+
+### Block #9: the "not connected" search on the Mentor Report Card
+
+Written against WPCredits Program Manager **1.123.98**. Search for
+`triage_data()` by name. Three edits, all inside that method.
+
+At the top of the method, right after
+`$format   = (string) get_option( 'date_format' );`:
+
+```php
+// Learn Link (block #9): each student's Learn facet, from the local cache only.
+$learn_on = class_exists( 'WPCPM_Learn_Progress_Mentor' ) && WPCPM_Learn_Progress::enabled();
+```
+
+Inside the `foreach`, right after the `$students[ $record ] = array( … );`
+that ends with
+`'search'      => self::search_haystack( $mentee, $institution, $team ),`:
+
+```php
+// Learn Link (block #9): `connected`, `not_connected` or `withdrawn`, and the words a
+// search for "not connected" finds the student by. The search is the filter.
+if ( $learn_on ) {
+	$account    = WPCPM_Students_Sync::user_for_record( $record );
+	$account_id = $account instanceof WP_User ? (int) $account->ID : 0;
+	$words      = WPCPM_Learn_Progress_Mentor::search_words( $account_id );
+
+	$students[ $record ]['learn'] = WPCPM_Learn_Progress_Mentor::facet( $account_id );
+
+	if ( '' !== $words ) {
+		$students[ $record ]['search'] = trim( $students[ $record ]['search'] . ' ' . $words );
+	}
+}
+```
+
+In the returned array, change the closing `),` of `'i18n' => array( … )`, the
+line right after `'until' => __( 'until %s', … ),`, to:
+
+```php
+) + ( $learn_on ? array( 'learnFilter' => __( 'Not connected to Learn', 'wpcredits-program-manager' ) ) : array() ),
+```
+
+- `assets/js/triage.js` does not change (Maciej in #45, 17/11: the Mentor
+  Report Card moves into the new dashboard frame next). Its search matches a
+  lowercase piece of each student's `search`, so typing "not connected" shows
+  only the students who are not connected, and the match count and the group
+  counts follow. "connection withdrawn" finds the withdrawn ones.
+- A connected student gets no Learn words, so "not connected" never matches
+  one. `learn` and `learnFilter` are there for the new frame's filter.
+- With Learn Link off, `triage_data()` is exactly as before: no `learn`, no
+  `learnFilter`, the same `search`.
+- `facet()` and `search_words()` read `state_for()` and the cache only, like
+  `line()`, and `bin/test-learn-mentor.php` checks them with the same network
+  doubles. The plugin's `bin/test-mentors-dashboard.php` and
+  `bin/test-mentors-screen.php` stay green with blocks #8 and #9 applied.
 
 ### Block #11: configurable public Learn API root
 

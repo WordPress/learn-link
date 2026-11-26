@@ -420,6 +420,32 @@ wpcpm_mentor_student(
 );
 wpcpm_mentor_check( 'a month-old cache still gives its line', wpcpm_mentor_line( 23 ), 'Learn: 50% of the track course, 4 of 8 lessons' );
 
+echo "\n=== The triage facet (W3.2) ===\n";
+
+$wpcpm_facets = array(
+	11 => 'connected',     // In progress.
+	12 => 'connected',     // Complete.
+	13 => 'connected',     // Nothing started.
+	14 => 'not_connected', // No token.
+	15 => 'withdrawn',     // Withdrawn, with a cache left behind.
+	16 => 'withdrawn',     // Withdrawn, with a token.
+	17 => 'connected',     // Unavailable, no cache: the Dashboard still holds a token.
+	19 => 'connected',     // Unavailable after a later error.
+	0  => 'not_connected', // No WordPress account.
+);
+
+foreach ( $wpcpm_facets as $wpcpm_id => $wpcpm_want ) {
+	wpcpm_mentor_check( "facet of student {$wpcpm_id}: {$wpcpm_want}", WPCPM_Learn_Progress_Mentor::facet( $wpcpm_id ), $wpcpm_want );
+}
+
+wpcpm_mentor_check( 'the line of each student who is not connected says the same as the facet', array_map( 'WPCPM_Learn_Progress_Mentor::line', array( 14, 15, 0 ) ), array( 'Learn: not connected', 'Learn: connection withdrawn', 'Learn: not connected' ) );
+
+wpcpm_mentor_check( 'search words: a student with no token', WPCPM_Learn_Progress_Mentor::search_words( 14 ), 'learn: not connected' );
+wpcpm_mentor_check( 'search words: a row with no account', WPCPM_Learn_Progress_Mentor::search_words( 0 ), 'learn: not connected' );
+wpcpm_mentor_check( 'search words: a withdrawn student', WPCPM_Learn_Progress_Mentor::search_words( 15 ), 'learn: connection withdrawn' );
+wpcpm_mentor_check( 'search words: a connected student has none, so "not connected" never finds them', array( WPCPM_Learn_Progress_Mentor::search_words( 11 ), WPCPM_Learn_Progress_Mentor::search_words( 17 ) ), array( '', '' ) );
+wpcpm_mentor_check( 'a search for "not connected" finds only the not connected', false !== strpos( WPCPM_Learn_Progress_Mentor::search_words( 14 ), 'not connected' ) && false === strpos( WPCPM_Learn_Progress_Mentor::search_words( 15 ), 'not connected' ), true );
+
 echo "\n=== The line never reaches Learn (I-D08 / UI-10) ===\n";
 
 wpcpm_mentor_check( 'no network call and no refresh in any case above', $GLOBALS['wpcpm_mentor_network'], array() );
