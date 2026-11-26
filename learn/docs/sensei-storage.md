@@ -94,9 +94,33 @@ Inspection of Sensei's `Progress_Storage_Configuration::resolve()` reveals that 
 
 If any of these three flags is disabled or missing, Sensei automatically falls back to reading from `wp_comments` (`COMMENTS_BACKEND`).
 
-### 5.3 Technical Limitation in Phase 1
-- **Migration Requirement:** Enabling HPPS on an existing site with seeded comment records does not immediately migrate historical progress rows without running Sensei's migration routine.
-- Directly flipping settings without migration leaves HPPS tables empty and corrupts read consistency.
-- **Phase 1 Strategy:**
-  - `tests/compare-storage.php` is committed as a test scaffold and diagnostic script displaying all three storage settings.
-  - The formal comparison test will be executed as a follow-up for #3 using a clean twin site created with HPPS and synchronization enabled before seeding data.
+### 5.3 Comparison Tool (`tests/compare-storage.php`) and Pure Tests
+- **Migration Warning:** Enabling HPPS on an existing site with seeded comment records triggers or requires table population/migration and alters what Sensei reads. Never enable HPPS on the main local Learn development site.
+- **Two Modes in `tests/compare-storage.php`:**
+  - `dump` mode (inside WordPress via WP-CLI `wp eval-file`): Reads `sensei-settings` (`experimental_progress_storage`, `experimental_progress_storage_synchronization`, `experimental_progress_storage_repository`), resolves the test courses (`learn-link-test-course` and `learn-link-test-foundations`, falling back to published `course` posts by ID ascending), calls `Reader\read_course( $user_id, $course_id )` across the 5 representative seeded learners (`learnlink-learner-04`, `07`, `11`, `14`, and `17`), and emits JSON to a file or stdout.
+  - `compare <a.json> <b.json>` mode (pure PHP CLI, no WordPress required): Uses `tests/lib.php` to verify all 5 representative learners are present and compares the decoded dumps field by field across courses, lessons, and quizzes while ignoring volatile `generated_at` timestamps and the `storage` settings header. Reports exact dot/bracket field paths for any mismatch (for example `learners.learnlink-learner-07.courses[0].status`).
+- **Pure Unit Suite:** `php learn/learn-progress-api/tests/test-compare-storage-pure.php` verifies identical dumps, ignored `generated_at` / `storage` header differences, missing learners, empty course arrays, and exact diff path reporting without requiring WordPress.
+
+### 5.4 Disposable Twin-Site Verification Procedure and Observed Results (#3)
+Comparison verification was executed on a disposable WordPress Studio site running **WordPress 7.1.5**, **PHP 8.4**, and **Sensei LMS 4.27.0** (never enable HPPS on the main working Learn site):
+
+1. Create a fresh disposable WordPress site and install **Sensei LMS 4.27.0** plus `learn-progress-api`.
+2. Before running `seed/seed-learners.php`, enable HPPS + dual-write synchronization (`experimental_progress_storage = true`, `experimental_progress_storage_synchronization = true`), ensure Sensei's custom HPPS tables (`sensei_lms_progress`, `sensei_lms_quiz_submissions`, `sensei_lms_quiz_answers`, `sensei_lms_quiz_grades`) are created via `Sensei\Internal\Installer\Schema::create_tables()` with `sensei_feature_flag_tables_based_progress` active, and keep `experimental_progress_storage_repository = 'comments'` during CLI seeding so `Comment_Reading_Aggregate_Quiz_Progress_Repository::save()` dual-writes course, lesson, and quiz submission/grade records to both `wp_comments` and the HPPS custom tables.
+   - Verified database row counts after `seed/seed-learners.php`: `sensei_lms_progress = 146` (`course`, `lesson`, and `quiz` rows), `sensei_lms_quiz_submissions = 36`, `sensei_lms_quiz_answers = 50`, `sensei_lms_quiz_grades = 43`, and `sensei_comments = 110`.
+3. Switch `experimental_progress_storage_repository` to `'custom_tables'` (resolving `Progress_Storage_Configuration` to `tables` backend) and export the HPPS dump:
+   ```bash
+   wp eval-file wp-content/plugins/learn-progress-api/tests/compare-storage.php dump dump-custom-tables.json
+   ```
+4. Switch `experimental_progress_storage = false` and `experimental_progress_storage_repository = 'comments'` (resolving to `comments` backend) and export the comments baseline dump:
+   ```bash
+   wp eval-file wp-content/plugins/learn-progress-api/tests/compare-storage.php dump dump-comments.json
+   ```
+5. Compare both JSON dumps in pure PHP CLI:
+   ```bash
+   php learn/learn-progress-api/tests/compare-storage.php compare dump-custom-tables.json dump-comments.json
+   ```
+   - Observed result across `learnlink-learner-04` (`0%`), `07` (`50%` / `33%`), `11` (`13%`, failed quiz), `14` (`50%`, ungraded quiz), and `17` (`100%` / `100%`, complete with manual 90% quiz grade): **`ALL PASS (18 checks)`** (`0` field differences).
+6. Delete the disposable site after capturing evidence.
+
+### 5.5 Production Storage Question (`WordPress/Learn#3732`)
+- **Production Learn repository status:** answered in `WordPress/Learn#3732` on 17 November 2026. `experimental_progress_storage` and its synchronization are off and the repository is `comments`, so learn.wordpress.org reads the comment storage, on the latest Sensei LMS. That is the store the team tested first, and 5.4 shows the tables give the same answer if that ever changes.

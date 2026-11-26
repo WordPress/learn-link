@@ -310,11 +310,12 @@ function consent_page( array $request ) {
 	$html .= '<button type="submit" name="decision" value="deny">' . esc_html__( 'Deny', 'wporg-learn' ) . '</button>';
 	$html .= '</form>';
 
-	return document( 200, $html );
+	return document( 200, $html, __( 'Share your Learn progress?', 'wporg-learn' ) );
 }
 
 /**
- * A page with one message.
+ * A page with one message. Every such page reports a problem, so the message is an alert that a
+ * screen reader reads out at once.
  *
  * @param int    $status  The HTTP status.
  * @param string $message The message.
@@ -322,23 +323,36 @@ function consent_page( array $request ) {
  * @return array The response.
  */
 function page( $status, $message ) {
-	return document( $status, '<p>' . esc_html( $message ) . '</p>' );
+	$heading = __( 'Something went wrong', 'wporg-learn' );
+
+	return document( $status, '<h1>' . esc_html( $heading ) . '</h1><p role="alert">' . esc_html( $message ) . '</p>', $heading );
 }
 
 /**
  * A whole HTML document of its own, without the theme, so no third-party script runs beside the form.
  *
+ * The page has the site's language, a title of its own and one main region, and every button and
+ * link shows where the keyboard focus is.
+ *
  * @param int    $status The HTTP status.
  * @param string $body   The escaped body.
+ * @param string $title  The page's own title, before the site's name. Optional.
  *
  * @return array The response.
  */
-function document( $status, $body ) {
+function document( $status, $body, $title = '' ) {
+	$site = __( 'Learn WordPress', 'wporg-learn' );
+
+	if ( '' !== $title ) {
+		/* translators: 1: The page's own title. 2: The site's name, Learn WordPress. */
+		$site = sprintf( __( '%1$s - %2$s', 'wporg-learn' ), $title, $site );
+	}
+
 	$html  = '<!doctype html><html ' . get_language_attributes() . '><head><meta charset="utf-8">';
 	$html .= '<meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">';
-	$html .= '<title>' . esc_html__( 'Learn WordPress', 'wporg-learn' ) . '</title>';
-	$html .= '<style>body{font-family:sans-serif;line-height:1.5;max-width:36em;margin:2em auto;padding:0 1em}button{font:inherit;padding:.5em 1.5em}</style>';
-	$html .= '</head><body>' . $body . '</body></html>';
+	$html .= '<title>' . esc_html( $site ) . '</title>';
+	$html .= '<style>body{font-family:sans-serif;line-height:1.5;max-width:36em;margin:2em auto;padding:0 1em}button{font:inherit;padding:.5em 1.5em}button:focus-visible,a:focus-visible{outline:3px solid;outline-offset:2px}</style>';
+	$html .= '</head><body><main>' . $body . '</main></body></html>';
 
 	return array(
 		'status'   => $status,
