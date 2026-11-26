@@ -30,8 +30,11 @@ class WPCPM_Learn_Progress {
 	const ACTION_ALLOW    = 'wpcpm_learn_allow';
 
 	// Keep state values and timeouts within uninstall.php's Learn transient sweep.
-	const STATE_PREFIX = 'wpcpm_learn_state_';
-	const FLASH        = 'learn';
+	const STATE_PREFIX     = 'wpcpm_learn_state_';
+	const OUTAGE_TRANSIENT = 'wpcpm_learn_card_outage';
+	// Standalone suites may load this class without WordPress time constants.
+	const OUTAGE_TTL       = 300;
+	const FLASH            = 'learn';
 
 	/**
 	 * Start the Learn Link hooks.
@@ -377,7 +380,12 @@ class WPCPM_Learn_Progress {
 			return array();
 		}
 
+		if ( self::learn_is_out() ) {
+			return self::cached_structure_for( $course_id );
+		}
+
 		$structure = WPCPM_Learn::structure( $course_id );
+		self::remember_learn_outage( $structure );
 
 		return is_array( $structure ) ? $structure : array();
 	}
@@ -395,6 +403,10 @@ class WPCPM_Learn_Progress {
 			return '';
 		}
 
+		if ( self::learn_is_out() ) {
+			return self::cached_course_title_for( $course_id );
+		}
+
 		$url = self::course_url_for( $course_id );
 
 		if ( '' === $url ) {
@@ -402,10 +414,39 @@ class WPCPM_Learn_Progress {
 		}
 
 		$course = WPCPM_Learn::resolve( $url );
+		self::remember_learn_outage( $course );
 
 		return is_array( $course ) && isset( $course['title'] )
 			? trim( (string) $course['title'] )
 			: '';
+	}
+
+	/**
+	 * Whether a recent card read established that Learn cannot be reached.
+	 *
+	 * The public course reader deliberately does not cache failures because its
+	 * editing screens should retry. A Student Report Card is different: without
+	 * this short circuit, one outage costs its full HTTP timeout for every course
+	 * and every page view.
+	 *
+	 * @return bool
+	 */
+	private static function learn_is_out() {
+		return false !== get_transient( self::OUTAGE_TRANSIENT );
+	}
+
+	/**
+	 * Pause card reads briefly after a transport or HTTP failure from Learn.
+	 *
+	 * Bad data and a missing course are not outages. They remain scoped to the
+	 * requested resource and must not prevent another course from being read.
+	 *
+	 * @param mixed $result A result returned by WPCPM_Learn.
+	 */
+	private static function remember_learn_outage( $result ) {
+		if ( is_wp_error( $result ) && 'wpcpm_learn_unreachable' === $result->get_error_code() ) {
+			set_transient( self::OUTAGE_TRANSIENT, 1, self::OUTAGE_TTL );
+		}
 	}
 
 	/**

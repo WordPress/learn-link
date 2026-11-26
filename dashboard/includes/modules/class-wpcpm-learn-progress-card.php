@@ -97,9 +97,9 @@ class WPCPM_Learn_Progress_Card {
 		?>
 		<p class="wpcpm-learn__notice wpcpm-learn__identity-notice" role="status">
 			<?php
-			/* translators: 1: Current WordPress.org username on the Student Report Card, 2: Username verified by Learn. */
 			echo esc_html(
 				sprintf(
+					/* translators: 1: Current WordPress.org username on the Student Report Card, 2: Username verified by Learn. */
 					__( "This Student Report Card's username (@%1\$s) no longer matches the Learn account it was connected with (@%2\$s). The connection is kept.", 'wpcredits-program-manager' ),
 					$known,
 					$verified
@@ -151,7 +151,7 @@ class WPCPM_Learn_Progress_Card {
 			return;
 		}
 		?>
-		<p><?php /* translators: %s: Learn connection date. */ echo esc_html( sprintf( __( 'Connected on %s. You have not started the course yet.', 'wpcredits-program-manager' ), $connected_at ) ); ?></p>
+		<p><?php /* translators: %s: Learn connection date. */ echo esc_html( sprintf( __( 'Connected on %1$s. You have not started the course yet.', 'wpcredits-program-manager' ), $connected_at ) ); ?></p>
 		<?php
 	}
 
@@ -172,7 +172,7 @@ class WPCPM_Learn_Progress_Card {
 			<?php
 		} else {
 			?>
-			<p><?php /* translators: %s: Learn connection withdrawal date. */ echo esc_html( sprintf( __( 'This connection was withdrawn on %s. Contact a program Administrator if you think this is a mistake.', 'wpcredits-program-manager' ), $withdrawn_at ) ); ?></p>
+			<p><?php /* translators: %s: Learn connection withdrawal date. */ echo esc_html( sprintf( __( 'This connection was withdrawn on %1$s. Contact a program Administrator if you think this is a mistake.', 'wpcredits-program-manager' ), $withdrawn_at ) ); ?></p>
 			<?php
 		}
 
@@ -194,7 +194,7 @@ class WPCPM_Learn_Progress_Card {
 			self::render_progress( $data, $structure, $ctx );
 			$updated_at = self::updated_at( $data );
 			?>
-			<p><?php /* translators: %s: Date and time of the cached Learn progress. */ echo esc_html( sprintf( __( 'Learn did not answer just now. These are your results as of %s.', 'wpcredits-program-manager' ), self::format_datetime( $updated_at ) ) ); ?></p>
+			<p><?php /* translators: %s: Date and time of the cached Learn progress. */ echo esc_html( sprintf( __( 'Learn did not answer just now. These are your results as of %1$s.', 'wpcredits-program-manager' ), self::format_datetime( $updated_at ) ) ); ?></p>
 			<?php
 			self::render_last_updated( $data );
 			self::render_connected_footer();
@@ -228,7 +228,7 @@ class WPCPM_Learn_Progress_Card {
 			<?php
 		} else {
 			?>
-			<p><?php /* translators: %s: Course completion date. */ echo esc_html( sprintf( __( 'Completed on %s.', 'wpcredits-program-manager' ), $completed_date ) ); ?></p>
+			<p><?php /* translators: %s: Course completion date. */ echo esc_html( sprintf( __( 'Completed on %1$s.', 'wpcredits-program-manager' ), $completed_date ) ); ?></p>
 			<?php
 		}
 		self::render_progress( $data, $structure, $ctx );
@@ -274,9 +274,9 @@ class WPCPM_Learn_Progress_Card {
 					continue;
 				endif;
 				?>
-				<progress class="wpcpm-learn__bar" aria-labelledby="<?php echo esc_attr( $heading_id ); ?>" max="100" value="<?php echo esc_attr( $percent ); ?>"><?php /* translators: %d: Course completion percentage. */ echo esc_html( sprintf( __( '%d%% of the course', 'wpcredits-program-manager' ), $percent ) ); ?></progress>
-				<p class="wpcpm-learn__percent"><?php /* translators: %d: Course completion percentage. */ echo esc_html( sprintf( __( '%d%%', 'wpcredits-program-manager' ), $percent ) ); ?></p>
-				<p><?php /* translators: 1: Number of completed lessons, 2: Total number of lessons. */ echo esc_html( sprintf( __( '%1$d of %2$d lessons', 'wpcredits-program-manager' ), $done, count( $lessons ) ) ); ?></p>
+				<progress class="wpcpm-learn__bar" aria-labelledby="<?php echo esc_attr( $heading_id ); ?>" max="100" value="<?php echo esc_attr( $percent ); ?>"><?php /* translators: %d: Course completion percentage. */ echo esc_html( sprintf( __( '%1$d%% of the course', 'wpcredits-program-manager' ), $percent ) ); ?></progress>
+				<p class="wpcpm-learn__percent"><?php /* translators: %d: Course completion percentage. */ echo esc_html( sprintf( __( '%1$d%%', 'wpcredits-program-manager' ), $percent ) ); ?></p>
+				<p><?php echo esc_html( self::lesson_count( $done, count( $lessons ) ) ); ?></p>
 				<?php
 				if ( empty( $course_structure ) ) {
 					self::render_lessons( $lessons, array() );
@@ -385,7 +385,7 @@ class WPCPM_Learn_Progress_Card {
 		?>
 		<section class="wpcpm-learn__module">
 			<h6><?php echo esc_html( $title ); ?></h6>
-			<p><?php /* translators: 1: Number of completed lessons, 2: Total lessons in the module. */ echo esc_html( sprintf( __( '%1$d of %2$d lessons', 'wpcredits-program-manager' ), $done, absint( $total ) ) ); ?></p>
+			<p><?php echo esc_html( self::lesson_count( $done, $total ) ); ?></p>
 			<?php self::render_lessons( $lessons, $structure ); ?>
 		</section>
 		<?php
@@ -471,7 +471,7 @@ class WPCPM_Learn_Progress_Card {
 		}
 
 		/* translators: %d: Learn course ID. */
-		return sprintf( __( 'Course %d', 'wpcredits-program-manager' ), absint( $course_id ) );
+		return sprintf( __( 'Course %1$d', 'wpcredits-program-manager' ), absint( $course_id ) );
 	}
 
 	/**
@@ -491,7 +491,26 @@ class WPCPM_Learn_Progress_Card {
 		}
 
 		/* translators: %d: Learn lesson ID. */
-		return sprintf( __( 'Lesson %d', 'wpcredits-program-manager' ), $lesson_id );
+		return sprintf( __( 'Lesson %1$d', 'wpcredits-program-manager' ), $lesson_id );
+	}
+
+	/**
+	 * Translate one completed-of-total lesson count with the total as the plural.
+	 *
+	 * @param int $done  Number of completed lessons.
+	 * @param int $total Total number of lessons.
+	 * @return string
+	 */
+	private static function lesson_count( $done, $total ) {
+		$done  = absint( $done );
+		$total = absint( $total );
+
+		return sprintf(
+			/* translators: 1: Number of completed lessons, 2: Total number of lessons. */
+			_n( '%1$d of %2$d lesson', '%1$d of %2$d lessons', $total, 'wpcredits-program-manager' ),
+			$done,
+			$total
+		);
 	}
 
 	/**
@@ -567,7 +586,7 @@ class WPCPM_Learn_Progress_Card {
 	 */
 	private static function render_last_updated( array $data ) {
 		?>
-		<p class="wpcpm-learn__updated"><?php /* translators: %s: Date and time of the last Learn progress update. */ echo esc_html( sprintf( __( 'Last updated %s', 'wpcredits-program-manager' ), self::format_datetime( self::updated_at( $data ) ) ) ); ?></p>
+		<p class="wpcpm-learn__updated"><?php /* translators: %s: Date and time of the last Learn progress update. */ echo esc_html( sprintf( __( 'Last updated %1$s', 'wpcredits-program-manager' ), self::format_datetime( self::updated_at( $data ) ) ) ); ?></p>
 		<?php
 	}
 
