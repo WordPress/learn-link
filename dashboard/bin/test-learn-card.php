@@ -12,13 +12,18 @@ if ( 'cli' !== PHP_SAPI ) {
 define( 'ABSPATH', __DIR__ . '/' );
 define( 'WPCPM_PLUGIN_DIR', dirname( __DIR__ ) . '/' );
 
-$GLOBALS['wpcpm_card_settings']        = array();
-$GLOBALS['wpcpm_card_current_user_id'] = 0;
-$GLOBALS['wpcpm_card_title_reads']     = 0;
-$GLOBALS['wpcpm_card_meta']            = array();
-$GLOBALS['wpcpm_card_flash']           = '';
-$GLOBALS['wpcpm_card_refresh_calls']   = array();
-$GLOBALS['wpcpm_card_can_manage']      = false;
+$GLOBALS['wpcpm_card_settings']         = array();
+$GLOBALS['wpcpm_card_current_user_id']  = 0;
+$GLOBALS['wpcpm_card_title_reads']      = 0;
+$GLOBALS['wpcpm_card_meta']             = array();
+$GLOBALS['wpcpm_card_flash']            = '';
+$GLOBALS['wpcpm_card_refresh_calls']    = array();
+$GLOBALS['wpcpm_card_can_manage']       = false;
+$GLOBALS['wpcpm_card_structure_calls']  = array();
+$GLOBALS['wpcpm_card_structures']       = array();
+$GLOBALS['wpcpm_card_resolve_calls']    = array();
+$GLOBALS['wpcpm_card_resolved_courses'] = array();
+$GLOBALS['wpcpm_card_transients']       = array();
 
 /**
  * Minimal WordPress user for the isolated panel test.
@@ -110,6 +115,30 @@ class WPCPM_Flash {
  * Existing Learn structure helper stand-in.
  */
 class WPCPM_Learn {
+	public static function slug( $url ) {
+		$path = (string) parse_url( (string) $url, PHP_URL_PATH );
+
+		return 1 === preg_match( '#^/course/([^/]+)/?$#', $path, $matches ) ? $matches[1] : '';
+	}
+
+	public static function structure( $course_id ) {
+		$course_id = (int) $course_id;
+		$GLOBALS['wpcpm_card_structure_calls'][] = $course_id;
+
+		return isset( $GLOBALS['wpcpm_card_structures'][ $course_id ] )
+			? $GLOBALS['wpcpm_card_structures'][ $course_id ]
+			: new WP_Error( 'wpcpm_learn_unreachable' );
+	}
+
+	public static function resolve( $url ) {
+		$url = (string) $url;
+		$GLOBALS['wpcpm_card_resolve_calls'][] = $url;
+
+		return isset( $GLOBALS['wpcpm_card_resolved_courses'][ $url ] )
+			? $GLOBALS['wpcpm_card_resolved_courses'][ $url ]
+			: new WP_Error( 'wpcpm_learn_unreachable' );
+	}
+
 	/**
 	 * Find a lesson title across the plain module list returned by structure().
 	 *
@@ -129,6 +158,19 @@ class WPCPM_Learn {
 		}
 
 		return '';
+	}
+}
+
+class WPCPM_Program {
+	public static $course_ids = array();
+	public static $course_urls = array();
+
+	public static function course_ids() {
+		return self::$course_ids;
+	}
+
+	public static function course_url( $status ) {
+		return isset( self::$course_urls[ (string) $status ] ) ? self::$course_urls[ (string) $status ] : '';
 	}
 }
 
@@ -169,6 +211,12 @@ function get_user_meta( $user_id, $key, $single = false ) {
 	return isset( $GLOBALS['wpcpm_card_meta'][ (int) $user_id ][ (string) $key ] )
 		? $GLOBALS['wpcpm_card_meta'][ (int) $user_id ][ (string) $key ]
 		: '';
+}
+
+function get_transient( $key ) {
+	return isset( $GLOBALS['wpcpm_card_transients'][ (string) $key ] )
+		? $GLOBALS['wpcpm_card_transients'][ (string) $key ]
+		: false;
 }
 
 /**
@@ -345,6 +393,18 @@ function wpcpm_card_cached_fixture( $filename ) {
 	return $data;
 }
 
+/**
+ * Read the normalized three-module fixture used by the renderer.
+ *
+ * @return array
+ */
+function wpcpm_card_structure_fixture() {
+	$path = WPCPM_PLUGIN_DIR . 'bin/fixtures/learn-structure-3-modules.json';
+	$data = json_decode( (string) file_get_contents( $path ), true );
+
+	return is_array( $data ) ? $data : array();
+}
+
 $wpcpm_card_html = WPCPM_Learn_Progress_Card::render(
 	'in_progress',
 	array(),
@@ -411,6 +471,22 @@ $wpcpm_card_nothing_started = WPCPM_Learn_Progress_Card::render(
 
 wpcpm_card_check( 'nothing started names the connection date', false !== strpos( $wpcpm_card_nothing_started, 'Connected on October 16, 2026.' ), true );
 wpcpm_card_check( 'nothing started has its own message', false !== strpos( $wpcpm_card_nothing_started, 'You have not started the course yet.' ), true );
+
+$wpcpm_card_nothing_started_missing = WPCPM_Learn_Progress_Card::render(
+	'nothing_started',
+	array(
+		'courses' => array(
+			297853 => array( 'status' => 'not-started' ),
+		),
+	),
+	array(),
+	array(
+		'course_titles'    => array( 123456 => 'Foundation course' ),
+		'expected_courses' => array( 297853, 123456 ),
+	)
+);
+wpcpm_card_check( 'nothing started keeps an omitted override course title', false !== strpos( $wpcpm_card_nothing_started_missing, '<h5>Foundation course</h5>' ), true );
+wpcpm_card_check( 'nothing started explains an omitted override course', false !== strpos( $wpcpm_card_nothing_started_missing, 'This course is not part of your track on Learn.' ), true );
 
 $wpcpm_card_nothing_started_dateless = WPCPM_Learn_Progress_Card::render( 'nothing_started', array(), array(), array() );
 wpcpm_card_check( 'nothing started without a date uses a complete dateless sentence', false !== strpos( $wpcpm_card_nothing_started_dateless, 'You are connected, but you have not started the course yet.' ), true );
@@ -530,16 +606,47 @@ wpcpm_card_check( 'in progress counts completed lessons', false !== strpos( $wpc
 wpcpm_card_check( 'in progress names the update time', false !== strpos( $wpcpm_card_in_progress, 'Last updated October 18, 2026, 09:12' ), true );
 wpcpm_card_check( 'in progress explains who can withdraw the connection', false !== strpos( $wpcpm_card_in_progress, 'This connection lasts for the program. Only a program Administrator can withdraw it.' ), true );
 wpcpm_card_check( 'the connection footer does not send a student to a mentor', false === strpos( $wpcpm_card_in_progress, 'mentor' ), true );
-wpcpm_card_check( 'lesson table has scoped headings', 3, substr_count( $wpcpm_card_in_progress, '<th scope="col">' ) );
+wpcpm_card_check( 'grouped lesson tables have scoped headings', 6, substr_count( $wpcpm_card_in_progress, '<th scope="col">' ) );
 wpcpm_card_check( 'lesson title comes from structure', false !== strpos( $wpcpm_card_in_progress, '>Introduction</th>' ), true );
 wpcpm_card_check( 'lesson titles use the existing WPCPM_Learn helper', $GLOBALS['wpcpm_card_title_reads'] > 0, true );
 wpcpm_card_check( 'missing lesson title has a fallback', false !== strpos( $wpcpm_card_in_progress, '>Lesson 14</th>' ), true );
+wpcpm_card_check( 'a named module is rendered as its own group', false !== strpos( $wpcpm_card_in_progress, '<h6>Theme development</h6>' ), true );
+wpcpm_card_check( 'a lesson outside the structure is grouped separately', false !== strpos( $wpcpm_card_in_progress, '<h6>Other lessons</h6>' ), true );
 wpcpm_card_check( 'passed quiz shows its grade and pass mark', false !== strpos( $wpcpm_card_in_progress, '>85%, passed (pass mark 70%)</td>' ), true );
 wpcpm_card_check( 'failed quiz shows its grade and pass mark', false !== strpos( $wpcpm_card_in_progress, '>40%, failed (pass mark 70%)</td>' ), true );
 wpcpm_card_check( 'graded quiz shows its grade', false !== strpos( $wpcpm_card_in_progress, '>50%, graded</td>' ), true );
 wpcpm_card_check( 'ungraded quiz says it is waiting', false !== strpos( $wpcpm_card_in_progress, '>Waiting to be graded</td>' ), true );
 wpcpm_card_check( 'untaken quiz has its own result', false !== strpos( $wpcpm_card_in_progress, '>Not taken</td>' ), true );
 wpcpm_card_check( 'lesson title is escaped', false === strpos( $wpcpm_card_in_progress, '<script' ), true );
+
+$wpcpm_card_three_modules = wpcpm_card_structure_fixture();
+$wpcpm_card_fixture_data  = wpcpm_card_cached_fixture( 'learn-progress-in-progress.json' );
+$wpcpm_card_grouped       = WPCPM_Learn_Progress_Card::render(
+	'in_progress',
+	$wpcpm_card_fixture_data,
+	array( 297853 => $wpcpm_card_three_modules ),
+	array( 'course_titles' => array( 297853 => 'Developer Track' ) )
+);
+wpcpm_card_check( 'the fixture renders all three named modules', substr_count( $wpcpm_card_grouped, 'class="wpcpm-learn__module"' ), 4 );
+wpcpm_card_check( 'the first module counts its completed lessons', false !== strpos( $wpcpm_card_grouped, '<h6>Orientation</h6>' ) && false !== strpos( $wpcpm_card_grouped, '>3 of 3 lessons</p>' ), true );
+wpcpm_card_check( 'the project module counts only completed lessons', false !== strpos( $wpcpm_card_grouped, '<h6>Contribution project</h6>' ) && false !== strpos( $wpcpm_card_grouped, '>1 of 3 lessons</p>' ), true );
+wpcpm_card_check( 'the final module title is escaped', false === strpos( $wpcpm_card_grouped, '<script' ), true );
+wpcpm_card_check( 'a fixture lesson outside every module goes under Other lessons', false !== strpos( $wpcpm_card_grouped, '<h6>Other lessons</h6>' ) && false !== strpos( $wpcpm_card_grouped, '>Lesson 297908</th>' ), true );
+
+$wpcpm_card_flat = WPCPM_Learn_Progress_Card::render( 'in_progress', $wpcpm_card_progress_data, array(), $wpcpm_card_context );
+wpcpm_card_check( 'missing structure keeps the flat lesson table', false === strpos( $wpcpm_card_flat, 'wpcpm-learn__module' ) && false !== strpos( $wpcpm_card_flat, '>Lesson 11</th>' ), true );
+
+$wpcpm_card_missing_override = WPCPM_Learn_Progress_Card::render(
+	'in_progress',
+	$wpcpm_card_progress_data,
+	array(),
+	array(
+		'course_titles'    => array( 123456 => 'Foundation course' ),
+		'expected_courses' => array( 297853, 123456 ),
+	)
+);
+wpcpm_card_check( 'an omitted override course keeps its title', false !== strpos( $wpcpm_card_missing_override, '<h5>Foundation course</h5>' ), true );
+wpcpm_card_check( 'an omitted override course explains why it is absent', false !== strpos( $wpcpm_card_missing_override, 'This course is not part of your track on Learn.' ), true );
 
 $wpcpm_card_never_enrolled_data = array(
 	'generated_at' => gmmktime( 9, 12, 0, 10, 18, 2026 ),
@@ -710,11 +817,23 @@ $wpcpm_card_fresh_cache['fetched_at']                                = time();
 $GLOBALS['wpcpm_card_meta'][42][ WPCPM_Learn_Progress::META_CACHE ]  = $wpcpm_card_fresh_cache;
 $GLOBALS['wpcpm_card_meta'][42][ WPCPM_Learn_Progress::META_CONNECTED ] = gmmktime( 9, 0, 0, 10, 16, 2026 );
 $GLOBALS['wpcpm_card_refresh_calls']                                 = array();
+$GLOBALS['wpcpm_card_structures'][297853]                            = $wpcpm_card_three_modules;
+$GLOBALS['wpcpm_card_resolved_courses']['https://learn.wordpress.org/course/developer-track/'] = array(
+	'id'    => 297853,
+	'title' => 'Developer Track',
+);
+WPCPM_Program::$course_ids = array( 'Developer Track' => 297853 );
+WPCPM_Program::$course_urls = array( 'Developer Track' => 'https://learn.wordpress.org/course/developer-track/' );
+$GLOBALS['wpcpm_card_structure_calls'] = array();
+$GLOBALS['wpcpm_card_resolve_calls']   = array();
 $wpcpm_card_cached_panel                                             = WPCPM_Learn_Progress::panel( $wpcpm_card_student );
 
 wpcpm_card_check( 'cached panel renders the in-progress state', false !== strpos( $wpcpm_card_cached_panel, 'data-state="in_progress"' ), true );
 wpcpm_card_check( 'cached panel uses stored normalized progress', false !== strpos( $wpcpm_card_cached_panel, 'class="wpcpm-learn__percent">50%</p>' ), true );
 wpcpm_card_check( 'a fresh cache triggers no refresh', $GLOBALS['wpcpm_card_refresh_calls'], array() );
+wpcpm_card_check( 'an owner panel reads each course structure once', $GLOBALS['wpcpm_card_structure_calls'], array( 297853 ) );
+wpcpm_card_check( 'an owner panel resolves the matching course title once', $GLOBALS['wpcpm_card_resolve_calls'], array( 'https://learn.wordpress.org/course/developer-track/' ) );
+wpcpm_card_check( 'an owner panel displays cached module and course titles', false !== strpos( $wpcpm_card_cached_panel, '<h5 id="wpcpm-learn-course-297853">Developer Track</h5>' ) && false !== strpos( $wpcpm_card_cached_panel, '<h6>Orientation</h6>' ), true );
 
 $wpcpm_card_cached_examples = array(
 	'learn-progress-not-started.json' => 'nothing_started',
@@ -739,6 +858,47 @@ foreach ( $wpcpm_card_cached_examples as $wpcpm_card_fixture => $wpcpm_card_expe
 	);
 }
 
+$GLOBALS['wpcpm_card_settings']['learn_courses'] = '297853,123456';
+WPCPM_Program::$course_ids['Foundation course']  = 123456;
+WPCPM_Program::$course_urls['Foundation course'] = 'https://learn.wordpress.org/course/foundation-course/';
+$GLOBALS['wpcpm_card_resolved_courses']['https://learn.wordpress.org/course/foundation-course/'] = array(
+	'id'    => 123456,
+	'title' => 'Foundation course',
+);
+$wpcpm_card_missing_course_cache = wpcpm_card_cached_fixture( 'learn-progress-not-started.json' );
+unset( $wpcpm_card_missing_course_cache['courses'][123456] );
+$GLOBALS['wpcpm_card_meta'][42][ WPCPM_Learn_Progress::META_CACHE ] = $wpcpm_card_missing_course_cache;
+$GLOBALS['wpcpm_card_structure_calls']                              = array();
+$GLOBALS['wpcpm_card_resolve_calls']                                = array();
+$wpcpm_card_nothing_started_panel                                   = WPCPM_Learn_Progress::panel( $wpcpm_card_student );
+
+wpcpm_card_check( 'nothing-started panel explains an omitted override course', false !== strpos( $wpcpm_card_nothing_started_panel, 'This course is not part of your track on Learn.' ), true );
+wpcpm_card_check( 'nothing-started panel resolves the omitted override course title', false !== strpos( $wpcpm_card_nothing_started_panel, '<h5>Foundation course</h5>' ), true );
+wpcpm_card_check( 'nothing-started panel reads structure only for a returned course', $GLOBALS['wpcpm_card_structure_calls'], array( 297853 ) );
+wpcpm_card_check(
+	'nothing-started panel resolves returned and omitted course titles',
+	$GLOBALS['wpcpm_card_resolve_calls'],
+	array(
+		'https://learn.wordpress.org/course/developer-track/',
+		'https://learn.wordpress.org/course/foundation-course/',
+	)
+);
+
+$GLOBALS['wpcpm_card_current_user_id'] = 7;
+$GLOBALS['wpcpm_card_can_manage']      = true;
+$GLOBALS['wpcpm_card_structure_calls'] = array();
+$GLOBALS['wpcpm_card_resolve_calls']   = array();
+$wpcpm_card_nothing_started_manager    = WPCPM_Learn_Progress::panel( $wpcpm_card_student );
+
+wpcpm_card_check( 'Administrator sees an omitted course while nothing is started', false !== strpos( $wpcpm_card_nothing_started_manager, 'This course is not part of your track on Learn.' ), true );
+wpcpm_card_check( 'Administrator nothing-started view makes no structure read', $GLOBALS['wpcpm_card_structure_calls'], array() );
+wpcpm_card_check( 'Administrator nothing-started view makes no title read', $GLOBALS['wpcpm_card_resolve_calls'], array() );
+
+$GLOBALS['wpcpm_card_settings']['learn_courses'] = '297853';
+$GLOBALS['wpcpm_card_current_user_id']           = 42;
+$GLOBALS['wpcpm_card_can_manage']                = false;
+unset( WPCPM_Program::$course_ids['Foundation course'], WPCPM_Program::$course_urls['Foundation course'] );
+
 $wpcpm_card_stale_cache                                               = $wpcpm_card_fresh_cache;
 $wpcpm_card_stale_cache['fetched_at']                                 = time() - ( 7 * 3600 );
 $GLOBALS['wpcpm_card_meta'][42][ WPCPM_Learn_Progress::META_CACHE ]   = $wpcpm_card_stale_cache;
@@ -751,9 +911,19 @@ wpcpm_card_check( 'a stale owner cache still renders stored progress', false !==
 $GLOBALS['wpcpm_card_current_user_id'] = 7;
 $GLOBALS['wpcpm_card_can_manage']      = true;
 $GLOBALS['wpcpm_card_refresh_calls']   = array();
+$GLOBALS['wpcpm_card_structure_calls'] = array();
+$GLOBALS['wpcpm_card_resolve_calls']   = array();
+$GLOBALS['wpcpm_card_transients']['wpcpm_learn_structure_297853'] = $wpcpm_card_three_modules;
+$GLOBALS['wpcpm_card_transients']['wpcpm_learn_course_developer-track'] = array(
+	'id'    => 297853,
+	'title' => 'Developer Track',
+);
 $wpcpm_card_stale_manager_panel        = WPCPM_Learn_Progress::panel( $wpcpm_card_student );
 
 wpcpm_card_check( 'an Administrator viewing stale progress triggers no refresh', $GLOBALS['wpcpm_card_refresh_calls'], array() );
+wpcpm_card_check( 'an Administrator viewing another student triggers no structure read', $GLOBALS['wpcpm_card_structure_calls'], array() );
+wpcpm_card_check( 'an Administrator viewing another student triggers no title read', $GLOBALS['wpcpm_card_resolve_calls'], array() );
+wpcpm_card_check( 'an Administrator sees module and course titles already in the daily cache', false !== strpos( $wpcpm_card_stale_manager_panel, '<h5 id="wpcpm-learn-course-297853">Developer Track</h5>' ) && false !== strpos( $wpcpm_card_stale_manager_panel, '<h6>Orientation</h6>' ), true );
 wpcpm_card_check( 'an Administrator may see the stored progress picture', false !== strpos( $wpcpm_card_stale_manager_panel, 'class="wpcpm-learn__percent">50%</p>' ), true );
 wpcpm_card_check( 'an Administrator viewing connected progress sees withdrawal controls', false !== strpos( $wpcpm_card_stale_manager_panel, 'wpcpm-learn__withdraw' ), true );
 
