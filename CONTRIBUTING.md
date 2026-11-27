@@ -40,7 +40,7 @@ Branch from `trunk`. Name branches the way WordPress/Learn does: `{type}/{issue 
 
 - **PHP:** the [WordPress Coding Standards](https://developer.wordpress.org/coding-standards/wordpress-coding-standards/php/), checked with PHP_CodeSniffer. Keep everything PHP 7.4 compatible, because Learn's environment runs PHP 7.4.
 - **The Dashboard half** follows the plugin's own rules: text domain `wpcredits-program-manager`, prefix `wpcpm` or `WPCPM`, no Composer or npm, and its `bin/check-standards.sh` clean. Tests are plain PHP files in `bin/` in the plugin's style, answered from the contract's example files, never from the network.
-- **The Learn half** follows WordPress/Learn's conventions, and reads Sensei only through its public functions, never its `@internal` classes or its tables directly (section 6 of the technical guide).
+- **The Learn half** follows WordPress/Learn's conventions, and reads Sensei through its public functions, never its tables directly. The only `@internal` classes it uses are two repositories, for two facts no public function gives, only to read and only in `reader.php` (section 6 of the technical guide, [decision record 006](docs/decisions/006-sensei-public-functions.md)).
 - **Everything from Learn is untrusted:** escape it as text before printing it.
 - **Words a person reads:** US English; full product names ("Student Report Card", "Mentor Report Card", "Administrator Dashboard", "Institution Dashboard"), never a bare "Report Card"; the program's staff are "Administrators"; plain hyphens, no long dashes anywhere.
 - **Comments explain why,** and name the decision behind a rule (for example "see docs/decisions/002").
