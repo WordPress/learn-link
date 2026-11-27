@@ -1,4 +1,4 @@
-# 006. Read Sensei only through its public functions
+# 006. Read Sensei through its public functions, plus two read-only repository calls
 
 - **Status:** Accepted
 - **Date:** 2026-10-19

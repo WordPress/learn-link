@@ -45,7 +45,7 @@ Learn Link connects two WordPress sites that do not trust each other by default:
 - [003](decisions/003-where-the-learn-code-lives.md): where the Learn code lives (open).
 - [004](decisions/004-cached-pull.md): a cached pull with a nightly warmer, not webhooks.
 - [005](decisions/005-identity-key.md): what the Dashboard keys the connection on.
-- [006](decisions/006-sensei-public-functions.md): read Sensei only through its public functions.
+- [006](decisions/006-sensei-public-functions.md): read Sensei through its public functions, plus two read-only repository calls.
 - [007](decisions/007-integration-tunnel.md): the temporary tunnel for the integration day.
 
 ## Out of scope for this term
