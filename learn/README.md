@@ -4,7 +4,7 @@ A Sensei LMS extension that runs on Learn WordPress (learn.wordpress.org). Its w
 
 ## What goes here
 
-- **The read function** (Phase 1): one learner's results for one course, and the only code that touches Sensei data. Write it with Sensei's public functions only, so the same code works with both of Sensei's progress stores. [`seed/check-learners.php`](../seed/check-learners.php) is a first sketch of it.
+- **The read function** (Phase 1): one learner's results for one course, and the only code that touches Sensei data. Write it with Sensei's public functions, so the same code works with both of Sensei's progress stores, plus two read-only repository calls where no public function gives what the contract needs ([decision record 006](../docs/decisions/006-sensei-public-functions.md)). [`seed/check-learners.php`](../seed/check-learners.php) is a first sketch of it.
 - **The endpoint** `GET /wp-json/learn-progress/v1/me` (Phase 1, then with tokens in Phase 2): the token holder's own progress for the whitelisted courses, in exactly the shape of [the contract](../contract/learn-progress-v1.md).
 - **The consent screen** at `/learn-link/authorize/`, a front-end page (Phase 2).
 - **The token endpoint** `POST` and `DELETE /wp-json/learn-progress/v1/token`: the code exchange with PKCE, and withdrawal (Phase 2).
@@ -18,7 +18,7 @@ Where this code finally lives on Learn is open: see [ADR 003](../docs/decisions/
 
 The detail is in section 6 of the technical guide. In short:
 
-- Read Sensei only through its public functions. Never read its comment store or its custom tables directly, and never use the classes marked `@internal`.
+- Read Sensei through its public functions. Never read its comment store or its custom tables directly. The only classes marked `@internal` the reader may use are `Sensei()->quiz_submission_repository` and `Sensei()->course_progress_repository`, only their `get()`, and only in `inc/reader.php` (see [decision record 006](../docs/decisions/006-sensei-public-functions.md)).
 - Never call a function that writes from a read-only endpoint, for example `Sensei()->modules->get_user_module_progress()`, which saves user meta.
 - Authenticate the token inside each learn-progress route's permission callback. Never use the `determine_current_user` filter for it, or the token would work on every other route of Learn too.
 - Store only a hash of each token, and compare with `hash_equals()`.
