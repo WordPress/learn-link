@@ -9,7 +9,7 @@
 
 The Dashboard needs Learn results on three pages: the student's own Student Report Card, the Mentor Report Card and the Administrator Dashboard. Learn may refuse more than sixty reads per token per hour, and a page must never wait on Learn, or break when Learn does not answer.
 
-Learn pushing changes to the Dashboard was not chosen. Webhooks would make Learn hold the Dashboard's address and a credential for it, send personal data out without being asked, and retry whenever the Dashboard is down: more code on Learn, where every change is deployed by hand. Sensei's progress hooks also fire on many paths that differ between its two stores (006).
+Learn pushing changes to the Dashboard was not chosen. Webhooks would make Learn hold the Dashboard's address and a credential for it, send personal data out without being asked, and retry whenever the Dashboard is down: more code on Learn, where every change is deployed by hand.
 
 ## Decision
 

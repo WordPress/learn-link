@@ -18,7 +18,7 @@ Learn Link uses its own token. It reads its holder's own progress for the whitel
 - **Made:** 32 random bytes, encoded as 43 Base64URL characters (`Tokens\mint()`).
 - **Stored on Learn:** only its keyed hash, `hash_hmac( 'sha256', $token, wp_salt( 'auth' ) )`, on the learner's grant. The one-time code is stored the same way.
 - **Stored on the Dashboard:** sealed with the plugin's `WPCPM_Secret` (AES-256-GCM), and only its fingerprint is ever logged.
-- **Checked:** inside the permission callback of `GET /learn-progress/v1/me` and `DELETE /learn-progress/v1/token` (`Rest\authenticate()`). It never goes through `determine_current_user` and never calls `wp_set_current_user()`, so the token cannot sign anyone in or reach any other route.
+- **Checked:** on `GET /learn-progress/v1/me`, inside its permission callback (`Rest\authenticate()`). `DELETE /learn-progress/v1/token` has `__return_true` as its permission callback, and `Rest\delete_token()` looks the token up itself (`Tokens\find_grant_by_token()`), so a withdrawal does not count toward the read limit and still works on a grant already marked as revoked. The token never goes through `determine_current_user` and never calls `wp_set_current_user()`, so the token cannot sign anyone in or reach any other route.
 - **Limited:** Learn may refuse more than sixty reads per token per hour.
 
 ## Alternatives considered

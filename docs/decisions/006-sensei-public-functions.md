@@ -13,15 +13,15 @@ We asked the Sensei team in [Automattic/sensei#8336](https://github.com/Automatt
 
 ## Decision
 
-The reader, `learn/learn-progress-api/inc/reader.php`, calls only Sensei's public functions, including `Sensei_Utils::user_lesson_status()`, and never a class under `Sensei\Internal`. Every Sensei call lives in that one file. The reader only reads: it never enrolls, starts or changes anything.
+The reader, `learn/learn-progress-api/inc/reader.php`, uses Sensei's public functions, including `Sensei_Utils::user_lesson_status()`, wherever one gives what the contract needs. For two facts no public function does, it reads two of Sensei's `@internal` repositories: `Sensei()->quiz_submission_repository->get()`, to tell whether a quiz was graded, and `Sensei()->course_progress_repository->get()`, for the course's start and completion dates. Both calls only read. Every Sensei call, these two included, lives in that one file, as the Sensei team advised, so a change in a repository's interface touches one file. The reader only reads: it never enrolls, starts or changes anything.
 
-The functions it uses: `Sensei_Utils::user_lesson_status()`, `Sensei_Utils::user_completed_course()`, `Sensei_Utils::has_started_course()`, `Sensei_Quiz::get_user_quiz_grade()`, `Sensei()->lesson->lesson_quizzes()`, `Sensei_Lesson::lesson_quiz_has_questions()` and `Sensei_Learner::get_learner_term_slug()`.
+The public functions it uses: `Sensei_Utils::user_lesson_status()`, `Sensei_Utils::user_completed_course()`, `Sensei_Utils::has_started_course()`, `Sensei_Quiz::get_user_quiz_grade()`, `Sensei()->lesson->lesson_quizzes()`, `Sensei()->course->course_lessons()`, `Sensei_Lesson::lesson_quiz_has_questions()` and `Sensei_Learner::get_learner_term_slug()`. The `@internal` repositories it reads: `Sensei()->quiz_submission_repository->get()` and `Sensei()->course_progress_repository->get()`.
 
 ## Alternatives considered
 
-- **The `@internal` repositories:** they read both stores, but their interfaces may change in any release, and a break on Learn would wait for a Meta committer's manual deploy.
+- **Reading everything through the `@internal` repositories:** they read both stores, but their interfaces may change in any release, and a break on Learn would wait for a Meta committer's manual deploy. So the reader uses them only for the two facts above, and only to read.
 - **SQL on `wp_comments` or Sensei's tables:** it ties the reader to a schema and skips Sensei's own rules for status and grades.
-- **The `sensei-internal` REST namespace:** it is for Sensei's own use, at our own risk, and it needs a signed-in session.
+- **The `sensei-internal` REST namespace:** it is for Sensei's own use, at our own risk. Its course structure route is public, and the contract uses it for course names and modules (technical guide), but no route there gives a learner's own progress.
 
 ## Consequences
 
